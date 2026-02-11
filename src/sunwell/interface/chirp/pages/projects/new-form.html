@@ -1,0 +1,165 @@
+{% from "chirp/forms.html" import text_field %}
+
+{% block modal_content %}
+<div class="modal" id="new-project-modal">
+    <div class="modal-backdrop" onclick="document.getElementById('new-project-modal').remove()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Project</h2>
+            <button class="modal-close" onclick="document.getElementById('new-project-modal').remove()">
+                ×
+            </button>
+        </div>
+
+        <form hx-post="/projects/new"
+              hx-target="#new-project-modal"
+              hx-swap="outerHTML"
+              hx-indicator="#create-spinner">
+
+            {# Use Chirp's form field macros for automatic error display #}
+            <div class="field">
+                {{ text_field("name", form.name ?? "", label="Project Name",
+                              errors=errors, required=true,
+                              placeholder="My Awesome Project",
+                              attrs='autofocus maxlength="64" class="input"') }}
+                <small class="form-hint">Required, max 64 characters</small>
+            </div>
+
+            <div class="field">
+                {{ text_field("path", form.path ?? "", label="Location (Optional)",
+                              errors=errors,
+                              placeholder="~/Sunwell/projects/my-project",
+                              attrs='class="input"') }}
+                <small class="form-hint">Leave empty to use default location</small>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button"
+                        class="btn btn-ghost"
+                        onclick="document.getElementById('new-project-modal').remove()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span>Create Project</span>
+                    <span class="spinner htmx-indicator" id="create-spinner"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+}
+
+.modal-content {
+    position: relative;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--color-text);
+}
+
+.modal-content form {
+    padding: var(--space-lg);
+}
+
+.field {
+    margin-bottom: var(--space-lg);
+}
+
+.field label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+}
+
+.field input,
+.field textarea,
+.field select {
+    width: 100%;
+}
+
+.field--error input,
+.field--error textarea,
+.field--error select {
+    border-color: var(--color-error);
+}
+
+.field-error {
+    display: block;
+    margin-top: var(--space-xs);
+    color: var(--color-error);
+    font-size: 0.875rem;
+}
+
+.form-hint {
+    display: block;
+    margin-top: var(--space-xs);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-end;
+    margin-top: var(--space-xl);
+}
+</style>
+{% end %}

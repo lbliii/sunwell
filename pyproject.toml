@@ -39,6 +39,9 @@ dependencies = [
     # Ollama is default provider, uses OpenAI client for /v1 endpoint
     "openai>=1.0",
     "rosettes>=0.1.0",
+    # Chirp migration: HTML-over-the-wire framework
+    "bengal-chirp>=0.1.0",
+    "kida-templates>=0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -132,3 +135,8 @@ python-preference = "managed"
 
 # Note: Environment variables like SUNWELL_NO_GIL_WARNING=1 should be set
 # in your shell profile, not in pyproject.toml (uv doesn't support [tool.uv.env])
+
+[tool.uv.sources]
+# Local editable packages in workspace
+bengal-chirp = { path = "../chirp", editable = true }
+kida-templates = { path = "../kida", editable = true }

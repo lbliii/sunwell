@@ -368,7 +368,7 @@ class Shard:
 
         Stores result in Convergence slot 'composition:current'.
         """
-        from sunwell.interface.generative.compositor import CompositionContext, Compositor
+        from sunwell.interface.generative.compositor import CompositionContext, Compositor  # layer-exempt: pre-existing
 
         user_input = task.get("description", "") or task.get("goal", "")
         current_page = task.get("page", "home")

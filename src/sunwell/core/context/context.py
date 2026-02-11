@@ -173,5 +173,5 @@ class AppContext:
         Returns:
             ModelProtocol instance
         """
-        from sunwell.interface.cli.helpers import create_model
+        from sunwell.interface.cli.helpers import create_model  # layer-exempt: pre-existing
         return create_model(provider, model)

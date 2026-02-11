@@ -1,0 +1,129 @@
+{% block title %}Library - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="library-container">
+    <header class="page-header mb-lg">
+        <h1>📚 Library</h1>
+        <p class="text-muted">Skills, Spells, and Tools available to agents</p>
+    </header>
+
+    {# Skills Section #}
+    <section class="library-section mb-lg">
+        <div class="section-header mb-md">
+            <h2>Skills</h2>
+            <p class="text-muted">Reusable capabilities for agent tasks</p>
+        </div>
+
+        {% if skills %}
+            <div class="grid grid-2">
+                {% for skill in skills %}
+                    <div class="card library-card">
+                        <div class="card-header">
+                            <h3>{{ skill.name }}</h3>
+                            <span class="badge badge-skill">Skill</span>
+                        </div>
+                        <p class="text-muted">{{ skill.description }}</p>
+                        <div class="card-meta">
+                            <span class="category">{{ skill.category }}</span>
+                            <span class="id"><code>{{ skill.id }}</code></span>
+                        </div>
+                    </div>
+                {% end %}
+            </div>
+        {% else %}
+            <div class="empty-state card">
+                <p class="text-muted">No skills available</p>
+            </div>
+        {% end %}
+    </section>
+
+    {# Spells Section #}
+    <section class="library-section">
+        <div class="section-header mb-md">
+            <h2>Spells</h2>
+            <p class="text-muted">Complex multi-step workflows</p>
+        </div>
+
+        {% if spells %}
+            <div class="grid grid-2">
+                {% for spell in spells %}
+                    <div class="card library-card">
+                        <div class="card-header">
+                            <h3>{{ spell.name }}</h3>
+                            <span class="badge badge-spell">Spell</span>
+                        </div>
+                        <p class="text-muted">{{ spell.description }}</p>
+                        <div class="card-meta">
+                            <span class="category">{{ spell.category }}</span>
+                            <span class="id"><code>{{ spell.id }}</code></span>
+                        </div>
+                    </div>
+                {% end %}
+            </div>
+        {% else %}
+            <div class="empty-state card">
+                <p class="text-muted">No spells available</p>
+            </div>
+        {% end %}
+    </section>
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.section-header {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-md);
+}
+
+.section-header h2 {
+    margin-bottom: var(--space-xs);
+}
+
+.library-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+}
+
+.badge-skill {
+    background: var(--color-primary);
+    color: white;
+}
+
+.badge-spell {
+    background: var(--color-accent);
+    color: white;
+}
+
+.card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+    font-size: 0.875rem;
+}
+
+.category {
+    text-transform: capitalize;
+    color: var(--color-text-muted);
+}
+
+.id code {
+    font-size: 0.75rem;
+}
+</style>
+{% end %}

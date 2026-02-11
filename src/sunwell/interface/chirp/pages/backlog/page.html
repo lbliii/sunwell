@@ -1,0 +1,170 @@
+{% block title %}Backlog - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="backlog-container">
+    <header class="page-header mb-lg">
+        <div class="header-content">
+            <h1>📋 Backlog</h1>
+            <p class="text-muted">Goals and tasks for agent execution</p>
+        </div>
+        <button class="btn btn-primary" disabled>
+            + New Goal
+        </button>
+    </header>
+
+    {% if goals %}
+        <div class="goals-list">
+            {% for goal in goals %}
+                <div class="goal-card card">
+                    <div class="goal-header">
+                        <div class="goal-info">
+                            <h3>{{ goal.description }}</h3>
+                            <div class="goal-meta">
+                                <span class="status status-{{ goal.status }}">{{ goal.status }}</span>
+                                <span class="priority priority-{{ goal.priority }}">{{ goal.priority }}</span>
+                                <span class="text-muted">{{ goal.created | relative_time }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if goal.tasks_total > 0 %}
+                        <div class="goal-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: {{ (goal.tasks_completed / goal.tasks_total * 100) }}%"></div>
+                            </div>
+                            <span class="progress-text">
+                                {{ goal.tasks_completed }} / {{ goal.tasks_total }} tasks
+                            </span>
+                        </div>
+                    {% end %}
+
+                    <div class="goal-actions">
+                        <button class="btn btn-sm" disabled>View Details</button>
+                        <button class="btn btn-sm btn-ghost" disabled>Run Agent</button>
+                    </div>
+                </div>
+            {% end %}
+        </div>
+    {% else %}
+        <div class="empty-state card">
+            <div class="empty-state-icon">📋</div>
+            <h2>No Goals Yet</h2>
+            <p class="text-muted">Create a goal to start tracking tasks</p>
+            <button class="btn btn-primary" disabled>Create First Goal</button>
+        </div>
+    {% end %}
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.header-content {
+    flex: 1;
+}
+
+.goals-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.goal-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.goal-info h3 {
+    margin: 0 0 var(--space-sm) 0;
+    font-size: 1.125rem;
+}
+
+.goal-meta {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.status {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: rgba(245, 217, 91, 0.2);
+    color: var(--color-warning);
+}
+
+.status-in_progress {
+    background: rgba(91, 156, 245, 0.2);
+    color: var(--color-primary);
+}
+
+.status-completed {
+    background: rgba(91, 245, 168, 0.2);
+    color: var(--color-success);
+}
+
+.priority {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-high {
+    color: var(--color-error);
+}
+
+.priority-medium {
+    color: var(--color-warning);
+}
+
+.priority-low {
+    color: var(--color-text-muted);
+}
+
+.goal-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    transition: width var(--transition-normal);
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.goal-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: auto;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+}
+</style>
+{% end %}

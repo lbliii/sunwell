@@ -1,8 +1,9 @@
 """Main LensLoader class that coordinates all parsers."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from sunwell.contracts.fount import FountProtocol
 from sunwell.foundation.schema.models.types import LensReference
 from sunwell.foundation.core.lens import Lens
 from sunwell.foundation.errors import ErrorCode, lens_error
@@ -33,14 +34,11 @@ from sunwell.foundation.schema.loader.parsers import (
 from sunwell.foundation.schema.loader.presets import load_presets, resolve_preset
 from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 
-if TYPE_CHECKING:
-    from sunwell.features.fount.client import FountClient  # layer-exempt: TYPE_CHECKING for optional Fount integration
-
 
 class LensLoader:
     """Load lens definitions from files."""
 
-    def __init__(self, fount_client: FountClient | None = None):
+    def __init__(self, fount_client: FountProtocol | None = None):
         self.fount = fount_client
         self._presets: dict[str, dict] | None = None  # Lazy-loaded presets
 

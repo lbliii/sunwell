@@ -1,0 +1,74 @@
+{% block title %}Home - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="home-container">
+    <header class="page-header mb-lg">
+        <h1>Welcome to Sunwell Studio</h1>
+        <p class="text-muted">RAG for Judgment - Dynamic expertise retrieval for LLMs</p>
+    </header>
+
+    <section class="quick-actions mb-lg">
+        <h2 class="mb-md">Quick Actions</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>🚀 New Project</h3>
+                <p class="text-muted mb-md">Start a new Sunwell project</p>
+                <button hx-get="/projects/new-form"
+                        hx-target="#app-content"
+                        hx-push-url="true">
+                    Create Project
+                </button>
+            </div>
+
+            <div class="card">
+                <h3>📊 Observatory</h3>
+                <p class="text-muted mb-md">Visualize agent execution</p>
+                <a href="/observatory" class="btn">Open Observatory</a>
+            </div>
+
+            <div class="card">
+                <h3>🔍 DAG Viewer</h3>
+                <p class="text-muted mb-md">Explore execution graphs</p>
+                <a href="/dag" class="btn">View DAG</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="recent-projects">
+        <h2 class="mb-md">Recent Projects</h2>
+
+        {% if recent_projects %}
+            <div class="grid grid-2">
+                {% for project in recent_projects %}
+                    <a href="/projects/{{ project.id }}" class="card project-card">
+                        <h3>{{ project.name }}</h3>
+                        <p class="text-muted">{{ project.description }}</p>
+                        <small class="text-muted">Last modified: {{ project.last_modified }}</small>
+                    </a>
+                {% end %}
+            </div>
+        {% else %}
+            <div class="card">
+                <p class="text-muted">No recent projects. Create one to get started!</p>
+            </div>
+        {% end %}
+    </section>
+
+    {# SSE connection for live updates (placeholder) #}
+    <div hx-ext="sse"
+         sse-connect="/system/stream"
+         hx-disinherit="hx-target hx-swap"
+         style="display: none;">
+        <div id="notifications" sse-swap="notification" hx-target="this"></div>
+    </div>
+</div>
+{% end %}
+
+{% block scripts %}
+<script>
+    // Add smooth scroll behavior
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('✨ Sunwell Studio (Chirp + Page Convention) loaded');
+    });
+</script>
+{% end %}

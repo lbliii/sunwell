@@ -12,7 +12,7 @@ from sunwell.memory.lineage.human_detection import HumanEditDetector
 from sunwell.memory.lineage.store import LineageStore
 
 if TYPE_CHECKING:
-    from sunwell.interface.server.events import BusEvent, EventBus
+    from sunwell.interface.server.events import BusEvent, EventBus  # layer-exempt: pre-existing
 
 
 class LineageEventListener:

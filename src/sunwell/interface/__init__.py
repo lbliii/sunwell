@@ -1,10 +1,11 @@
-"""Interface domain - CLI, Server, UI primitives, Generative Interface.
+"""Interface domain - CLI, Chirp UI, UI primitives, Generative Interface.
 
 RFC-138: Module Architecture Consolidation
 
 Subpackages:
 - cli/: Command-line interface (sunwell.interface.cli)
-- server/: HTTP API for Studio (sunwell.interface.server)
+- chirp/: HTTP UI for Studio (sunwell.interface.chirp) - Chirp SSR + Pounce
+- server/: Legacy FastAPI routes (deprecated, being phased out)
 - surface/: UI primitives (sunwell.interface.surface)
 - generative/: LLM-driven interaction routing (sunwell.interface.generative)
 
@@ -18,8 +19,8 @@ from sunwell.interface.cli import cli_entrypoint, main
 # Generative interface
 from sunwell.interface.generative import IntentPipeline, analyze_with_pipeline
 
-# Server
-from sunwell.interface.server import create_app
+# Chirp UI (primary web interface)
+from sunwell.interface.chirp import create_app
 
 # Surface composition
 from sunwell.interface.surface import SurfaceComposer, compose_surface

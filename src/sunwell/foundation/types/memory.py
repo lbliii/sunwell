@@ -1,12 +1,11 @@
 """Memory-related type definitions - context budgets, retrieval results, etc."""
 
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from sunwell.memory.simulacrum.core.turn import Learning, Turn  # layer-exempt: TYPE_CHECKING for MemoryRetrievalResult field types
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,14 +71,14 @@ class MemoryRetrievalResult:
     and should be renamed to ExpertiseRetrievalResult.
     """
 
-    learnings: list[tuple[Learning, float]] = field(default_factory=list)
-    """(Learning, relevance_score) tuples."""
+    learnings: list[tuple[Any, float]] = field(default_factory=list)
+    """(Learning, relevance_score) tuples. Learning type from memory.simulacrum.core.turn."""
 
     episodes: list[tuple[Episode, float]] = field(default_factory=list)
     """(Episode, relevance_score) tuples."""
 
-    turns: list[tuple[Turn, float]] = field(default_factory=list)
-    """(Turn, relevance_score) tuples from working memory."""
+    turns: list[tuple[Any, float]] = field(default_factory=list)
+    """(Turn, relevance_score) tuples from working memory. Turn type from memory.simulacrum.core.turn."""
 
     code_chunks: list[tuple[str, float]] = field(default_factory=list)
     """(chunk_content, relevance_score) from semantic memory."""

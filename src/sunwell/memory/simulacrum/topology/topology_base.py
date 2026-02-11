@@ -57,6 +57,16 @@ class RelationType(Enum):
     UPDATES = "updates"
     """X is an update to Y. Directional: X → Y."""
 
+    # Entity relationships (Phase 2: Entity Graph)
+    MENTIONS = "mentions"
+    """Learning X mentions entity Y. Directional: X → Y."""
+
+    CO_OCCURS = "co_occurs"
+    """Entity X co-occurs with entity Y. Bidirectional."""
+
+    ALIAS_OF = "alias_of"
+    """Entity X is an alias of canonical entity Y. Directional: X → Y."""
+
 
 @dataclass(frozen=True, slots=True)
 class ConceptEdge:
@@ -98,6 +108,7 @@ class ConceptEdge:
         return self.relation in {
             RelationType.CONTRADICTS,
             RelationType.RELATES_TO,
+            RelationType.CO_OCCURS,  # Phase 2: Entity co-occurrence
         }
 
 

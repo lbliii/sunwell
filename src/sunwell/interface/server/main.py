@@ -1,7 +1,9 @@
 """FastAPI application for Studio UI (RFC-113).
 
-This is the HTTP/WebSocket server that replaces the Rust/Tauri bridge.
-All Studio communication goes through here.
+Phase 3 Migration Complete:
+- Chirp app mounted at / (handles all HTML pages)
+- FastAPI routes under /api/* (core API functionality)
+- Svelte codebase removed (migrated to Chirp + Kida + htmx)
 
 Routes are organized into modules under sunwell/server/routes/:
 - agent: Run management, event streaming (RFC-119)
@@ -15,15 +17,17 @@ Routes are organized into modules under sunwell/server/routes/:
 - memory: Memory, session tracking (RFC-084, RFC-120)
 - surface: Surface composition, home (RFC-072, RFC-080)
 - misc: Shell, files, health, security, etc.
+
+TODO: Gradually deprecate /api/* routes that are no longer needed.
 """
 
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from sunwell.interface.chirp import create_app as create_chirp_app
 from sunwell.interface.server.routes import (
     agent_router,
     backlog_router,
@@ -42,13 +46,16 @@ from sunwell.interface.server.routes import (
 )
 
 
-def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> FastAPI:
+def create_app(
+    *,
+    dev_mode: bool = False,
+    enable_chirp: bool = True,
+) -> FastAPI:
     """Create FastAPI application.
 
     Args:
-        dev_mode: If True, enable CORS for Vite dev server on :5173.
-                  If False, serve static Svelte build.
-        static_dir: Path to static files (Svelte build). If None, uses default.
+        dev_mode: If True, enable CORS for development.
+        enable_chirp: If True, mount Chirp app at / (default: True)
 
     Returns:
         Configured FastAPI application.
@@ -59,65 +66,41 @@ def create_app(*, dev_mode: bool = False, static_dir: Path | None = None) -> Fas
         version="0.1.0",
     )
 
-    # Register all route modules
-    app.include_router(agent_router)
-    app.include_router(project_router)
-    app.include_router(backlog_router)
-    app.include_router(lineage_router)
-    app.include_router(recovery_router)
-    app.include_router(dag_router)
-    app.include_router(coordinator_router)
-    app.include_router(demo_router)
-    app.include_router(writer_router)
-    app.include_router(memory_router)
-    app.include_router(session_router)
-    app.include_router(surface_router)
-    app.include_router(workspace_router)
-    app.include_router(misc_router)
+    # Register all route modules under /api prefix for Chirp migration
+    # This keeps FastAPI routes separate from Chirp routes
+    app.include_router(agent_router, prefix="/api")
+    app.include_router(project_router, prefix="/api")
+    app.include_router(backlog_router, prefix="/api")
+    app.include_router(lineage_router, prefix="/api")
+    app.include_router(recovery_router, prefix="/api")
+    app.include_router(dag_router, prefix="/api")
+    app.include_router(coordinator_router, prefix="/api")
+    app.include_router(demo_router, prefix="/api")
+    app.include_router(writer_router, prefix="/api")
+    app.include_router(memory_router, prefix="/api")
+    app.include_router(session_router, prefix="/api")
+    app.include_router(surface_router, prefix="/api")
+    app.include_router(workspace_router, prefix="/api")
+    app.include_router(misc_router, prefix="/api")
 
+    # Mount Chirp app at root - handles all HTML pages with SSR
+    if enable_chirp:
+        # Mount static files first (before Chirp catches all routes)
+        static_dir = Path(__file__).parent / "chirp" / "pages" / "static"
+        if static_dir.exists():
+            app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+        chirp_app = create_chirp_app()
+        app.mount("/", chirp_app)
+
+    # Optional: Enable CORS for development/testing
     if dev_mode:
-        # Development: CORS for Vite dev server (port 1420 is Tauri default)
-        # Also allow localhost variants for flexibility
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=[
-                "http://localhost:1420",
-                "http://127.0.0.1:1420",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-            ],
+            allow_origins=["http://localhost:*", "http://127.0.0.1:*"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    else:
-        # Production: Still enable CORS for localhost (common in dev/prod hybrid setups)
-        # This allows frontend dev server to work even without --dev flag
-        import os
-        if os.getenv("SUNWELL_ENABLE_CORS", "").lower() in ("1", "true", "yes"):
-            app.add_middleware(
-                CORSMiddleware,
-                allow_origins=[
-                    "http://localhost:5173",
-                    "http://127.0.0.1:5173",
-                ],
-                allow_credentials=True,
-                allow_methods=["*"],
-                allow_headers=["*"],
-            )
-        # Production: Serve Svelte static build
-        if static_dir and static_dir.exists():
-            _mount_static(app, static_dir)
 
     return app
-
-
-def _mount_static(app: FastAPI, static_dir: Path) -> None:
-    """Mount static files for production mode."""
-
-    @app.get("/")
-    async def serve_index() -> FileResponse:
-        return FileResponse(static_dir / "index.html")
-
-    # Mount static assets
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

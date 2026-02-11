@@ -22,7 +22,7 @@ from sunwell.contracts.model import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.planning.skills.types import Skill  # layer-exempt: TYPE_CHECKING for tool_from_skill
+    from sunwell.foundation.schema.models.skill import Skill
 
 logger = logging.getLogger(__name__)
 

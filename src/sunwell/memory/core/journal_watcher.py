@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from sunwell.memory.core.journal import LearningJournal
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning.learning import Learning
+    from sunwell.agent.learning.learning import Learning  # layer-exempt: pre-existing
 
 logger = logging.getLogger(__name__)
 
@@ -327,4 +327,4 @@ def create_learning_store_callback(learning_store: "LearningStore") -> LearningC
 
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning.store import LearningStore
+    from sunwell.agent.learning.store import LearningStore  # layer-exempt: pre-existing

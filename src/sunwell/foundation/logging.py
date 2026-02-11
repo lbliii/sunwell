@@ -56,7 +56,7 @@ def _get_log_directory() -> Path:
     Returns:
         Path to .sunwell/logs/ directory
     """
-    from sunwell.knowledge.project.state import resolve_state_dir  # layer-exempt: lazy import for log directory resolution
+    from sunwell.foundation.state import resolve_state_dir
 
     # Use central state resolution for the current workspace
     state = resolve_state_dir(Path.cwd())

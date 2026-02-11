@@ -1,0 +1,79 @@
+{% block title %}Memory - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="memory-container">
+    <header class="page-header mb-lg">
+        <h1>🧠 Memory</h1>
+        <p class="text-muted">Agent learnings and context</p>
+    </header>
+
+    {% if memories %}
+        <div class="memories-list">
+            {% for memory in memories %}
+                <div class="card memory-card">
+                    <div class="memory-content">{{ memory.content }}</div>
+                    <div class="memory-meta">
+                        <span class="type-badge type-{{ memory.type }}">{{ memory.type }}</span>
+                        <span class="text-muted">{{ memory.source }}</span>
+                        <span class="text-muted">{{ memory.timestamp | relative_time }}</span>
+                    </div>
+                </div>
+            {% end %}
+        </div>
+    {% else %}
+        <div class="empty-state card">
+            <div class="empty-state-icon">🧠</div>
+            <h2>No Memories</h2>
+            <p class="text-muted">Memories will appear as agents learn</p>
+        </div>
+    {% end %}
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.memories-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.memory-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.memory-content {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.memory-meta {
+    display: flex;
+    gap: var(--space-md);
+    align-items: center;
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--color-border);
+    font-size: 0.875rem;
+}
+
+.type-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.type-preference {
+    background: rgba(91, 156, 245, 0.2);
+    color: var(--color-primary);
+}
+
+.type-context {
+    background: rgba(245, 158, 91, 0.2);
+    color: var(--color-accent);
+}
+</style>
+{% end %}

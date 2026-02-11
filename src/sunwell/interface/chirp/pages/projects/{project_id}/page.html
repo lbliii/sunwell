@@ -1,0 +1,213 @@
+{% block title %}{{ project.name }} - Projects - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="project-detail-container">
+    <header class="page-header mb-lg">
+        <div class="breadcrumb">
+            <a href="/projects">Projects</a>
+            <span class="breadcrumb-sep">/</span>
+            <span>{{ project.name }}</span>
+        </div>
+
+        <div class="header-content">
+            <h1>{{ project.name }}</h1>
+            {% if project.is_default %}
+                <span class="badge badge-primary">Default</span>
+            {% end %}
+            {% if not project.valid %}
+                <span class="badge badge-error">Invalid</span>
+            {% end %}
+        </div>
+    </header>
+
+    <div class="project-info card mb-lg">
+        <h2>Project Information</h2>
+        <dl class="info-list">
+            <dt>ID</dt>
+            <dd><code>{{ project.id }}</code></dd>
+
+            <dt>Location</dt>
+            <dd><code>{{ project.root }}</code></dd>
+
+            <dt>Status</dt>
+            <dd>
+                {% if project.valid %}
+                    <span class="status-indicator status-success">Active</span>
+                {% else %}
+                    <span class="status-indicator status-error">Path not found</span>
+                {% end %}
+            </dd>
+
+            <dt>Default Project</dt>
+            <dd>{{ "Yes" if project.is_default else "No" }}</dd>
+        </dl>
+    </div>
+
+    <div class="project-actions-section">
+        <h2 class="mb-md">Actions</h2>
+        <div class="grid grid-3">
+            <div class="card action-card">
+                <h3>🚀 Run Agent</h3>
+                <p class="text-muted mb-md">Start an agent execution in this project</p>
+                <button class="btn" disabled>Coming Soon</button>
+            </div>
+
+            <div class="card action-card">
+                <h3>📊 Analyze</h3>
+                <p class="text-muted mb-md">Analyze project structure and dependencies</p>
+                <button class="btn" disabled>Coming Soon</button>
+            </div>
+
+            <div class="card action-card">
+                <h3>📝 Memory</h3>
+                <p class="text-muted mb-md">View project memory and learnings</p>
+                <button class="btn" disabled>Coming Soon</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="project-danger-zone card">
+        <h3>Danger Zone</h3>
+        <div class="danger-actions">
+            {% if not project.is_default %}
+                <button class="btn btn-ghost"
+                        hx-post="/projects/{{ project.id }}/set-default"
+                        hx-target="#app-content">
+                    Set as Default Project
+                </button>
+            {% end %}
+            <button class="btn btn-error"
+                    hx-delete="/projects/{{ project.id }}"
+                    hx-confirm="Are you sure you want to delete this project? This cannot be undone."
+                    hx-target="#app-content">
+                Delete Project
+            </button>
+        </div>
+    </div>
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    font-size: 0.875rem;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    color: var(--color-primary);
+}
+
+.breadcrumb-sep {
+    color: var(--color-text-muted);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.project-info h2 {
+    margin-bottom: var(--space-md);
+}
+
+.info-list {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: var(--space-md) var(--space-lg);
+}
+
+.info-list dt {
+    font-weight: 600;
+}
+
+.info-list dd {
+    margin: 0;
+}
+
+.info-list code {
+    font-size: 0.875rem;
+    word-break: break-all;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-indicator::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-success {
+    background: rgba(91, 245, 168, 0.1);
+    color: var(--color-success);
+}
+
+.status-success::before {
+    background: var(--color-success);
+}
+
+.status-error {
+    background: rgba(245, 91, 91, 0.1);
+    color: var(--color-error);
+}
+
+.status-error::before {
+    background: var(--color-error);
+}
+
+.project-actions-section h2 {
+    margin-bottom: var(--space-md);
+}
+
+.action-card {
+    text-align: center;
+}
+
+.action-card h3 {
+    margin-bottom: var(--space-sm);
+}
+
+.project-danger-zone {
+    border-color: var(--color-error);
+}
+
+.project-danger-zone h3 {
+    color: var(--color-error);
+    margin-bottom: var(--space-md);
+}
+
+.danger-actions {
+    display: flex;
+    gap: var(--space-md);
+}
+
+.btn-error {
+    background: var(--color-error);
+    color: white;
+}
+
+.btn-error:hover {
+    background: #d94545;
+}
+</style>
+{% end %}

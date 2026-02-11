@@ -19,7 +19,7 @@ from sunwell.agent.background.session import BackgroundSession, SessionStatus
 from sunwell.foundation.utils import safe_json_dump, safe_json_load
 
 if TYPE_CHECKING:
-    from sunwell.interface.cli.notifications import BatchedNotifier, Notifier
+    from sunwell.interface.cli.notifications import BatchedNotifier, Notifier  # layer-exempt: pre-existing
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor

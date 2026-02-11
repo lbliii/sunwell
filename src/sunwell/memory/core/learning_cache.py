@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 from sunwell.memory.core.journal import JournalEntry, LearningJournal
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning.learning import Learning
+    from sunwell.agent.learning.learning import Learning  # layer-exempt: pre-existing
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,34 @@ CREATE TABLE IF NOT EXISTS cache_metadata (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Phase 1: Entity extraction tables
+CREATE TABLE IF NOT EXISTS entities (
+    entity_id TEXT PRIMARY KEY,
+    canonical_name TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    aliases TEXT,
+    first_seen TEXT NOT NULL,
+    mention_count INTEGER DEFAULT 0,
+    confidence REAL DEFAULT 1.0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_entity_type ON entities(entity_type);
+CREATE INDEX IF NOT EXISTS idx_canonical_name ON entities(canonical_name);
+
+CREATE TABLE IF NOT EXISTS learning_entities (
+    learning_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    mention_text TEXT,
+    confidence REAL DEFAULT 1.0,
+    PRIMARY KEY (learning_id, entity_id),
+    FOREIGN KEY (learning_id) REFERENCES learnings(id),
+    FOREIGN KEY (entity_id) REFERENCES entities(entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_entities_learning ON learning_entities(learning_id);
+CREATE INDEX IF NOT EXISTS idx_learning_entities_entity ON learning_entities(entity_id);
 """
 
 
@@ -484,6 +512,205 @@ class LearningCache:
     def close(self) -> None:
         """Close any open connections (no-op with per-call connections)."""
         pass
+
+    # === Phase 1: Entity extraction methods ===
+
+    def get_entities_for_learning(self, learning_id: str) -> list[dict]:
+        """Get all entities associated with a learning.
+
+        Args:
+            learning_id: Learning ID
+
+        Returns:
+            List of entity dicts with metadata
+        """
+        conn = self._get_connection()
+        try:
+            self._ensure_schema(conn)
+
+            rows = conn.execute(
+                """
+                SELECT e.*, le.mention_text, le.confidence as mention_confidence
+                FROM entities e
+                INNER JOIN learning_entities le ON e.entity_id = le.entity_id
+                WHERE le.learning_id = ?
+                """,
+                (learning_id,),
+            ).fetchall()
+
+            return [
+                {
+                    "entity_id": row["entity_id"],
+                    "canonical_name": row["canonical_name"],
+                    "entity_type": row["entity_type"],
+                    "mention_text": row["mention_text"],
+                    "confidence": row["mention_confidence"],
+                }
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+    def get_learnings_by_entity(self, entity_name: str) -> list[str]:
+        """Get all learning IDs that mention an entity.
+
+        Args:
+            entity_name: Entity canonical name (or alias)
+
+        Returns:
+            List of learning IDs
+        """
+        conn = self._get_connection()
+        try:
+            self._ensure_schema(conn)
+
+            # Find entity by canonical name or alias
+            rows = conn.execute(
+                """
+                SELECT DISTINCT le.learning_id
+                FROM learning_entities le
+                INNER JOIN entities e ON le.entity_id = e.entity_id
+                WHERE e.canonical_name = ?
+                   OR e.aliases LIKE ?
+                """,
+                (entity_name, f'%"{entity_name}"%'),
+            ).fetchall()
+
+            return [row["learning_id"] for row in rows]
+        finally:
+            conn.close()
+
+    def add_entity(
+        self,
+        entity_id: str,
+        canonical_name: str,
+        entity_type: str,
+        aliases: list[str] | None = None,
+    ) -> bool:
+        """Add an entity to the cache.
+
+        Args:
+            entity_id: Unique entity identifier
+            canonical_name: Canonical name
+            entity_type: Type of entity (file, tech, concept, etc.)
+            aliases: Alternative names
+
+        Returns:
+            True if added, False if already exists
+        """
+        import json
+
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                self._ensure_schema(conn)
+
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO entities
+                    (entity_id, canonical_name, entity_type, aliases, first_seen)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        entity_id,
+                        canonical_name,
+                        entity_type,
+                        json.dumps(aliases or []),
+                        datetime.now().isoformat(),
+                    ),
+                )
+                added = conn.total_changes > 0
+                conn.commit()
+                return added
+            finally:
+                conn.close()
+
+    def link_learning_to_entity(
+        self,
+        learning_id: str,
+        entity_id: str,
+        mention_text: str = "",
+        confidence: float = 1.0,
+    ) -> bool:
+        """Link a learning to an entity.
+
+        Args:
+            learning_id: Learning ID
+            entity_id: Entity ID
+            mention_text: Text where entity was mentioned
+            confidence: Confidence of the link
+
+        Returns:
+            True if linked, False if already linked
+        """
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                self._ensure_schema(conn)
+
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO learning_entities
+                    (learning_id, entity_id, mention_text, confidence)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (learning_id, entity_id, mention_text, confidence),
+                )
+                added = conn.total_changes > 0
+
+                # Increment mention count
+                if added:
+                    conn.execute(
+                        """
+                        UPDATE entities
+                        SET mention_count = mention_count + 1
+                        WHERE entity_id = ?
+                        """,
+                        (entity_id,),
+                    )
+
+                conn.commit()
+                return added
+            finally:
+                conn.close()
+
+    def get_entity_stats(self) -> dict:
+        """Get entity-related statistics.
+
+        Returns:
+            Dict with entity counts and metrics
+        """
+        conn = self._get_connection()
+        try:
+            self._ensure_schema(conn)
+
+            total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+            total_links = conn.execute("SELECT COUNT(*) FROM learning_entities").fetchone()[0]
+
+            # Top entities by mention count
+            top_entities = conn.execute(
+                """
+                SELECT canonical_name, entity_type, mention_count
+                FROM entities
+                ORDER BY mention_count DESC
+                LIMIT 10
+                """,
+            ).fetchall()
+
+            return {
+                "total_entities": total_entities,
+                "total_links": total_links,
+                "top_entities": [
+                    {
+                        "name": row["canonical_name"],
+                        "type": row["entity_type"],
+                        "mentions": row["mention_count"],
+                    }
+                    for row in top_entities
+                ],
+            }
+        finally:
+            conn.close()
 
 
 # =============================================================================

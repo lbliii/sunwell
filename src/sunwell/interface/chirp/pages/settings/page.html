@@ -1,0 +1,259 @@
+{% block title %}Settings - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="settings-container">
+    <header class="page-header mb-lg">
+        <h1>Settings</h1>
+        <p class="text-muted">Configure Sunwell Studio preferences</p>
+    </header>
+
+    <div class="settings-sections">
+        {# Model Provider Section #}
+        <section class="settings-section card mb-lg">
+            <h2 class="section-title">Model Provider</h2>
+            <p class="section-description text-muted">Configure which LLM provider to use</p>
+
+            <form hx-post="/settings/provider"
+                  hx-target="#provider-status"
+                  hx-indicator="#provider-spinner">
+                <div class="form-group">
+                    <label for="provider">Provider</label>
+                    <select id="provider" name="provider" class="input">
+                        <option value="ollama" {% if settings.provider == "ollama" %}selected{% end %}>Ollama (Local)</option>
+                        <option value="anthropic" {% if settings.provider == "anthropic" %}selected{% end %}>Anthropic (Claude)</option>
+                        <option value="openai" {% if settings.provider == "openai" %}selected{% end %}>OpenAI (GPT)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="ollama-settings">
+                    <label for="ollama_base">Ollama Base URL</label>
+                    <input type="url"
+                           id="ollama_base"
+                           name="ollama_base"
+                           value="{{ settings.ollama_base }}"
+                           placeholder="http://localhost:11434"
+                           class="input">
+                </div>
+
+                <div class="form-group">
+                    <label for="ollama_model">Ollama Model</label>
+                    <input type="text"
+                           id="ollama_model"
+                           name="ollama_model"
+                           value="{{ settings.ollama_model }}"
+                           placeholder="llama3.2"
+                           class="input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Save Provider Settings
+                        <span class="spinner htmx-indicator" id="provider-spinner"></span>
+                    </button>
+                </div>
+
+                <div id="provider-status" class="status-message"></div>
+            </form>
+        </section>
+
+        {# API Keys Section #}
+        <section class="settings-section card mb-lg">
+            <h2 class="section-title">API Keys</h2>
+            <p class="section-description text-muted">Configure API keys for external providers</p>
+
+            <form hx-post="/settings/api-keys"
+                  hx-target="#keys-status"
+                  hx-indicator="#keys-spinner">
+                <div class="form-group">
+                    <label for="anthropic_key">Anthropic API Key</label>
+                    <input type="password"
+                           id="anthropic_key"
+                           name="anthropic_api_key"
+                           value="{{ settings.anthropic_api_key }}"
+                           placeholder="sk-ant-..."
+                           class="input">
+                    <small class="form-hint">Required for Claude models</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="openai_key">OpenAI API Key</label>
+                    <input type="password"
+                           id="openai_key"
+                           name="openai_api_key"
+                           value="{{ settings.openai_api_key }}"
+                           placeholder="sk-..."
+                           class="input">
+                    <small class="form-hint">Required for GPT models</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Save API Keys
+                        <span class="spinner htmx-indicator" id="keys-spinner"></span>
+                    </button>
+                </div>
+
+                <div id="keys-status" class="status-message"></div>
+            </form>
+        </section>
+
+        {# Studio Preferences Section #}
+        <section class="settings-section card mb-lg">
+            <h2 class="section-title">Studio Preferences</h2>
+            <p class="section-description text-muted">Customize Studio UI behavior</p>
+
+            <form hx-post="/settings/preferences"
+                  hx-target="#preferences-status"
+                  hx-indicator="#preferences-spinner">
+                <div class="form-group">
+                    <label for="theme">Theme</label>
+                    <select id="theme" name="theme" class="input">
+                        <option value="dark" {% if settings.theme == "dark" %}selected{% end %}>Dark</option>
+                        <option value="light" {% if settings.theme == "light" %}selected{% end %}>Light</option>
+                        <option value="auto" {% if settings.theme == "auto" %}selected{% end %}>Auto (System)</option>
+                    </select>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <input type="checkbox"
+                           id="auto_save"
+                           name="auto_save"
+                           {% if settings.auto_save %}checked{% end %}>
+                    <label for="auto_save">Auto-save changes</label>
+                </div>
+
+                <div class="form-group-checkbox">
+                    <input type="checkbox"
+                           id="show_tokens"
+                           name="show_token_counts"
+                           {% if settings.show_token_counts %}checked{% end %}>
+                    <label for="show_tokens">Show token counts</label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Save Preferences
+                        <span class="spinner htmx-indicator" id="preferences-spinner"></span>
+                    </button>
+                </div>
+
+                <div id="preferences-status" class="status-message"></div>
+            </form>
+        </section>
+
+        {# System Info Section #}
+        <section class="settings-section card">
+            <h2 class="section-title">System Information</h2>
+            <p class="section-description text-muted">Runtime environment details</p>
+
+            <dl class="info-list">
+                <dt>Sunwell Version</dt>
+                <dd><code>0.1.0</code></dd>
+
+                <dt>Python Version</dt>
+                <dd><code>3.14 (free-threaded)</code></dd>
+
+                <dt>Data Directory</dt>
+                <dd><code>~/.local/share/sunwell</code></dd>
+
+                <dt>Config File</dt>
+                <dd><code>~/.config/sunwell/config.yaml</code></dd>
+            </dl>
+        </section>
+    </div>
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.settings-sections {
+    max-width: 800px;
+}
+
+.settings-section {
+    padding: var(--space-xl);
+}
+
+.section-title {
+    margin-bottom: var(--space-sm);
+    font-size: 1.25rem;
+}
+
+.section-description {
+    margin-bottom: var(--space-lg);
+}
+
+.form-group {
+    margin-bottom: var(--space-lg);
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: var(--space-sm);
+    font-weight: 500;
+}
+
+.form-group .input,
+.form-group select {
+    width: 100%;
+}
+
+.form-hint {
+    display: block;
+    margin-top: var(--space-xs);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+}
+
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.form-group-checkbox input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
+.form-group-checkbox label {
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.form-actions {
+    margin-top: var(--space-lg);
+}
+
+.status-message {
+    margin-top: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.status-message:empty {
+    display: none;
+}
+
+.info-list {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: var(--space-md) var(--space-lg);
+}
+
+.info-list dt {
+    font-weight: 600;
+}
+
+.info-list dd {
+    margin: 0;
+}
+
+.info-list code {
+    font-size: 0.875rem;
+    word-break: break-all;
+}
+</style>
+{% end %}

@@ -1,0 +1,99 @@
+{% block title %}Coordinator - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="coordinator-container">
+    <header class="page-header mb-lg">
+        <h1>🎯 Coordinator</h1>
+        <p class="text-muted">Worker management and task distribution</p>
+    </header>
+
+    {% if workers %}
+        <div class="workers-grid grid grid-2">
+            {% for worker in workers %}
+                <div class="card worker-card">
+                    <div class="worker-header">
+                        <h3>{{ worker.name }}</h3>
+                        <span class="status-indicator status-{{ worker.status }}">
+                            {{ worker.status }}
+                        </span>
+                    </div>
+                    <dl class="worker-stats">
+                        <dt>Running</dt>
+                        <dd>{{ worker.tasks_running }}</dd>
+                        <dt>Completed</dt>
+                        <dd>{{ worker.tasks_completed }}</dd>
+                    </dl>
+                    <div class="worker-actions">
+                        <button class="btn btn-sm" disabled>View Details</button>
+                    </div>
+                </div>
+            {% end %}
+        </div>
+    {% else %}
+        <div class="empty-state card">
+            <div class="empty-state-icon">🎯</div>
+            <h2>No Workers</h2>
+            <p class="text-muted">Workers will appear when coordinator is active</p>
+        </div>
+    {% end %}
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.worker-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.worker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.worker-header h3 {
+    margin: 0;
+}
+
+.status-indicator {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: rgba(91, 245, 168, 0.2);
+    color: var(--color-success);
+}
+
+.status-idle {
+    background: rgba(136, 146, 166, 0.2);
+    color: var(--color-text-muted);
+}
+
+.worker-stats {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: var(--space-sm) var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-md);
+}
+
+.worker-stats dt {
+    font-weight: 600;
+}
+
+.worker-stats dd {
+    margin: 0;
+}
+
+.worker-actions {
+    margin-top: auto;
+}
+</style>
+{% end %}

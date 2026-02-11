@@ -31,6 +31,16 @@ from sunwell.foundation.schema.models.validator import (
     SchemaValidator,
     ValidationResult,
 )
+from sunwell.foundation.schema.models.skill import (
+    Resource,
+    Script,
+    Skill,
+    SkillRetryPolicy,
+    SkillType,
+    SkillValidation,
+    Template,
+    TrustLevel,
+)
 from sunwell.foundation.schema.models.workflow import Refiner, Workflow, WorkflowStep
 
 __all__ = [
@@ -62,4 +72,13 @@ __all__ = [
     "ValidationMethod",
     "SemanticVersion",
     "LensReference",
+    # Skill
+    "Skill",
+    "SkillType",
+    "SkillRetryPolicy",
+    "SkillValidation",
+    "TrustLevel",
+    "Script",
+    "Template",
+    "Resource",
 ]

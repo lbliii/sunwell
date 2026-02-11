@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sunwell.agent.learning.learning import Learning
+    from sunwell.agent.learning.learning import Learning  # layer-exempt: pre-existing
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class JournalEntry:
 
     def to_learning(self) -> "Learning":
         """Convert back to a Learning object."""
-        from sunwell.agent.learning.learning import Learning
+        from sunwell.agent.learning.learning import Learning  # layer-exempt: pre-existing
 
         return Learning(
             fact=self.fact,

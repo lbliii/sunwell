@@ -35,7 +35,7 @@ _GENERATION_KEYWORDS: frozenset[str] = frozenset({"generate", "create", "impleme
 """Keywords that indicate generation/creation tasks."""
 
 if TYPE_CHECKING:
-    from sunwell.features.team.store import TeamKnowledgeStore
+    from sunwell.features.team.store import TeamKnowledgeStore  # layer-exempt: pre-existing
     from sunwell.knowledge.codebase.decisions import Decision, DecisionMemory
     from sunwell.knowledge.codebase.failures import FailedApproach, FailureMemory
     from sunwell.knowledge.codebase.patterns import PatternProfile
@@ -855,7 +855,7 @@ def _load_team(
         TeamKnowledgeStore or None if not configured/available.
     """
     try:
-        from sunwell.features.team.store import TeamKnowledgeStore, get_workspace_team_dir
+        from sunwell.features.team.store import TeamKnowledgeStore, get_workspace_team_dir  # layer-exempt: pre-existing
 
         if workspace_id:
             # Workspace-scoped: check if workspace team dir exists or create it

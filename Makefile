@@ -126,15 +126,17 @@ env:
 	@python -c "import sys; ft = not sys._is_gil_enabled() if hasattr(sys, '_is_gil_enabled') else False; print('Python:', sys.version.split()[0], '(free-threaded)' if ft else '(GIL enabled - WRONG!)')"
 
 # Run all checks
-check: env
+check: env lint-layers
 	@echo "🔍 Running checks..."
 	@ruff check src/
 	@ty check src/
+	@echo "🔗 Validating hypermedia contracts..."
+	@chirp check sunwell.interface.chirp:create_app
 
-# Check architectural layer imports
+# Check architectural layer imports (strict mode + ratchet)
 lint-layers:
 	@echo "Checking layer imports..."
-	@python scripts/check_layer_imports.py --warn
+	@python scripts/check_layer_imports.py --ratchet
 
 # Run tests
 test:

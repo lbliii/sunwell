@@ -5,6 +5,8 @@ Extended with MIRA-inspired importance scoring that incorporates:
 - Behavioral signals (access patterns, mentions)
 - Temporal relevance (recency, deadlines)
 
+Phase 1 Enhancement: Optional cross-encoder reranking for improved accuracy.
+
 The learning graph tracks how learnings relate to each other:
 - Learnings with many inbound references are "hub" knowledge
 - Hub score boosts importance during retrieval
@@ -19,6 +21,7 @@ from sunwell.memory.simulacrum.core.retrieval.similarity import hybrid_score
 if TYPE_CHECKING:
     from sunwell.foundation.types.memory import Episode
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.core.reranking import CrossEncoderReranker
     from sunwell.memory.simulacrum.core.dag import ConversationDAG
     from sunwell.memory.simulacrum.core.turn import Learning
 
@@ -28,6 +31,8 @@ class PlanningRetriever:
 
     Uses semantic matching to find relevant learnings and episodes,
     categorizing them for injection into HarmonicPlanner via Convergence.
+
+    Phase 1 Enhancement: Optional cross-encoder reranking for improved accuracy.
     """
 
     def __init__(
@@ -35,6 +40,7 @@ class PlanningRetriever:
         dag: ConversationDAG,
         embedder: EmbeddingProtocol | None = None,
         episodes: list[Episode] | None = None,
+        reranker: CrossEncoderReranker | None = None,
     ) -> None:
         """Initialize planning retriever.
 
@@ -42,10 +48,12 @@ class PlanningRetriever:
             dag: Conversation DAG containing learnings
             embedder: Optional embedder for semantic matching
             episodes: Optional list of episodes for dead-end detection
+            reranker: Optional cross-encoder reranker (Phase 1)
         """
         self._dag = dag
         self._embedder = embedder
         self._episodes = episodes or []
+        self._reranker = reranker
 
     async def retrieve(
         self,
@@ -107,6 +115,25 @@ class PlanningRetriever:
 
         # Sort by score
         scored.sort(key=lambda x: -x[0])
+
+        # Phase 1: Optional cross-encoder reranking
+        if self._reranker and self._reranker.config.enabled:
+            # Rerank with cross-encoder for improved accuracy
+            import asyncio
+
+            # Calculate how many candidates to rerank
+            rerank_limit = limit_per_category * 6  # 6 categories
+            candidates_to_rerank = scored[: rerank_limit * self._reranker.config.overretrieve_multiplier]
+
+            if len(candidates_to_rerank) >= self._reranker.config.min_candidates_for_reranking:
+                # Rerank asynchronously
+                reranked = await self._reranker.rerank(
+                    goal,
+                    candidates_to_rerank,
+                    rerank_limit,
+                )
+                # Update scored list with reranked results
+                scored = reranked
 
         # Categorize
         facts: list[Learning] = []

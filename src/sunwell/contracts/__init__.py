@@ -54,6 +54,9 @@ from sunwell.contracts.execution import (
     WorkerProtocol,
 )
 
+# Fount protocol
+from sunwell.contracts.fount import FountProtocol
+
 # Domain types and protocols
 from sunwell.contracts.domain import (
     Domain,
@@ -92,6 +95,8 @@ __all__ = [
     "ToolResult",
     "ParallelExecutorProtocol",
     "WorkerProtocol",
+    # Fount
+    "FountProtocol",
     # Domain
     "DomainType",
     "ValidationResult",

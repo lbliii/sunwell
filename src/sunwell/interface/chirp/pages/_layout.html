@@ -1,0 +1,46 @@
+{# target: body #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sunwell Studio{% end %}</title>
+
+    {# CSS #}
+    <link rel="stylesheet" href="/static/css/theme.css">
+
+    {# htmx for progressive enhancement #}
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+
+    {% block head %}{% end %}
+</head>
+<body hx-boost="true" hx-target="#app-content" hx-swap="innerHTML transition:true" hx-indicator="#nav-spinner">
+    <nav class="main-nav">
+        <div class="nav-brand">
+            <h1>⚚ Sunwell</h1>
+            <span class="subtitle">Studio</span>
+        </div>
+
+        <ul class="nav-links">
+            <li><a href="/" class="{% if current_page == 'home' %}active{% end %}">Home</a></li>
+            <li><a href="/projects" class="{% if current_page == 'projects' %}active{% end %}">Projects</a></li>
+            <li><a href="/observatory" class="{% if current_page == 'observatory' %}active{% end %}">Observatory</a></li>
+            <li><a href="/dag" class="{% if current_page == 'dag' %}active{% end %}">DAG</a></li>
+            <li><a href="/writer" class="{% if current_page == 'writer' %}active{% end %}">Writer</a></li>
+            <li><a href="/backlog" class="{% if current_page == 'backlog' %}active{% end %}">Backlog</a></li>
+            <li><a href="/settings" class="{% if current_page == 'settings' %}active{% end %}">Settings</a></li>
+        </ul>
+
+        <span class="nav-indicator htmx-indicator" id="nav-spinner">
+            <span class="spinner"></span>
+        </span>
+    </nav>
+
+    <main class="container" id="app-content">
+        {% block content %}{% end %}
+    </main>
+
+    {% block scripts %}{% end %}
+</body>
+</html>

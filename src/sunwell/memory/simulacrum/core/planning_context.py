@@ -7,7 +7,7 @@ from sunwell.foundation.types.memory import Episode
 from sunwell.memory.simulacrum.core.turn import Learning
 
 if TYPE_CHECKING:
-    from sunwell.planning.naaru.convergence import Slot
+    from sunwell.planning.naaru.convergence import Slot  # layer-exempt: pre-existing
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +57,7 @@ class PlanningContext:
 
     def to_convergence_slots(self) -> list[Slot]:
         """Convert to Convergence slots for HarmonicPlanner injection."""
-        from sunwell.planning.naaru.convergence import Slot, SlotSource
+        from sunwell.planning.naaru.convergence import Slot, SlotSource  # layer-exempt: pre-existing
 
         slots: list[Slot] = []
 

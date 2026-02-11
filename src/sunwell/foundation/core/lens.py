@@ -17,8 +17,8 @@ from sunwell.foundation.schema.models.workflow import Refiner, Workflow
 from sunwell.foundation.schema.models.types import LensReference, SemanticVersion, Tier
 
 if TYPE_CHECKING:
-    from sunwell.core.models.spell import Spell  # layer-exempt: TYPE_CHECKING
-    from sunwell.planning.skills.types import Skill, SkillRetryPolicy  # layer-exempt: TYPE_CHECKING
+    from sunwell.foundation.schema.models.skill import Skill, SkillRetryPolicy
+    from sunwell.foundation.schema.models.spell import Spell
 
 
 # =============================================================================

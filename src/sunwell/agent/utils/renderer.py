@@ -174,7 +174,7 @@ class RichRenderer:
 
             from rich.console import Console
 
-            from sunwell.interface.cli.core.theme import SUNWELL_THEME, should_reduce_motion
+            from sunwell.interface.cli.core.theme import SUNWELL_THEME, should_reduce_motion  # layer-exempt: pre-existing
 
             self.console = Console(theme=SUNWELL_THEME)
             self.rich_available = True
@@ -460,7 +460,7 @@ class RichRenderer:
 
         # Format path with colors
         path_parts = data.get("path", [])
-        from sunwell.interface.cli.progress.dag_path import format_dag_path
+        from sunwell.interface.cli.progress.dag_path import format_dag_path  # layer-exempt: pre-existing
         path_text = format_dag_path(path_parts) if path_parts else path_formatted
 
         self.console.print()

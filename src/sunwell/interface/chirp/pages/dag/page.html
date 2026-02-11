@@ -1,0 +1,83 @@
+{% block title %}DAG - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="dag-container">
+    <header class="page-header mb-lg">
+        <h1>📊 DAG</h1>
+        <p class="text-muted">Execution graph visualization</p>
+    </header>
+
+    <div class="placeholder-notice card mb-lg">
+        <h3>🎨 Canvas Graph Visualization Coming Soon</h3>
+        <p class="text-muted">
+            Phase 2 will add interactive Canvas-based DAG visualization with pan/zoom,
+            node selection, and dagre layout. For now, view DAG metadata below.
+        </p>
+    </div>
+
+    {% if dags %}
+        <div class="dags-grid grid grid-2">
+            {% for dag in dags %}
+                <div class="card dag-card">
+                    <h3>{{ dag.name }}</h3>
+                    <dl class="dag-stats">
+                        <dt>Nodes</dt>
+                        <dd>{{ dag.nodes }}</dd>
+                        <dt>Edges</dt>
+                        <dd>{{ dag.edges }}</dd>
+                        <dt>Status</dt>
+                        <dd><span class="status-badge status-{{ dag.status }}">{{ dag.status }}</span></dd>
+                    </dl>
+                    <div class="dag-actions">
+                        <button class="btn btn-sm" disabled>View Graph</button>
+                        <button class="btn btn-sm btn-ghost" disabled>Export</button>
+                    </div>
+                </div>
+            {% end %}
+        </div>
+    {% else %}
+        <div class="empty-state card">
+            <div class="empty-state-icon">📊</div>
+            <h2>No DAGs</h2>
+            <p class="text-muted">Execution DAGs will appear here</p>
+        </div>
+    {% end %}
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.dag-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.dag-card h3 {
+    margin: 0;
+}
+
+.dag-stats {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: var(--space-sm) var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-md);
+}
+
+.dag-stats dt {
+    font-weight: 600;
+}
+
+.dag-stats dd {
+    margin: 0;
+}
+
+.dag-actions {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: auto;
+}
+</style>
+{% end %}
