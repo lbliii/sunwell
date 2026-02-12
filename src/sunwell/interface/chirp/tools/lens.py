@@ -116,17 +116,18 @@ def register_lens_tools(app: App) -> None:
         """
         try:
             discovery = _get_lens_discovery()
-            available = discovery.list_available()
 
+            # Get all lens files from search paths
             lenses = []
-            for lens_info in available:
-                lenses.append({
-                    "name": lens_info.name,
-                    "domain": lens_info.domain,
-                    "version": lens_info.version,
-                    "description": lens_info.description[:200] if lens_info.description else None,
-                    "path": str(lens_info.path),
-                })
+            for search_path in discovery.search_paths:
+                if search_path.exists():
+                    for lens_file in search_path.glob("*.lens"):
+                        lenses.append({
+                            "name": lens_file.stem,
+                            "path": str(lens_file),
+                            "domain": None,  # Would need to parse .lens file
+                            "description": f"Lens file: {lens_file.name}",
+                        })
 
             return {
                 "lenses": lenses,
@@ -152,29 +153,32 @@ def register_lens_tools(app: App) -> None:
         """
         try:
             discovery = _get_lens_discovery()
-
-            # Simple routing logic (this would be more sophisticated in real impl)
             command_clean = command.strip().lower().replace("::", "")
 
-            # Try exact match first
-            available = discovery.list_available()
-            for lens_info in available:
-                if lens_info.name.lower() == command_clean:
+            # Simple routing based on lens file names
+            available_lenses = []
+            for search_path in discovery.search_paths:
+                if search_path.exists():
+                    available_lenses.extend([f.stem for f in search_path.glob("*.lens")])
+
+            # Try exact match
+            for lens_name in available_lenses:
+                if lens_name.lower() == command_clean:
                     return {
                         "command": command,
-                        "lens": lens_info.name,
+                        "lens": lens_name,
                         "confidence": 1.0,
                         "reason": "Exact name match",
                     }
 
-            # Try domain match
-            for lens_info in available:
-                if lens_info.domain and command_clean in lens_info.domain.lower():
+            # Try partial match
+            for lens_name in available_lenses:
+                if command_clean in lens_name.lower():
                     return {
                         "command": command,
-                        "lens": lens_info.name,
+                        "lens": lens_name,
                         "confidence": 0.7,
-                        "reason": "Domain match",
+                        "reason": "Partial name match",
                     }
 
             return {
@@ -182,7 +186,7 @@ def register_lens_tools(app: App) -> None:
                 "lens": None,
                 "confidence": 0.0,
                 "reason": "No matching lens found",
-                "available": [l.name for l in available],
+                "available": available_lenses,
             }
 
         except Exception as e:

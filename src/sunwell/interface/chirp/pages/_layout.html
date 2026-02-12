@@ -6,9 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sunwell Studio{% end %}</title>
 
-    {# CSS #}
+    {# CSS - Load order: base → themes → design system → variants → biomorphic → springs → app-specific #}
     <link rel="stylesheet" href="/static/css/chirpui.css">
     <link rel="stylesheet" href="/static/themes/holy-light.css">
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <link rel="stylesheet" href="/static/css/themes.css">
+    <link rel="stylesheet" href="/static/css/component-variants.css">
+    <link rel="stylesheet" href="/static/css/biomorphic.css">
+    <link rel="stylesheet" href="/static/css/spring-animations.css">
     <link rel="stylesheet" href="/static/css/theme.css">
 
     {# htmx for progressive enhancement #}
@@ -18,6 +23,10 @@
     {% block head %}{% end %}
 </head>
 <body hx-boost="true" hx-target="#app-content" hx-swap="innerHTML transition:true" hx-indicator="#nav-spinner">
+    {# Command Palette - Global (Cmd/Ctrl+K) #}
+    {% import "command-palette.html" as cmd %}
+    {% call cmd.command_palette() %}{% end %}
+
     <nav class="main-nav">
         <div class="nav-brand">
             <h1><span class="icon-radiant">✦</span> Sunwell</h1>
@@ -31,6 +40,8 @@
             <li><a href="/dag" class="{% if current_page == 'dag' %}active{% end %}">DAG</a></li>
             <li><a href="/writer" class="{% if current_page == 'writer' %}active{% end %}">Writer</a></li>
             <li><a href="/backlog" class="{% if current_page == 'backlog' %}active{% end %}">Backlog</a></li>
+            <li><a href="/activity" class="{% if current_page == 'activity' %}active{% end %}">Activity</a></li>
+            <li><a href="/tools" class="{% if current_page == 'tools' %}active{% end %}">Tools</a></li>
             <li><a href="/settings" class="{% if current_page == 'settings' %}active{% end %}">Settings</a></li>
         </ul>
 

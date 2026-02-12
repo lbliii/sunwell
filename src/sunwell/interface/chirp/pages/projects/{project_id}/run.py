@@ -82,7 +82,8 @@ def post(project_id: str, goal: str = "") -> Fragment | Response:
             "projects/{project_id}/_action_status.html",
             "action_status",
             success=True,
-            message=f"Agent execution started for {project.name}! Session ID: {session.session_id}",
+            message=f"✅ Agent execution started for {project.name}!",
+            session_id=session.session_id,
         )
 
     except Exception as e:

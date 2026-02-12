@@ -105,7 +105,9 @@ def post(goal_id: str, backlog_svc: BacklogService) -> Fragment | Response:
         return Fragment(
             "backlog/goals/{goal_id}/_status.html",
             "action_status",
-            message=f"Agent execution started for goal! Session ID: {session.session_id}",
+            success=True,
+            message=f"✅ Agent execution started for goal!",
+            session_id=session.session_id,
         )
 
     except Exception as e:

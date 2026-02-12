@@ -3,49 +3,58 @@
 {% block content %}
 {% import "empty.html" as ui %}
 
-<div class="home-container">
-    <header class="page-header mb-lg">
+<div class="stack stack-xl">
+    <header class="page-header scroll-fade-in">
         <h1>Welcome to Sunwell Studio</h1>
         <p class="text-muted">RAG for Judgment - Dynamic expertise retrieval for LLMs</p>
     </header>
 
-    <section class="quick-actions mb-lg">
-        <h2 class="mb-md">Quick Actions</h2>
-        <div class="grid grid-3">
-            <div class="card">
-                <h3><span class="icon-radiant">✦</span> New Project</h3>
-                <p class="text-muted mb-md">Start a new Sunwell project</p>
-                <button hx-get="/projects/new-form"
-                        hx-target="#app-content"
-                        hx-push-url="true">
-                    Create Project
-                </button>
+    <section class="stack scroll-fade-in">
+        <h2>Quick Actions</h2>
+        <div class="grid grid-auto">
+            <div class="card card-interactive">
+                <div class="stack stack-sm">
+                    <h3><span class="icon-radiant">✦</span> New Project</h3>
+                    <p class="text-muted">Start a new Sunwell project</p>
+                    <button class="hover-scale"
+                            hx-get="/projects/new-form"
+                            hx-target="#app-content"
+                            hx-push-url="true">
+                        Create Project
+                    </button>
+                </div>
             </div>
 
-            <div class="card">
-                <h3><span class="icon-solid">◆</span> Observatory</h3>
-                <p class="text-muted mb-md">Visualize agent execution</p>
-                <a href="/observatory" class="btn">Open Observatory</a>
+            <div class="card card-interactive">
+                <div class="stack stack-sm">
+                    <h3><span class="icon-solid">◆</span> Observatory</h3>
+                    <p class="text-muted">Visualize agent execution</p>
+                    <a href="/observatory" class="btn hover-scale">Open Observatory</a>
+                </div>
             </div>
 
-            <div class="card">
-                <h3><span class="icon-hollow">◇</span> DAG Viewer</h3>
-                <p class="text-muted mb-md">Explore execution graphs</p>
-                <a href="/dag" class="btn">View DAG</a>
+            <div class="card card-interactive">
+                <div class="stack stack-sm">
+                    <h3><span class="icon-hollow">◇</span> DAG Viewer</h3>
+                    <p class="text-muted">Explore execution graphs</p>
+                    <a href="/dag" class="btn hover-scale">View DAG</a>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="recent-projects">
-        <h2 class="mb-md">Recent Projects</h2>
+    <section class="stack scroll-fade-in">
+        <h2>Recent Projects</h2>
 
         {% if recent_projects %}
-            <div class="grid grid-2">
+            <div class="grid grid-auto">
                 {% for project in recent_projects %}
-                    <a href="/projects/{{ project.id }}" class="card project-card">
-                        <h3>{{ project.name }}</h3>
-                        <p class="text-muted">{{ project.description }}</p>
-                        <small class="text-muted">Last modified: {{ project.last_modified }}</small>
+                    <a href="/projects/{{ project.id }}" class="card card-interactive project-card">
+                        <div class="stack stack-sm">
+                            <h3>{{ project.name }}</h3>
+                            <p class="text-muted">{{ project.description }}</p>
+                            <small class="text-muted">Last modified: {{ project.last_modified }}</small>
+                        </div>
                     </a>
                 {% end %}
             </div>
