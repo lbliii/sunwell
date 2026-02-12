@@ -1,0 +1,105 @@
+{# Decorative biomorphic shapes - background accents only #}
+
+{% def blob_accent(
+    position="top-left",
+    size="md",
+    color="primary",
+    opacity=0.3,
+    blur=true
+) %}
+{% set positions = {
+    "top-left": "top: -10%; left: -10%;",
+    "top-right": "top: -10%; right: -10%;",
+    "bottom-left": "bottom: -10%; left: -10%;",
+    "bottom-right": "bottom: -10%; right: -10%;",
+    "center": "top: 50%; left: 50%; transform: translate(-50%, -50%);"
+} %}
+
+{% set sizes = {
+    "sm": "200px",
+    "md": "400px",
+    "lg": "600px",
+    "xl": "800px"
+} %}
+
+<div class="decorative-blob decorative-blob--{{ color }}"
+     style="
+       {{ positions.get(position, positions['top-left']) }}
+       width: {{ sizes.get(size, sizes['md']) }};
+       height: {{ sizes.get(size, sizes['md']) }};
+       opacity: {{ opacity }};
+       {% if blur %}filter: blur(60px);{% end %}
+     "></div>
+{% end %}
+
+{% def blob_background(density="low") %}
+{# Multiple decorative blobs for rich background #}
+<div class="blob-background blob-background--{{ density }}">
+  {% if density == "low" %}
+    {% call blob_accent("top-left", "lg", "primary", 0.15) %}{% end %}
+    {% call blob_accent("bottom-right", "lg", "primary", 0.15) %}{% end %}
+  {% elif density == "medium" %}
+    {% call blob_accent("top-left", "lg", "primary", 0.2) %}{% end %}
+    {% call blob_accent("top-right", "md", "accent", 0.15) %}{% end %}
+    {% call blob_accent("bottom-left", "md", "accent", 0.15) %}{% end %}
+    {% call blob_accent("bottom-right", "lg", "primary", 0.2) %}{% end %}
+  {% elif density == "high" %}
+    {% call blob_accent("top-left", "xl", "primary", 0.25) %}{% end %}
+    {% call blob_accent("top-right", "lg", "accent", 0.2) %}{% end %}
+    {% call blob_accent("center", "lg", "primary", 0.1) %}{% end %}
+    {% call blob_accent("bottom-left", "lg", "accent", 0.2) %}{% end %}
+    {% call blob_accent("bottom-right", "xl", "primary", 0.25) %}{% end %}
+  {% end %}
+</div>
+{% end %}
+
+<style>
+.decorative-blob {
+  position: absolute;
+  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  pointer-events: none;
+  z-index: 0;
+  animation: blob-morph 15s ease-in-out infinite;
+}
+
+.decorative-blob--primary {
+  background: radial-gradient(
+    circle,
+    oklch(70% 0.13 85) 0%,
+    oklch(90% 0.18 90) 50%,
+    transparent 100%
+  );
+}
+
+.decorative-blob--accent {
+  background: radial-gradient(
+    circle,
+    oklch(55% 0.22 300) 0%,
+    oklch(60% 0.25 300) 50%,
+    transparent 100%
+  );
+}
+
+.decorative-blob--success {
+  background: radial-gradient(
+    circle,
+    oklch(65% 0.18 140) 0%,
+    oklch(70% 0.20 140) 50%,
+    transparent 100%
+  );
+}
+
+.blob-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Content should be above decorative blobs */
+.blob-background ~ * {
+  position: relative;
+  z-index: 1;
+}
+</style>

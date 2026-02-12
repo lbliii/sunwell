@@ -1,0 +1,133 @@
+{# Theme switcher component with smooth transitions #}
+
+{% def theme_switcher() %}
+<div class="theme-switcher-container">
+  <div class="theme-switcher cluster">
+    <button class="theme-btn" data-theme="holy-light" title="Holy Light" aria-label="Switch to Holy Light theme">
+      <span class="theme-icon">✦</span>
+      <span class="theme-label">Holy Light</span>
+    </button>
+
+    <button class="theme-btn" data-theme="void" title="Void" aria-label="Switch to Void theme">
+      <span class="theme-icon">◆</span>
+      <span class="theme-label">Void</span>
+    </button>
+
+    <button class="theme-btn" data-theme="forest" title="Forest" aria-label="Switch to Forest theme">
+      <span class="theme-icon">🌲</span>
+      <span class="theme-label">Forest</span>
+    </button>
+
+    <button class="theme-btn" data-theme="ocean" title="Ocean" aria-label="Switch to Ocean theme">
+      <span class="theme-icon">🌊</span>
+      <span class="theme-label">Ocean</span>
+    </button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'sunwell-theme';
+  const DEFAULT_THEME = 'holy-light';
+
+  function setTheme(themeName) {
+    document.documentElement.setAttribute('data-theme', themeName);
+    localStorage.setItem(STORAGE_KEY, themeName);
+
+    // Update active state
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.theme === themeName);
+    });
+
+    // Emit custom event for other components
+    window.dispatchEvent(new CustomEvent('theme-changed', {
+      detail: { theme: themeName }
+    }));
+
+    console.log('✨ Theme changed to:', themeName);
+  }
+
+  // Initialize theme switcher
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem(STORAGE_KEY) || DEFAULT_THEME;
+    setTheme(savedTheme);
+
+    // Add click handlers
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setTheme(btn.dataset.theme);
+      });
+    });
+  });
+
+  // Expose globally
+  window.setTheme = setTheme;
+})();
+</script>
+
+<style>
+.theme-switcher-container {
+  position: relative;
+}
+
+.theme-switcher {
+  display: flex;
+  gap: var(--space-2xs);
+  background: oklch(18% 0 0);
+  padding: var(--space-xs);
+  border-radius: var(--radius-xl);
+  border: 1px solid oklch(30% 0 0);
+}
+
+.theme-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  border-radius: var(--radius-lg);
+
+  background: transparent;
+  color: var(--color-text-muted);
+
+  font-size: var(--text-sm);
+  cursor: pointer;
+
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.theme-btn:hover {
+  background: oklch(25% 0 0);
+  color: var(--color-text);
+}
+
+.theme-btn.active {
+  background: linear-gradient(135deg,
+    var(--color-primary) 0%,
+    oklch(from var(--color-primary) calc(l - 0.05) c h) 100%
+  );
+  color: oklch(15% 0 0);
+  box-shadow: 0 0 20px var(--color-primary-glow);
+}
+
+.theme-icon {
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.theme-label {
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .theme-label {
+    display: none;
+  }
+
+  .theme-btn {
+    padding: var(--space-xs);
+  }
+}
+</style>
+{% end %}

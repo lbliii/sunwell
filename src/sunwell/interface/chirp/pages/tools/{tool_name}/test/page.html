@@ -1,0 +1,104 @@
+<!-- Tool Test Form Modal Content -->
+<div class="modal-content">
+  <div class="cluster" style="justify-content: space-between; align-items: center; margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--color-border);">
+    <h2 style="margin: 0; font-family: var(--font-mono, monospace); color: var(--color-radiant);">Test {{ tool_name }}</h2>
+    <button onclick="hideModal()"
+            style="background: none; border: none; font-size: var(--text-2xl); cursor: pointer; color: var(--color-text-muted); padding: 0; width: 2rem; height: 2rem;"
+            onmouseover="this.style.color='var(--color-text)'"
+            onmouseout="this.style.color='var(--color-text-muted)'">✕</button>
+  </div>
+
+  <p style="color: var(--color-text-muted); margin-bottom: var(--space-md);">{{ description }}</p>
+
+  <form hx-post="/tools/{{ tool_name }}/execute"
+        hx-target="#test-result"
+        hx-swap="innerHTML">
+
+    <div class="stack stack-md" style="margin: var(--space-lg) 0;">
+      <h3 style="margin-bottom: var(--space-md); font-size: var(--text-base); text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted);">Parameters</h3>
+
+      {% if parameters %}
+        {% for param_name, param_info in parameters.items() %}
+        <div class="stack stack-sm">
+          <label for="{{ param_name }}" style="display: block; font-weight: 500;">
+            {{ param_name }}
+            {% if param_name in required %}
+              <span style="color: var(--color-gold);">*</span>
+            {% end %}
+            <span style="font-size: var(--text-sm); color: var(--color-text-muted); font-family: var(--font-mono, monospace);">({{ param_info.type }})</span>
+          </label>
+
+          {% if param_info.type == "string" %}
+            <input type="text"
+                   name="{{ param_name }}"
+                   id="{{ param_name }}"
+                   class="input"
+                   {% if param_name in required %}required{% end %}>
+          {% elif param_info.type == "integer" %}
+            <input type="number"
+                   name="{{ param_name }}"
+                   id="{{ param_name }}"
+                   class="input"
+                   {% if param_name in required %}required{% end %}>
+          {% elif param_info.type == "array" %}
+            <input type="text"
+                   name="{{ param_name }}"
+                   id="{{ param_name }}"
+                   placeholder="Comma-separated values"
+                   class="input"
+                   {% if param_name in required %}required{% end %}>
+          {% else %}
+            <textarea name="{{ param_name }}"
+                      id="{{ param_name }}"
+                      class="input"
+                      rows="3"
+                      {% if param_name in required %}required{% end %}></textarea>
+          {% end %}
+        </div>
+        {% end %}
+      {% else %}
+        <p style="color: var(--color-text-muted);">No parameters required</p>
+      {% end %}
+    </div>
+
+    <div class="cluster" style="gap: var(--space-md); margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--color-border);">
+      <button type="submit" class="btn btn--primary">
+        🚀 Execute Tool
+      </button>
+      <button type="button" onclick="hideModal()" class="btn">
+        Cancel
+      </button>
+    </div>
+  </form>
+
+  <div id="test-result" style="margin-top: var(--space-xl); padding: var(--space-md); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); min-height: 100px; font-family: var(--font-mono, monospace); font-size: var(--text-sm);">
+    <!-- Result will be inserted here -->
+  </div>
+</div>
+
+<style>
+/* Input styling for form fields */
+.input {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-radiant);
+}
+
+/* Empty state for test result */
+#test-result:empty::before {
+  content: 'Result will appear here...';
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+</style>

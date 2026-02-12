@@ -1,0 +1,106 @@
+{# Icon component - ASCII/Unicode icons with consistent styling #}
+
+{% def icon(
+    name,
+    variant="default",
+    size="md",
+    **attrs
+) %}
+{% set icon_map = {
+    "radiant": "✦",
+    "star": "✦",
+    "solid": "◆",
+    "diamond": "◆",
+    "hollow": "◇",
+    "circle": "●",
+    "circle-hollow": "○",
+    "check": "✓",
+    "cross": "✗",
+    "arrow-right": "→",
+    "arrow-left": "←",
+    "arrow-up": "↑",
+    "arrow-down": "↓",
+    "plus": "+",
+    "minus": "−",
+    "info": "ⓘ",
+    "warning": "⚠",
+    "error": "⊗",
+    "success": "✓",
+    "loading": "⚙",
+    "sparkle": "✨",
+    "heart": "♥",
+    "bookmark": "🔖",
+    "tag": "🏷",
+    "folder": "📁",
+    "file": "📄",
+    "search": "🔍",
+    "settings": "⚙️",
+    "user": "👤",
+    "menu": "☰",
+    "more": "⋯",
+    "close": "×",
+} %}
+
+{% set sizes = {
+    "xs": "0.75em",
+    "sm": "0.875em",
+    "md": "1em",
+    "lg": "1.25em",
+    "xl": "1.5em",
+    "2xl": "2em",
+    "3xl": "3em",
+} %}
+
+{% set variants = {
+    "default": "",
+    "radiant": "icon-radiant",
+    "gold": "icon-gold",
+    "muted": "icon-muted",
+    "success": "icon-success",
+    "warning": "icon-warning",
+    "danger": "icon-danger",
+} %}
+
+<span class="icon {{ variants.get(variant, '') }}"
+      style="font-size: {{ sizes.get(size, sizes['md']) }};"
+      {{ attrs|xmlattr }}>
+  {{ icon_map.get(name, name) }}
+</span>
+{% end %}
+
+<style>
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.icon-radiant {
+  color: oklch(90% 0.18 90);
+  text-shadow: 0 0 10px oklch(90% 0.18 90 / 0.5);
+}
+
+.icon-gold {
+  color: oklch(75% 0.15 85);
+}
+
+.icon-muted {
+  color: var(--color-text-muted);
+}
+
+.icon-success {
+  color: oklch(68% 0.18 150);
+}
+
+.icon-warning {
+  color: oklch(75% 0.18 60);
+}
+
+.icon-danger {
+  color: oklch(60% 0.20 20);
+}
+</style>
+{% end %}

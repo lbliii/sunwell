@@ -1,0 +1,75 @@
+"""Tool Inspector page - Browse and test MCP tools."""
+
+import json
+from collections import defaultdict
+from chirp import Page
+
+
+def get() -> Page:
+    """Render tool inspector page."""
+    from sunwell.interface.chirp.main import create_app
+
+    # Get app instance to access tool registry
+    app = create_app()
+    if not app._frozen:
+        app._freeze()
+
+    # Get all registered tools
+    tools = app._tool_registry.list_tools()
+
+    # Group by category (extract from tool name prefix)
+    tools_by_category = defaultdict(list)
+    for tool in tools:
+        name = tool["name"]
+        if name.startswith("sunwell_"):
+            # Determine category from tool name
+            name_part = name.replace("sunwell_", "")
+            if any(x in name_part for x in ["goal", "backlog", "suggest"]):
+                category = "backlog"
+            elif any(x in name_part for x in ["search", "ask", "codebase", "workspace"]):
+                category = "knowledge"
+            elif any(x in name_part for x in ["lens", "route", "list_lenses"]):
+                category = "lens"
+            elif any(x in name_part for x in ["briefing", "recall", "lineage", "session"]):
+                category = "memory"
+            else:
+                category = "other"
+        else:
+            category = "other"
+
+        # Enrich tool data
+        schema = tool.get("inputSchema", {})
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        enriched_tool = {
+            "name": tool["name"],
+            "description": tool.get("description", "No description"),
+            "schema": schema,
+            "schema_json": json.dumps(schema, indent=2),
+            "required": required,
+            "optional_count": len(properties) - len(required),
+            "properties": properties,
+        }
+
+        tools_by_category[category].append(enriched_tool)
+
+    # Category icons
+    category_icons = {
+        "backlog": "📋",
+        "knowledge": "🔍",
+        "lens": "🔬",
+        "memory": "🧠",
+        "other": "🔹",
+    }
+
+    return Page(
+        "tools/page.html",
+        "content",
+        current_page="tools",
+        title="Tool Inspector",
+        total_tools=len(tools),
+        tools_by_category=dict(tools_by_category),
+        categories=list(tools_by_category.keys()),
+        category_icons=category_icons,
+    )

@@ -1,0 +1,213 @@
+/*
+ * Multi-Theme System
+ * Smooth theme switching with CSS custom properties
+ */
+
+@layer themes {
+  /* ==========================================
+     Base Theme Colors
+     ========================================== */
+
+  :root {
+    --theme-transition-duration: 300ms;
+  }
+
+  /* Smooth color transitions on theme change */
+  * {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: var(--theme-transition-duration);
+    transition-timing-function: var(--ease-out);
+  }
+
+  /* Preserve explicit transitions */
+  [style*="transition"] {
+    transition: var(--theme-transition-duration) var(--ease-out),
+                var(--transition-override, all var(--duration-normal) var(--ease-out));
+  }
+
+  /* ==========================================
+     Holy Light Theme (Default)
+     ========================================== */
+
+  [data-theme="holy-light"],
+  :root {
+    --color-primary: oklch(90% 0.18 90);
+    --color-primary-dim: oklch(70% 0.13 85);
+    --color-primary-glow: oklch(90% 0.18 90 / 0.3);
+
+    --color-bg: oklch(10% 0 0);
+    --color-surface: oklch(15% 0 0);
+    --color-surface-elevated: oklch(20% 0 0);
+    --color-border: oklch(30% 0 0);
+
+    --color-text: oklch(92% 0 0);
+    --color-text-muted: oklch(65% 0 0);
+
+    --color-accent: oklch(75% 0.15 85);
+    --color-success: oklch(68% 0.18 150);
+    --color-warning: oklch(75% 0.18 60);
+    --color-danger: oklch(60% 0.20 20);
+
+    /* Shadows with golden tint */
+    --shadow-color: oklch(10% 0.02 85 / 0.5);
+  }
+
+  /* ==========================================
+     Void Theme (Purple/Indigo)
+     ========================================== */
+
+  [data-theme="void"] {
+    --color-primary: oklch(60% 0.25 300);
+    --color-primary-dim: oklch(45% 0.20 300);
+    --color-primary-glow: oklch(60% 0.25 300 / 0.4);
+
+    --color-bg: oklch(8% 0.05 300);
+    --color-surface: oklch(12% 0.08 300);
+    --color-surface-elevated: oklch(18% 0.10 300);
+    --color-border: oklch(25% 0.12 300);
+
+    --color-text: oklch(90% 0.05 300);
+    --color-text-muted: oklch(60% 0.08 300);
+
+    --color-accent: oklch(65% 0.22 280);
+    --color-success: oklch(65% 0.18 150);
+    --color-warning: oklch(70% 0.18 60);
+    --color-danger: oklch(58% 0.20 20);
+
+    /* Shadows with purple tint */
+    --shadow-color: oklch(5% 0.08 300 / 0.6);
+  }
+
+  /* ==========================================
+     Forest Theme (Green/Natural)
+     ========================================== */
+
+  [data-theme="forest"] {
+    --color-primary: oklch(65% 0.18 140);
+    --color-primary-dim: oklch(50% 0.15 140);
+    --color-primary-glow: oklch(65% 0.18 140 / 0.3);
+
+    --color-bg: oklch(10% 0.03 140);
+    --color-surface: oklch(15% 0.04 140);
+    --color-surface-elevated: oklch(20% 0.06 140);
+    --color-border: oklch(30% 0.08 140);
+
+    --color-text: oklch(90% 0.03 140);
+    --color-text-muted: oklch(62% 0.05 140);
+
+    --color-accent: oklch(60% 0.15 140);
+    --color-success: oklch(70% 0.18 150);
+    --color-warning: oklch(72% 0.18 60);
+    --color-danger: oklch(58% 0.20 20);
+
+    /* Shadows with green tint */
+    --shadow-color: oklch(8% 0.04 140 / 0.5);
+  }
+
+  /* ==========================================
+     Ocean Theme (Blue/Teal)
+     ========================================== */
+
+  [data-theme="ocean"] {
+    --color-primary: oklch(65% 0.16 220);
+    --color-primary-dim: oklch(50% 0.14 220);
+    --color-primary-glow: oklch(65% 0.16 220 / 0.3);
+
+    --color-bg: oklch(12% 0.04 220);
+    --color-surface: oklch(16% 0.06 220);
+    --color-surface-elevated: oklch(22% 0.08 220);
+    --color-border: oklch(32% 0.10 220);
+
+    --color-text: oklch(88% 0.04 220);
+    --color-text-muted: oklch(60% 0.06 220);
+
+    --color-accent: oklch(60% 0.14 200);
+    --color-success: oklch(68% 0.18 150);
+    --color-warning: oklch(75% 0.18 60);
+    --color-danger: oklch(60% 0.20 20);
+
+    /* Shadows with blue tint */
+    --shadow-color: oklch(8% 0.06 220 / 0.5);
+  }
+
+  /* ==========================================
+     Theme-Specific Customizations
+     ========================================== */
+
+  /* Void theme: Enhanced purple glow on cards */
+  [data-theme="void"] .bio-card:hover {
+    box-shadow:
+      0 10px 40px oklch(0% 0 0 / 0.3),
+      0 0 60px oklch(60% 0.25 300 / 0.4);
+  }
+
+  /* Forest theme: Organic breathing feels more alive */
+  [data-theme="forest"] .blob-breathe {
+    animation-duration: 3s;
+  }
+
+  /* Ocean theme: Flowing, wave-like animations */
+  [data-theme="ocean"] .bio-progress-fill {
+    animation-duration: 3s;
+  }
+
+  [data-theme="ocean"] .particle {
+    --drift-x: calc(var(--drift-x) * 1.5);
+  }
+
+  /* ==========================================
+     Theme Transition Effects
+     ========================================== */
+
+  /* Flash of new theme color on change */
+  @keyframes theme-flash {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Apply flash animation to main content on theme change */
+  [data-theme-transitioning] #app-content {
+    animation: theme-flash var(--theme-transition-duration) var(--ease-out);
+  }
+}
+
+/* ==========================================
+   Respect User Preferences
+   ========================================== */
+
+/* Auto dark mode (if no theme selected) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    /* Keep dark theme - Sunwell is inherently dark */
+  }
+}
+
+/* High contrast mode adjustments */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: oklch(50% 0 0);
+    --shadow-color: oklch(0% 0 0 / 0.8);
+  }
+
+  .btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced transparency for low vision */
+@media (prefers-reduced-transparency: reduce) {
+  * {
+    backdrop-filter: none !important;
+  }
+
+  .holy-radiance::before,
+  .halo::before {
+    opacity: 0.2 !important;
+  }
+}

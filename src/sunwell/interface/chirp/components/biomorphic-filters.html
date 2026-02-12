@@ -1,0 +1,57 @@
+{# SVG filters for biomorphic effects #}
+
+{% def filters() %}
+<svg class="biomorphic-filters" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    {# Gooey blob effect - makes shapes melt together #}
+    <filter id="gooey">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+      <feColorMatrix in="blur" mode="matrix" values="
+        1 0 0 0 0
+        0 1 0 0 0
+        0 0 1 0 0
+        0 0 0 18 -7
+      " result="gooey" />
+      <feComposite in="SourceGraphic" in2="gooey" operator="atop" />
+    </filter>
+
+    {# Holy glow effect - soft radiant light #}
+    <filter id="holy-glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    {# Organic wave distortion #}
+    <filter id="organic-wave">
+      <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" seed="2">
+        <animate attributeName="baseFrequency"
+                 values="0.01;0.015;0.01"
+                 dur="20s"
+                 repeatCount="indefinite" />
+      </feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" />
+    </filter>
+
+    {# Liquid shimmer gradient #}
+    <linearGradient id="liquid-shimmer" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:oklch(75% 0.15 85);stop-opacity:1" />
+      <stop offset="50%" style="stop-color:oklch(90% 0.18 90);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:oklch(75% 0.15 85);stop-opacity:1" />
+      <animate attributeName="x1" values="0%;100%;0%" dur="3s" repeatCount="indefinite" />
+      <animate attributeName="x2" values="100%;0%;100%" dur="3s" repeatCount="indefinite" />
+    </linearGradient>
+
+    {# Radial holy light #}
+    <radialGradient id="holy-light">
+      <stop offset="0%" style="stop-color:oklch(95% 0.2 90);stop-opacity:0.8" />
+      <stop offset="40%" style="stop-color:oklch(85% 0.18 90);stop-opacity:0.4" />
+      <stop offset="70%" style="stop-color:oklch(75% 0.15 85);stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:oklch(70% 0.13 85);stop-opacity:0" />
+    </radialGradient>
+  </defs>
+</svg>
+{% end %}

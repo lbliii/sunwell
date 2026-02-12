@@ -1,0 +1,70 @@
+{# Advanced button component with comprehensive variant system #}
+
+{% def button(
+    variant="primary",
+    size="md",
+    state="default",
+    icon="",
+    icon_position="left",
+    loading=false,
+    disabled=false,
+    full_width=false,
+    bio=false,
+    **attrs
+) %}
+{% set button_classes = [
+    "btn",
+    "btn--" + variant,
+    "btn--" + size,
+    "btn--" + state,
+] %}
+
+{% if loading %}
+  {% do button_classes.append("btn--loading") %}
+{% end %}
+
+{% if full_width %}
+  {% do button_classes.append("btn--full") %}
+{% end %}
+
+{% if bio %}
+  {% do button_classes.append("bio-button") %}
+  {% do button_classes.append("spring-scale") %}
+{% else %}
+  {% do button_classes.append("hover-scale") %}
+{% end %}
+
+<button
+    class="{{ ' '.join(button_classes) }}"
+    {% if disabled or loading %}disabled{% end %}
+    {{ attrs|xmlattr }}>
+
+    {% if loading %}
+        <span class="btn-spinner animate-rotate">⚙️</span>
+    {% elif icon and icon_position == "left" %}
+        <span class="btn-icon btn-icon--left">{{ icon }}</span>
+    {% end %}
+
+    <span class="btn-label">{{ caller() }}</span>
+
+    {% if icon and not loading and icon_position == "right" %}
+        <span class="btn-icon btn-icon--right">{{ icon }}</span>
+    {% end %}
+</button>
+{% end %}
+
+{# Compound button group #}
+{% def button_group(attached=false) %}
+<div class="btn-group {% if attached %}btn-group--attached{% end %}">
+    {{ caller() }}
+</div>
+{% end %}
+
+{# Icon button variant #}
+{% def icon_button(icon, label="", variant="ghost", size="md", **attrs) %}
+<button class="btn-icon-only btn--{{ variant }} btn--{{ size }}"
+        {% if label %}aria-label="{{ label }}"{% end %}
+        {{ attrs|xmlattr }}>
+    {{ icon }}
+</button>
+{% end %}

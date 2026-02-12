@@ -1,0 +1,39 @@
+{% block run_info %}
+<div class="card-header">
+    <h2>Run Information</h2>
+    {% if run.status == 'running' %}
+    <span class="live-indicator">🔴 Live</span>
+    {% end %}
+</div>
+<dl class="info-list">
+    <dt>Status</dt>
+    <dd><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></dd>
+
+    <dt>Started</dt>
+    <dd>{{ run.started_at | relative_time if run.started_at else 'N/A' }}</dd>
+
+    <dt>Duration</dt>
+    <dd>{{ run.duration | format_duration if run.duration else 'N/A' }}</dd>
+
+    <dt>Tasks Completed</dt>
+    <dd>{{ run.tasks_completed }}</dd>
+
+    <dt>Files Changed</dt>
+    <dd>{{ run.files_changed }}</dd>
+</dl>
+{% import "alert.html" as ui %}
+
+{% if is_active %}
+<div style="margin-top: var(--space-md); padding: var(--space-sm); border-radius: var(--radius-sm); text-align: center; background: var(--color-surface); color: var(--color-text-muted);">
+    <small>↻ Auto-refreshing every 2 seconds...</small>
+</div>
+{% elif run.status == 'completed' %}
+{% call ui.alert(variant="success") %}
+    <small>✅ Session completed!</small>
+{% end %}
+{% elif run.status == 'failed' %}
+{% call ui.alert(variant="error") %}
+    <small>❌ Session failed. See error details below.</small>
+{% end %}
+{% end %}
+{% end %}

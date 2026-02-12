@@ -1,0 +1,86 @@
+{# Biomorphic card component - CLEAN cards with optional decorative blobs #}
+
+{% def bio_card(
+    variant="default",
+    glow=false,
+    breathe=false,
+    with_blob=false,
+    interactive=false,
+    **attrs
+) %}
+<div class="bio-card
+            {% if variant == 'radiant' %} holy-radiance{% end %}
+            {% if variant == 'pulse' %} holy-pulse{% end %}
+            {% if breathe %} breathe{% end %}
+            {% if with_blob %} with-blob{% end %}
+            {% if interactive %} bio-card-interactive ripple-effect{% end %}
+            {% if glow %} halo{% end %}"
+     {% if interactive %}
+       onmousemove="this.style.setProperty('--mouse-x', event.offsetX + 'px'); this.style.setProperty('--mouse-y', event.offsetY + 'px');"
+     {% end %}
+     {{ attrs|xmlattr }}>
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def bio_button(
+    variant="primary",
+    size="md",
+    cast_effect=true,
+    **attrs
+) %}
+<button class="bio-button bio-button--{{ variant }} bio-button--{{ size }}
+               {% if cast_effect %}spell-cast-btn{% end %}"
+        {{ attrs|xmlattr }}>
+    {{ caller() }}
+</button>
+
+{% if cast_effect %}
+<script>
+// Add particle burst on click
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.spell-cast-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+
+      if (window.createParticleBurst) {
+        window.createParticleBurst(x, y);
+      }
+    });
+  });
+});
+</script>
+{% end %}
+{% end %}
+
+{% def bio_progress(value=0, max=100, label="") %}
+<div class="stack stack-xs">
+  {% if label %}
+    <div class="cluster" style="justify-content: space-between;">
+      <span class="text-sm">{{ label }}</span>
+      <span class="text-sm text-muted">{{ value }}%</span>
+    </div>
+  {% end %}
+
+  <div class="bio-progress">
+    <div class="bio-progress-fill" style="width: {{ value }}%;"></div>
+  </div>
+</div>
+{% end %}
+
+{% def bio_input(
+    type="text",
+    placeholder="",
+    name="",
+    value="",
+    **attrs
+) %}
+<input type="{{ type }}"
+       class="bio-input"
+       {% if placeholder %}placeholder="{{ placeholder }}"{% end %}
+       {% if name %}name="{{ name }}"{% end %}
+       {% if value %}value="{{ value }}"{% end %}
+       {{ attrs|xmlattr }}>
+{% end %}
