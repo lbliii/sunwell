@@ -1,17 +1,9 @@
 """API keys form handler."""
 
-from dataclasses import dataclass
-
 from chirp import Fragment
+
+from sunwell.interface.chirp.schemas import APIKeysForm
 from sunwell.interface.chirp.services import ConfigService
-
-
-@dataclass(frozen=True, slots=True)
-class APIKeysForm:
-    """API keys configuration form."""
-
-    anthropic_api_key: str = ""
-    openai_api_key: str = ""
 
 
 def post(form: APIKeysForm, config_svc: ConfigService) -> Fragment:

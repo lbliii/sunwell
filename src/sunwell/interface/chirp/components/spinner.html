@@ -1,0 +1,19 @@
+{# Loading spinner component #}
+
+{% def spinner(size="md", variant="default", label="") %}
+<div class="spinner spinner--{{ size }} spinner--{{ variant }}" role="status">
+    <span class="spinner-icon"></span>
+    {% if label %}
+        <span class="spinner-label">{{ label }}</span>
+    {% end %}
+    {% if not label %}
+        <span class="sr-only">Loading...</span>
+    {% end %}
+</div>
+{% end %}
+
+{% def skeleton(width="100%", height="1rem", variant="default") %}
+<div class="skeleton skeleton--{{ variant }}"
+     style="width: {{ width }}; height: {{ height }}">
+</div>
+{% end %}

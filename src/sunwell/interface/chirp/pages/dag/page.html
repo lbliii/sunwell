@@ -1,24 +1,29 @@
 {% block title %}DAG - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+{% import "card.html" as ui_card %}
+{% import "alert.html" as ui_alert %}
+{% import "status.html" as ui_status %}
+
 <div class="dag-container">
     <header class="page-header mb-lg">
-        <h1>📊 DAG</h1>
+        <h1><span class="icon-solid">◈</span> DAG</h1>
         <p class="text-muted">Execution graph visualization</p>
     </header>
 
-    <div class="placeholder-notice card mb-lg">
-        <h3>🎨 Canvas Graph Visualization Coming Soon</h3>
+    {% call ui_alert.alert("info") %}
+        <h3><span class="icon-gold">※</span> Canvas Graph Visualization Coming Soon</h3>
         <p class="text-muted">
             Phase 2 will add interactive Canvas-based DAG visualization with pan/zoom,
             node selection, and dagre layout. For now, view DAG metadata below.
         </p>
-    </div>
+    {% end %}
 
     {% if dags %}
         <div class="dags-grid grid grid-2">
             {% for dag in dags %}
-                <div class="card dag-card">
+                {% call ui_card.card() %}
                     <h3>{{ dag.name }}</h3>
                     <dl class="dag-stats">
                         <dt>Nodes</dt>
@@ -26,21 +31,19 @@
                         <dt>Edges</dt>
                         <dd>{{ dag.edges }}</dd>
                         <dt>Status</dt>
-                        <dd><span class="status-badge status-{{ dag.status }}">{{ dag.status }}</span></dd>
+                        <dd>{% call ui_status.badge(dag.status) %}{{ dag.status }}{% end %}</dd>
                     </dl>
                     <div class="dag-actions">
                         <button class="btn btn-sm" disabled>View Graph</button>
                         <button class="btn btn-sm btn-ghost" disabled>Export</button>
                     </div>
-                </div>
+                {% end %}
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">📊</div>
-            <h2>No DAGs</h2>
+        {% call ui.empty_state("◈", "No DAGs") %}
             <p class="text-muted">Execution DAGs will appear here</p>
-        </div>
+        {% end %}
     {% end %}
 </div>
 {% end %}

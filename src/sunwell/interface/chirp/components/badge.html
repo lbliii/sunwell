@@ -1,0 +1,6 @@
+{# Reusable badge component #}
+{% def badge(text, variant="default", icon="") %}
+<span class="badge badge-{{ variant }}">
+    {% if icon %}{{ icon }} {% end %}{{ text }}
+</span>
+{% end %}

@@ -1,0 +1,465 @@
+/* Sunwell Studio Theme - Migrated from Svelte */
+
+:root {
+    /* Holy Spectrum - Light, positive, active states */
+    --color-radiant: #ffd700;        /* Active, magical moments */
+    --color-gold: #c9a227;           /* Standard UI accent */
+    --color-gold-dim: #8a7235;       /* Muted, disabled */
+    --color-success: #22c55e;        /* Complete, pass */
+
+    /* Void Spectrum - Shadow, danger, unknown */
+    --color-void-purple: #7c3aed;    /* Error, violation */
+    --color-void-indigo: #4f46e5;    /* Warning, caution */
+    --color-void-deep: #2e1065;      /* Critical, fatal */
+
+    /* Neutral - The canvas */
+    --color-bg: #0d0d0d;             /* Obsidian background */
+    --color-surface: #1a1a1a;        /* Surface/cards */
+    --color-surface-elevated: #262626; /* Elevated/hover */
+    --color-border: #333333;         /* Border color */
+    --color-text: #e5e5e5;           /* Primary text */
+    --color-text-muted: #a8a8a8;     /* Secondary text */
+
+    /* Semantic aliases */
+    --color-primary: var(--color-radiant);
+    --color-primary-hover: var(--color-gold);
+    --color-accent: var(--color-gold);
+    --color-error: var(--color-void-purple);
+    --color-warning: var(--color-void-indigo);
+
+    /* Spacing */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+
+    /* Border radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+}
+
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.6;
+}
+
+/* Navigation */
+.main-nav {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-md) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+}
+
+.nav-brand h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.nav-brand .subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.nav-links {
+    display: flex;
+    gap: var(--space-lg);
+    list-style: none;
+}
+
+.nav-links a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.nav-links a:hover {
+    color: var(--color-text);
+    background: var(--color-surface-elevated);
+}
+
+.nav-links a.active {
+    color: var(--color-radiant);
+    background: var(--color-surface-elevated);
+    box-shadow: inset 0 -2px 0 var(--color-gold);
+}
+
+/* Container */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-xl);
+}
+
+/* Cards */
+.card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    transition: all var(--transition-normal);
+}
+
+.card:hover {
+    border-color: var(--color-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
+}
+
+/* Buttons */
+button, .btn {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    padding: var(--space-sm) var(--space-lg);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+button:hover, .btn:hover {
+    background: var(--color-primary-hover);
+    transform: translateY(-1px);
+}
+
+/* Forms */
+input, textarea, select {
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    transition: all var(--transition-fast);
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+}
+
+/* Utility classes */
+.text-muted {
+    color: var(--color-text-muted);
+}
+
+.text-primary {
+    color: var(--color-primary);
+}
+
+.mb-md {
+    margin-bottom: var(--space-md);
+}
+
+.mb-lg {
+    margin-bottom: var(--space-lg);
+}
+
+.grid {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* Spinner - Mote Pulse Animation */
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    line-height: 1;
+    font-size: 1rem;
+    color: var(--color-radiant);
+    animation: mote-pulse 0.9s ease-in-out infinite;
+}
+
+.spinner::before {
+    content: "✦";
+}
+
+@keyframes mote-pulse {
+    0%, 100% {
+        content: "·";
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+    33% {
+        content: "✧";
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    66% {
+        content: "✦";
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+.nav-indicator {
+    display: flex;
+    align-items: center;
+}
+
+/* htmx loading indicators */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+.htmx-swapping {
+    opacity: 0;
+    transition: opacity 100ms ease-out;
+}
+
+.htmx-settling {
+    opacity: 1;
+    transition: opacity 100ms ease-in;
+}
+
+/* ============================================
+   Holy Light Unicode Icons & Animations
+   ============================================ */
+
+/* Unicode icon styling */
+.icon-radiant { color: var(--color-radiant); }
+.icon-gold { color: var(--color-gold); }
+.icon-hollow { color: var(--color-text-muted); }
+.icon-solid { color: var(--color-gold); }
+.icon-complete { color: var(--color-success); }
+.icon-error { color: var(--color-void-purple); }
+
+/* Spiral Thinking Indicator */
+.spinner-thinking {
+    display: inline-block;
+    animation: spiral-rotate 0.6s steps(4) infinite;
+}
+
+@keyframes spiral-rotate {
+    0% { content: "◜"; }
+    25% { content: "◝"; }
+    50% { content: "◞"; }
+    75% { content: "◟"; }
+}
+
+/* Sparkle Burst Animation */
+@keyframes sparkle-burst {
+    0% {
+        content: "✦";
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        content: "★";
+        opacity: 1;
+        transform: scale(1.3);
+    }
+    100% {
+        content: "✦";
+        opacity: 0;
+        transform: scale(0.5);
+    }
+}
+
+.sparkle-burst {
+    animation: sparkle-burst 0.5s ease-out;
+}
+
+/* Phase Glow Animation */
+.phase-header {
+    color: var(--color-radiant);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    animation: radiant-glow 2s ease-in-out infinite;
+}
+
+@keyframes radiant-glow {
+    0%, 100% {
+        text-shadow: 0 0 5px rgba(255, 215, 0, 0.2);
+    }
+    50% {
+        text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    }
+}
+
+/* Status Badges */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-primary {
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
+    border: 1px solid var(--color-gold-dim);
+}
+
+.badge-error {
+    background: rgba(124, 58, 237, 0.15);
+    color: var(--color-void-purple);
+    border: 1px solid var(--color-void-purple);
+}
+
+.badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--color-success);
+    border: 1px solid var(--color-success);
+}
+
+/* Empty State Component */
+.empty-state {
+    text-align: center;
+    padding: var(--space-2xl);
+    color: var(--color-text-muted);
+}
+
+.empty-state .icon,
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-lg);
+    color: var(--color-gold-dim);
+}
+
+/* Placeholder Notice Component */
+.placeholder-notice {
+    background: rgba(255, 215, 0, 0.05);
+    border: 2px dashed var(--color-gold-dim);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+}
+
+.placeholder-notice h3 {
+    color: var(--color-gold);
+    margin-bottom: var(--space-md);
+}
+
+/* Tree Structure Indicators */
+.tree-item {
+    display: flex;
+    gap: var(--space-sm);
+    font-family: var(--font-mono);
+    color: var(--color-text-muted);
+}
+
+.tree-item::before {
+    content: "├─";
+    color: var(--color-gold-dim);
+}
+
+.tree-item:last-child::before {
+    content: "└─";
+}
+
+.tree-item.success::after {
+    content: " ✓";
+    color: var(--color-success);
+}
+
+.tree-item.error::after {
+    content: " ✗";
+    color: var(--color-void-purple);
+}
+
+/* Step Progress Indicators */
+.step-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+}
+
+.step-progress .step-complete { color: var(--color-radiant); }
+.step-progress .step-active { color: var(--color-gold); }
+.step-progress .step-pending { color: var(--color-gold-dim); }
+
+/* Confidence Indicators */
+.confidence-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.confidence-bar .bar {
+    flex: 1;
+    height: 0.5rem;
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.confidence-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-gold), var(--color-radiant));
+    transition: width 300ms ease;
+}
+
+.confidence-indicator {
+    font-family: var(--font-mono);
+}
+
+.confidence-high::before { content: "●"; color: var(--color-success); }
+.confidence-moderate::before { content: "◉"; color: var(--color-gold); }
+.confidence-low::before { content: "○"; color: var(--color-gold-dim); }
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .spinner,
+    .spinner-thinking,
+    .sparkle-burst,
+    .phase-header {
+        animation: none;
+    }
+
+    .spinner::before {
+        content: "✦";
+        opacity: 1;
+        transform: none;
+    }
+}

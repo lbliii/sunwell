@@ -1,0 +1,23 @@
+{# Alert/notification component #}
+
+{% def alert(variant="info", dismissible=false, icon="") %}
+<div class="alert alert--{{ variant }} {% if dismissible %}alert--dismissible{% end %}" role="alert">
+    {% if icon %}
+        <span class="alert-icon">{{ icon }}</span>
+    {% end %}
+    <div class="alert-content">
+        {{ caller() }}
+    </div>
+    {% if dismissible %}
+        <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Dismiss">
+            ×
+        </button>
+    {% end %}
+</div>
+{% end %}
+
+{% def alert_title() %}
+<div class="alert-title">
+    {{ caller() }}
+</div>
+{% end %}

@@ -1,0 +1,128 @@
+{% block title %}{{ project.name }} - Memory - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="project-memory-container">
+    <header class="page-header mb-lg">
+        <div class="breadcrumb">
+            <a href="/projects">Projects</a>
+            <span class="breadcrumb-sep">/</span>
+            <a href="/projects/{{ project.id }}">{{ project.name }}</a>
+            <span class="breadcrumb-sep">/</span>
+            <span>Memory</span>
+        </div>
+
+        <div class="header-content">
+            <h1><span class="icon-gold">≡</span> {{ project.name }} Memory</h1>
+            <p class="text-muted">Learnings and knowledge from this project</p>
+        </div>
+    </header>
+
+    {% if memories %}
+        <div class="memories-list">
+            {% for memory in memories %}
+                <div class="card memory-card">
+                    <div class="memory-header">
+                        <span class="memory-type badge badge-{{ memory.type }}">{{ memory.type }}</span>
+                        <span class="memory-confidence text-muted">{{ (memory.confidence * 100) | int }}% confidence</span>
+                    </div>
+                    <p class="memory-content">{{ memory.content }}</p>
+                    <div class="memory-meta text-muted">
+                        <span>{{ memory.timestamp | relative_time }}</span>
+                        <span>•</span>
+                        <span>{{ memory.source }}</span>
+                    </div>
+                </div>
+            {% end %}
+        </div>
+    {% else %}
+        <div class="empty-state card">
+            <div class="empty-state-icon">≡</div>
+            <h2>No Memories Yet</h2>
+            <p class="text-muted">Complete tasks in this project to build memory</p>
+        </div>
+    {% end %}
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    font-size: 0.875rem;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    color: var(--color-primary);
+}
+
+.breadcrumb-sep {
+    color: var(--color-text-muted);
+}
+
+.memories-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.memory-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.memory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.memory-type {
+    text-transform: capitalize;
+    font-size: 0.75rem;
+}
+
+.badge-learning {
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
+}
+
+.badge-pattern {
+    background: rgba(79, 70, 229, 0.15);
+    color: var(--color-void-indigo);
+}
+
+.badge-decision {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--color-success);
+}
+
+.badge-system {
+    background: rgba(168, 168, 168, 0.15);
+    color: var(--color-text-muted);
+}
+
+.memory-content {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.memory-meta {
+    display: flex;
+    gap: var(--space-sm);
+    font-size: 0.875rem;
+}
+
+.memory-confidence {
+    font-size: 0.875rem;
+}
+</style>
+{% end %}

@@ -1,0 +1,40 @@
+{# Tabs component #}
+
+{% def tabs(variant="default", size="md") %}
+<div class="tabs tabs--{{ variant }} tabs--{{ size }}">
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def tab_list(attrs="") %}
+<div class="tab-list" role="tablist" {{ attrs | safe }}>
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def tab(id, label, active=false, disabled=false, icon="") %}
+<button class="tab {% if active %}tab--active{% end %}"
+        role="tab"
+        aria-selected="{{ 'true' if active else 'false' }}"
+        aria-controls="{{ id }}-panel"
+        {% if disabled %}disabled{% end %}
+        onclick="switchTab('{{ id }}')">
+    {% if icon %}<span class="tab-icon">{{ icon }}</span>{% end %}
+    {{ label }}
+</button>
+{% end %}
+
+{% def tab_panel(id, active=false) %}
+<div class="tab-panel {% if active %}tab-panel--active{% end %}"
+     role="tabpanel"
+     id="{{ id }}-panel"
+     {% if not active %}hidden{% end %}>
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def tab_panels() %}
+<div class="tab-panels">
+    {{ caller() }}
+</div>
+{% end %}

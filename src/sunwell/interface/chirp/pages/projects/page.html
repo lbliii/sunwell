@@ -1,6 +1,9 @@
 {% block title %}Projects - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "badge.html" as ui %}
+{% import "empty.html" as ui_empty %}
+
 <div class="projects-container">
     <header class="page-header mb-lg">
         <div class="header-content">
@@ -26,10 +29,10 @@
                             <a href="/projects/{{ project.id }}">{{ project.name }}</a>
                         </h3>
                         {% if project.is_default %}
-                            <span class="badge badge-primary">Default</span>
+                            {% call ui.badge("Default", "primary", "✦") %}{% end %}
                         {% end %}
                         {% if not project.valid %}
-                            <span class="badge badge-error">Invalid</span>
+                            {% call ui.badge("Invalid", "error", "⚠") %}{% end %}
                         {% end %}
                     </div>
 
@@ -40,7 +43,7 @@
 
                         {% if not project.valid and project.error_message %}
                             <div class="project-error">
-                                <span class="error-icon">⚠️</span>
+                                <span class="error-icon icon-error">⚠</span>
                                 <span class="text-error">{{ project.error_message }}</span>
                             </div>
                         {% end %}
@@ -59,8 +62,7 @@
                         {% if not project.is_default and project.valid %}
                             <button class="btn btn-sm btn-ghost"
                                     hx-post="/projects/{{ project.id }}/set-default"
-                                    hx-target="closest .project-card"
-                                    hx-swap="outerHTML">
+                                    hx-target="#app-content">
                                 Set as Default
                             </button>
                         {% end %}
@@ -69,9 +71,7 @@
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">📁</div>
-            <h2>No Projects Yet</h2>
+        {% call ui_empty.empty_state("✧", "No Projects Yet") %}
             <p class="text-muted">Create your first Sunwell project to get started</p>
             <button class="btn btn-primary"
                     hx-get="/projects/new-form"
@@ -79,7 +79,7 @@
                     hx-swap="innerHTML">
                 Create Project
             </button>
-        </div>
+        {% end %}
     {% end %}
 </div>
 
@@ -147,13 +147,15 @@
 }
 
 .badge-primary {
-    background: var(--color-primary);
-    color: white;
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
+    border: 1px solid var(--color-gold-dim);
 }
 
 .badge-error {
-    background: var(--color-error);
-    color: white;
+    background: rgba(124, 58, 237, 0.15);
+    color: var(--color-void-purple);
+    border: 1px solid var(--color-void-purple);
 }
 
 .project-details {
@@ -173,7 +175,7 @@
     align-items: center;
     gap: var(--space-xs);
     padding: var(--space-sm);
-    background: rgba(245, 91, 91, 0.1);
+    background: rgba(124, 58, 237, 0.1);
     border-radius: var(--radius-sm);
 }
 

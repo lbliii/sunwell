@@ -1,6 +1,8 @@
 {% block title %}Home - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+
 <div class="home-container">
     <header class="page-header mb-lg">
         <h1>Welcome to Sunwell Studio</h1>
@@ -11,7 +13,7 @@
         <h2 class="mb-md">Quick Actions</h2>
         <div class="grid grid-3">
             <div class="card">
-                <h3>🚀 New Project</h3>
+                <h3><span class="icon-radiant">✦</span> New Project</h3>
                 <p class="text-muted mb-md">Start a new Sunwell project</p>
                 <button hx-get="/projects/new-form"
                         hx-target="#app-content"
@@ -21,13 +23,13 @@
             </div>
 
             <div class="card">
-                <h3>📊 Observatory</h3>
+                <h3><span class="icon-solid">◆</span> Observatory</h3>
                 <p class="text-muted mb-md">Visualize agent execution</p>
                 <a href="/observatory" class="btn">Open Observatory</a>
             </div>
 
             <div class="card">
-                <h3>🔍 DAG Viewer</h3>
+                <h3><span class="icon-hollow">◇</span> DAG Viewer</h3>
                 <p class="text-muted mb-md">Explore execution graphs</p>
                 <a href="/dag" class="btn">View DAG</a>
             </div>
@@ -48,9 +50,9 @@
                 {% end %}
             </div>
         {% else %}
-            <div class="card">
-                <p class="text-muted">No recent projects. Create one to get started!</p>
-            </div>
+            {% call ui.empty_state("✧", "No Recent Projects") %}
+                <p class="text-muted">Create one to get started!</p>
+            {% end %}
         {% end %}
     </section>
 

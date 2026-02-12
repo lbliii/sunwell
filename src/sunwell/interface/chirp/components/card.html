@@ -1,0 +1,34 @@
+{# Card component with optional header and footer #}
+
+{% def card(variant="default", padding="md") %}
+<div class="card card--{{ variant }} card--padding-{{ padding }}">
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def card_header(title="", actions=false) %}
+<div class="card-header">
+    {% if title %}
+        <h3>{{ title }}</h3>
+    {% end %}
+    {% if actions %}
+        <div class="card-actions">
+            {{ caller() }}
+        </div>
+    {% else %}
+        {{ caller() }}
+    {% end %}
+</div>
+{% end %}
+
+{% def card_body() %}
+<div class="card-body">
+    {{ caller() }}
+</div>
+{% end %}
+
+{% def card_footer() %}
+<div class="card-footer">
+    {{ caller() }}
+</div>
+{% end %}

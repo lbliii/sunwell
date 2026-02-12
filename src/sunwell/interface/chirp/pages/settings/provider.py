@@ -1,18 +1,9 @@
 """Provider settings form handler."""
 
-from dataclasses import dataclass
-
 from chirp import Fragment
+
+from sunwell.interface.chirp.schemas import ProviderForm
 from sunwell.interface.chirp.services import ConfigService
-
-
-@dataclass(frozen=True, slots=True)
-class ProviderForm:
-    """Provider configuration form."""
-
-    provider: str
-    ollama_base: str = ""
-    ollama_model: str = ""
 
 
 def post(form: ProviderForm, config_svc: ConfigService) -> Fragment:

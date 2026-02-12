@@ -1,11 +1,49 @@
 {% block title %}Memory - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+
 <div class="memory-container">
     <header class="page-header mb-lg">
-        <h1>🧠 Memory</h1>
+        <h1><span class="icon-gold">≡</span> Memory</h1>
         <p class="text-muted">Agent learnings and context</p>
     </header>
+
+    <div class="memory-filters mb-lg">
+        <div class="filter-tabs">
+            <a href="/memory"
+               class="filter-tab {% if current_type == 'all' %}active{% end %}">
+                All
+            </a>
+            <a href="/memory?type=learning"
+               class="filter-tab {% if current_type == 'learning' %}active{% end %}">
+                Learnings
+            </a>
+            <a href="/memory?type=pattern"
+               class="filter-tab {% if current_type == 'pattern' %}active{% end %}">
+                Patterns
+            </a>
+            <a href="/memory?type=decision"
+               class="filter-tab {% if current_type == 'decision' %}active{% end %}">
+                Decisions
+            </a>
+        </div>
+
+        <form hx-get="/memory"
+              hx-target="#app-content"
+              hx-trigger="submit, input delay:500ms from:#search-input"
+              class="search-form">
+            {% if current_type and current_type != 'all' %}
+                <input type="hidden" name="type" value="{{ current_type }}">
+            {% end %}
+            <input type="search"
+                   id="search-input"
+                   name="search"
+                   value="{{ search_query }}"
+                   placeholder="Search memories..."
+                   class="input search-input">
+        </form>
+    </div>
 
     {% if memories %}
         <div class="memories-list">
@@ -21,11 +59,9 @@
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">🧠</div>
-            <h2>No Memories</h2>
+        {% call ui.empty_state("≡", "No Memories") %}
             <p class="text-muted">Memories will appear as agents learn</p>
-        </div>
+        {% end %}
     {% end %}
 </div>
 {% end %}
@@ -67,13 +103,57 @@
 }
 
 .type-preference {
-    background: rgba(91, 156, 245, 0.2);
-    color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
 }
 
 .type-context {
-    background: rgba(245, 158, 91, 0.2);
-    color: var(--color-accent);
+    background: rgba(201, 162, 39, 0.15);
+    color: var(--color-gold);
+}
+
+.memory-filters {
+    display: flex;
+    gap: var(--space-lg);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    background: var(--color-surface-elevated);
+    padding: 4px;
+    border-radius: var(--radius-md);
+}
+
+.filter-tab {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.filter-tab:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.filter-tab.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.search-form {
+    flex: 1;
+    max-width: 300px;
+}
+
+.search-input {
+    width: 100%;
 }
 </style>
 {% end %}

@@ -128,10 +128,22 @@ class ConfigService:
         """Get user preferences."""
         config = get_config()
 
+        # Access config attributes (dataclasses), not dict keys
+        auto_archive = True
+        spawn_enabled = True
+        max_simulacrums = 20
+
+        if hasattr(config, "simulacrum") and config.simulacrum:
+            if hasattr(config.simulacrum, "lifecycle") and config.simulacrum.lifecycle:
+                auto_archive = getattr(config.simulacrum.lifecycle, "auto_archive", True)
+            if hasattr(config.simulacrum, "spawn") and config.simulacrum.spawn:
+                spawn_enabled = getattr(config.simulacrum.spawn, "enabled", True)
+                max_simulacrums = getattr(config.simulacrum.spawn, "max_simulacrums", 20)
+
         return {
-            "auto_archive": getattr(getattr(config, "simulacrum", None), "lifecycle", {}).get("auto_archive", True) if hasattr(config, "simulacrum") else True,
-            "spawn_enabled": getattr(getattr(config, "simulacrum", None), "spawn", {}).get("enabled", True) if hasattr(config, "simulacrum") else True,
-            "max_simulacrums": getattr(getattr(config, "simulacrum", None), "spawn", {}).get("max_simulacrums", 20) if hasattr(config, "simulacrum") else 20,
+            "auto_archive": auto_archive,
+            "spawn_enabled": spawn_enabled,
+            "max_simulacrums": max_simulacrums,
         }
 
     def update_provider_config(
@@ -385,7 +397,10 @@ class BacklogService:
         Returns:
             List of goal dicts with status, progress, etc.
         """
+        import time
+
         # TODO: Integrate with actual backlog/goal system
+        now = time.time()
         return [
             {
                 "id": "g1",
@@ -395,6 +410,7 @@ class BacklogService:
                 "progress": 60,
                 "tasks_completed": 3,
                 "tasks_total": 5,
+                "created": now - 86400 * 2,  # 2 days ago
             },
             {
                 "id": "g2",
@@ -404,6 +420,7 @@ class BacklogService:
                 "progress": 0,
                 "tasks_completed": 0,
                 "tasks_total": 8,
+                "created": now - 86400 * 5,  # 5 days ago
             },
         ]
 
@@ -431,21 +448,24 @@ class WriterService:
         Returns:
             List of document dicts
         """
+        import time
+
         # TODO: Integrate with actual document service
+        now = time.time()
         return [
             {
                 "id": "d1",
                 "title": "API Documentation",
                 "status": "draft",
                 "word_count": 2500,
-                "last_edited": 1707654321.0,
+                "modified": now - 86400,  # 1 day ago
             },
             {
                 "id": "d2",
                 "title": "User Guide",
                 "status": "published",
                 "word_count": 5200,
-                "last_edited": 1707550000.0,
+                "modified": now - 86400 * 3,  # 3 days ago
             },
         ]
 

@@ -1,40 +1,50 @@
 {% block title %}Writer - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+{% import "card.html" as ui_card %}
+{% import "status.html" as ui_status %}
+
 <div class="writer-container">
     <header class="page-header mb-lg">
         <div class="header-content">
-            <h1>✍️ Writer</h1>
+            <h1><span class="icon-gold">※</span> Writer</h1>
             <p class="text-muted">Document editing with AI assistance</p>
         </div>
-        <button class="btn btn-primary" disabled>+ New Document</button>
+        <button class="btn btn-primary"
+                hx-get="/writer/new-form"
+                hx-target="#modal-container"
+                hx-swap="innerHTML">
+            + New Document
+        </button>
     </header>
 
     {% if documents %}
         <div class="documents-grid grid grid-2">
             {% for doc in documents %}
-                <div class="card document-card">
+                {% call ui_card.card() %}
                     <h3>{{ doc.title }}</h3>
                     <p class="text-muted"><code>{{ doc.path }}</code></p>
                     <div class="document-meta">
-                        <span class="status-badge status-{{ doc.status }}">{{ doc.status }}</span>
+                        {% call ui_status.badge(doc.status) %}{{ doc.status }}{% end %}
                         <span class="text-muted">{{ doc.modified | relative_time }}</span>
                     </div>
                     <div class="document-actions">
-                        <button class="btn btn-sm" disabled>Edit</button>
-                        <button class="btn btn-sm btn-ghost" disabled>Validate</button>
+                        <button class="btn btn-sm" disabled>Edit (Coming Soon)</button>
+                        <button class="btn btn-sm btn-ghost" disabled>Validate (Coming Soon)</button>
                     </div>
-                </div>
+                {% end %}
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">📝</div>
-            <h2>No Documents</h2>
+        {% call ui.empty_state("※", "No Documents") %}
             <p class="text-muted">Create or import documents to start writing</p>
-        </div>
+        {% end %}
     {% end %}
 </div>
+
+{# Modal container for new document form #}
+<div id="modal-container"></div>
 {% end %}
 
 {% block head %}
@@ -69,12 +79,12 @@
 }
 
 .status-draft {
-    background: rgba(245, 217, 91, 0.2);
-    color: var(--color-warning);
+    background: rgba(79, 70, 229, 0.15);
+    color: var(--color-void-indigo);
 }
 
 .status-published {
-    background: rgba(91, 245, 168, 0.2);
+    background: rgba(34, 197, 94, 0.15);
     color: var(--color-success);
 }
 

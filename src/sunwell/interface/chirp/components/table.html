@@ -1,0 +1,50 @@
+{# Table component with sorting and actions #}
+
+{% def table(variant="default", striped=false, hoverable=true) %}
+<div class="table-container">
+    <table class="table table--{{ variant }} {% if striped %}table--striped{% end %} {% if hoverable %}table--hoverable{% end %}">
+        {{ caller() }}
+    </table>
+</div>
+{% end %}
+
+{% def table_header() %}
+<thead class="table-header">
+    <tr>
+        {{ caller() }}
+    </tr>
+</thead>
+{% end %}
+
+{% def table_header_cell(sortable=false, sorted="", align="left") %}
+<th class="table-cell table-cell--header table-cell--{{ align }}" {% if sortable %}role="button" tabindex="0"{% end %}>
+    <div class="table-cell-content">
+        {{ caller() }}
+        {% if sortable %}
+            <span class="table-sort-icon">
+                {% if sorted == "asc" %}↑{% end %}
+                {% if sorted == "desc" %}↓{% end %}
+                {% if not sorted %}⇅{% end %}
+            </span>
+        {% end %}
+    </div>
+</th>
+{% end %}
+
+{% def table_body() %}
+<tbody class="table-body">
+    {{ caller() }}
+</tbody>
+{% end %}
+
+{% def table_row(clickable=false, attrs="") %}
+<tr class="table-row {% if clickable %}table-row--clickable{% end %}" {{ attrs | safe }}>
+    {{ caller() }}
+</tr>
+{% end %}
+
+{% def table_cell(align="left", attrs="") %}
+<td class="table-cell table-cell--{{ align }}" {{ attrs | safe }}>
+    {{ caller() }}
+</td>
+{% end %}

@@ -1,0 +1,5 @@
+{% block action_status %}
+<div class="status-message {% if success %}status-success{% else %}status-error{% end %}">
+    {{ message }}
+</div>
+{% end %}

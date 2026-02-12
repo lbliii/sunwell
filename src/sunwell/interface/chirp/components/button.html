@@ -1,0 +1,16 @@
+{# Button component with variants and states #}
+
+{% def button(variant="default", size="md", disabled=false, type="button", attrs="") %}
+<button type="{{ type }}"
+        class="btn btn--{{ variant }} btn--{{ size }}"
+        {% if disabled %}disabled{% end %}
+        {{ attrs | safe }}>
+    {{ caller() }}
+</button>
+{% end %}
+
+{% def button_group(align="left") %}
+<div class="btn-group btn-group--{{ align }}">
+    {{ caller() }}
+</div>
+{% end %}

@@ -1,0 +1,26 @@
+{# Status indicators and badges #}
+
+{% def status_indicator(status="default", label="", size="md") %}
+<div class="status-indicator status-indicator--{{ status }} status-indicator--{{ size }}">
+    <span class="status-dot"></span>
+    {% if label %}
+        <span class="status-label">{{ label }}</span>
+    {% end %}
+</div>
+{% end %}
+
+{% def status_badge(text, variant="default", icon="") %}
+<span class="status-badge status-badge--{{ variant }}">
+    {% if icon %}<span class="status-icon">{{ icon }}</span>{% end %}
+    {{ text }}
+</span>
+{% end %}
+
+{% def status_pill(text, variant="default", dismissible=false) %}
+<span class="status-pill status-pill--{{ variant }}">
+    {{ text }}
+    {% if dismissible %}
+        <button class="status-pill-close" onclick="this.parentElement.remove()">×</button>
+    {% end %}
+</span>
+{% end %}

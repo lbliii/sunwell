@@ -1,0 +1,8 @@
+{# Reusable empty state component - uses caller() for content #}
+{% def empty_state(icon, title) %}
+<div class="empty-state card">
+    <div class="empty-state-icon">{{ icon }}</div>
+    <h2>{{ title }}</h2>
+    {{ caller() }}
+</div>
+{% end %}

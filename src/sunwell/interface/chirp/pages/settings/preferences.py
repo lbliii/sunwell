@@ -1,18 +1,9 @@
 """Preferences form handler."""
 
-from dataclasses import dataclass
-
 from chirp import Fragment
+
+from sunwell.interface.chirp.schemas import PreferencesForm
 from sunwell.interface.chirp.services import ConfigService
-
-
-@dataclass(frozen=True, slots=True)
-class PreferencesForm:
-    """Studio preferences form."""
-
-    theme: str = "dark"
-    auto_save: bool = False
-    show_token_counts: bool = False
 
 
 def post(form: PreferencesForm, config_svc: ConfigService) -> Fragment:

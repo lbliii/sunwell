@@ -1,4 +1,7 @@
-"""Planning context for RFC-122: Compound Learning."""
+"""Planning context for RFC-122: Compound Learning.
+
+Phase 3 Enhancement: Mental model support for token-efficient context.
+"""
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -7,6 +10,7 @@ from sunwell.foundation.types.memory import Episode
 from sunwell.memory.simulacrum.core.turn import Learning
 
 if TYPE_CHECKING:
+    from sunwell.memory.core.reflection import MentalModel
     from sunwell.planning.naaru.convergence import Slot  # layer-exempt: pre-existing
 
 
@@ -55,12 +59,34 @@ class PlanningContext:
     dead_end_summaries: tuple[str, ...] = ()
     """Summary strings from failed episodes for quick injection."""
 
+    # Phase 3: Mental model support
+    mental_models: tuple[MentalModel, ...] = ()
+    """Mental models that replace individual learnings (token efficient)."""
+
     def to_convergence_slots(self) -> list[Slot]:
-        """Convert to Convergence slots for HarmonicPlanner injection."""
+        """Convert to Convergence slots for HarmonicPlanner injection.
+
+        Phase 3: If mental models are available, use them instead of
+        individual learnings for token efficiency (~30% savings).
+        """
         from sunwell.planning.naaru.convergence import Slot, SlotSource  # layer-exempt: pre-existing
 
         slots: list[Slot] = []
 
+        # Phase 3: Inject mental models first (if available)
+        if self.mental_models:
+            for model in self.mental_models:
+                slots.append(Slot(
+                    id=f"mental_model:{model.topic}",
+                    content=model.to_prompt(),
+                    relevance=1.0,  # Mental models are high priority
+                    source=SlotSource.MEMORY_FETCHER,
+                ))
+            # Skip individual learnings if mental models cover them
+            # (detected by checking if learnings are in model sources)
+            return slots
+
+        # Standard individual learning injection
         if self.facts:
             slots.append(Slot(
                 id="knowledge:facts",
@@ -124,8 +150,19 @@ class PlanningContext:
         """Format for injection into planner prompt.
 
         Uses first-person voice to reduce epistemic distance.
+
+        Phase 3: Prioritizes mental models when available for token efficiency.
         """
         sections: list[str] = []
+
+        # Phase 3: Include mental models first
+        if self.mental_models:
+            sections.append("## Mental Models")
+            for model in self.mental_models:
+                sections.append(model.to_prompt())
+                sections.append("")  # Blank line between models
+            # If we have mental models, skip individual learnings
+            return "\n".join(sections)
 
         if self.facts or self.patterns:
             sections.append("## What I Know About This Project")

@@ -1,0 +1,24 @@
+{% block event_row %}
+<div class="activity-event" data-category="{{ category }}">
+  <div class="event-header">
+    <span class="event-tool">{{ tool_name }}</span>
+    <span class="event-time">{{ timestamp }}</span>
+  </div>
+
+  {% if args %}
+  <div class="event-args">
+    <strong>Args:</strong> {{ args }}
+  </div>
+  {% end %}
+
+  {% if error %}
+  <div class="event-result event-error">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% elif result %}
+  <div class="event-result">
+    <strong>Result:</strong> {{ result | truncate(200) }}
+  </div>
+  {% end %}
+</div>
+{% endblock %}

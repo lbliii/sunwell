@@ -8,4 +8,6 @@ def get() -> Fragment:
     return Fragment(
         "projects/new-form.html",
         "modal_content",
+        form=None,  # No form data on initial GET
+        errors=None,  # No errors on initial GET
     )

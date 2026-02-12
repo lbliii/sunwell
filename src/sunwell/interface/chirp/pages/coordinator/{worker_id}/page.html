@@ -1,0 +1,226 @@
+{% block title %}{{ worker.name }} - Coordinator - Sunwell Studio{% end %}
+
+{% block content %}
+{% import "card.html" as ui_card %}
+{% import "status.html" as ui_status %}
+{% import "progress.html" as ui_progress %}
+{% import "empty.html" as ui_empty %}
+
+<div class="worker-detail-container">
+    <header class="page-header mb-lg">
+        <div class="header-content">
+            <div class="breadcrumb text-muted mb-sm">
+                <a href="/coordinator">← Coordinator</a>
+            </div>
+            <h1><span class="icon-solid">◆</span> {{ worker.name }}</h1>
+            <div class="worker-status-badge">
+                {% call ui_status.indicator(worker.status) %}{{ worker.status }}{% end %}
+            </div>
+        </div>
+        <div class="worker-actions">
+            <button class="btn btn-ghost" disabled>Pause Worker</button>
+            <button class="btn btn-ghost btn-danger" disabled>Stop Worker</button>
+        </div>
+    </header>
+
+    {# Metrics Grid #}
+    <div class="metrics-grid grid grid-3 mb-lg">
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">Uptime</div>
+                <div class="metric-value">{{ metrics.uptime }}</div>
+            </div>
+        {% end %}
+
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">Avg Task Duration</div>
+                <div class="metric-value">{{ metrics.avg_task_duration }}</div>
+            </div>
+        {% end %}
+
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">Success Rate</div>
+                <div class="metric-value">{{ metrics.success_rate }}</div>
+            </div>
+        {% end %}
+
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">CPU Usage</div>
+                <div class="metric-value">{{ metrics.cpu_usage }}</div>
+            </div>
+        {% end %}
+
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">Memory Usage</div>
+                <div class="metric-value">{{ metrics.memory_usage }}</div>
+            </div>
+        {% end %}
+
+        {% call ui_card.card() %}
+            <div class="metric">
+                <div class="metric-label">Tasks Completed</div>
+                <div class="metric-value">{{ worker.tasks_completed }}</div>
+            </div>
+        {% end %}
+    </div>
+
+    {# Running Tasks #}
+    <section class="mb-lg">
+        <h2 class="section-heading">Running Tasks ({{ running_tasks | length }})</h2>
+        {% if running_tasks %}
+            <div class="tasks-list">
+                {% for task in running_tasks %}
+                    {% call ui_card.card() %}
+                        <div class="task-header">
+                            <h3>{{ task.description }}</h3>
+                            <span class="text-muted">{{ task.started | relative_time }}</span>
+                        </div>
+                        {% call ui_progress.progress_bar(task.progress) %}{% end %}
+                        <div class="task-meta">
+                            <code>{{ task.id }}</code>
+                        </div>
+                    {% end %}
+                {% end %}
+            </div>
+        {% else %}
+            {% call ui_empty.empty_state("○", "No Running Tasks") %}
+                <p class="text-muted">This worker is idle</p>
+            {% end %}
+        {% end %}
+    </section>
+
+    {# Task History #}
+    <section class="mb-lg">
+        <h2 class="section-heading">Recent Task History</h2>
+        {% if task_history %}
+            <div class="history-list">
+                {% for task in task_history %}
+                    {% call ui_card.card() %}
+                        <div class="history-item">
+                            <div class="history-header">
+                                <h4>{{ task.description }}</h4>
+                                {% call ui_status.badge(task.status) %}{{ task.status }}{% end %}
+                            </div>
+                            <div class="history-meta">
+                                <span class="text-muted">Completed {{ task.completed | relative_time }}</span>
+                                <span class="text-muted">• {{ task.duration | format_duration }}</span>
+                                <span class="text-muted">• <code>{{ task.id }}</code></span>
+                            </div>
+                        </div>
+                    {% end %}
+                {% end %}
+            </div>
+        {% else %}
+            {% call ui_empty.empty_state("○", "No Task History") %}
+                <p class="text-muted">No completed tasks yet</p>
+            {% end %}
+        {% end %}
+    </section>
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.worker-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.breadcrumb {
+    font-size: 0.875rem;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    color: var(--color-text);
+}
+
+.worker-status-badge {
+    margin-top: var(--space-sm);
+}
+
+.worker-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.metrics-grid {
+    gap: var(--space-md);
+}
+
+.metric {
+    text-align: center;
+    padding: var(--space-md);
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-xs);
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.section-heading {
+    margin-bottom: var(--space-md);
+    font-size: 1.125rem;
+}
+
+.tasks-list,
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.task-header,
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+}
+
+.task-header h3,
+.history-header h4 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.task-meta,
+.history-meta {
+    display: flex;
+    gap: var(--space-sm);
+    font-size: 0.875rem;
+    margin-top: var(--space-sm);
+}
+
+.history-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+</style>
+{% end %}

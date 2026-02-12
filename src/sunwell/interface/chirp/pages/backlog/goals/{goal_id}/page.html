@@ -1,0 +1,205 @@
+{% block title %}{{ goal.description }} - Backlog - Sunwell Studio{% end %}
+
+{% block content %}
+<div class="goal-detail-container">
+    <header class="page-header mb-lg">
+        <div class="breadcrumb">
+            <a href="/backlog">Backlog</a>
+            <span class="breadcrumb-sep">/</span>
+            <span>Goal</span>
+        </div>
+
+        <div class="header-content">
+            <h1>{{ goal.description }}</h1>
+            <div class="goal-badges">
+                <span class="status-badge status-{{ goal.status }}">{{ goal.status }}</span>
+                <span class="priority-badge priority-{{ goal.priority }}">{{ goal.priority }}</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="goal-info card mb-lg">
+        <h2>Progress</h2>
+        {% if goal.tasks_total > 0 %}
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (goal.tasks_completed / goal.tasks_total * 100) }}%"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><strong>{{ goal.tasks_completed }}</strong> of <strong>{{ goal.tasks_total }}</strong> tasks completed</span>
+                    <span>{{ (goal.tasks_completed / goal.tasks_total * 100) | int }}%</span>
+                </div>
+            </div>
+        {% else %}
+            <p class="text-muted">No tasks defined yet</p>
+        {% end %}
+    </div>
+
+    <div class="goal-actions card mb-lg">
+        <h2>Actions</h2>
+        <div id="action-status"></div>
+        <div class="actions-grid">
+            <button class="btn btn-primary"
+                    hx-post="/backlog/goals/{{ goal.id }}/run"
+                    hx-target="#action-status">
+                <span class="icon-radiant">✦</span> Run Agent
+            </button>
+            <button class="btn btn-ghost" disabled>
+                <span class="icon-solid">◆</span> Edit Goal
+            </button>
+            <button class="btn btn-ghost" disabled>
+                <span class="icon-hollow">◇</span> Add Tasks
+            </button>
+        </div>
+    </div>
+
+    <div class="goal-metadata card">
+        <h2>Metadata</h2>
+        <dl class="info-list">
+            <dt>Created</dt>
+            <dd>{{ goal.created | relative_time }}</dd>
+
+            <dt>Status</dt>
+            <dd><span class="status-badge status-{{ goal.status }}">{{ goal.status }}</span></dd>
+
+            <dt>Priority</dt>
+            <dd><span class="priority-badge priority-{{ goal.priority }}">{{ goal.priority }}</span></dd>
+
+            <dt>Progress</dt>
+            <dd>{{ goal.progress }}%</dd>
+        </dl>
+    </div>
+</div>
+{% end %}
+
+{% block head %}
+<style>
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    font-size: 0.875rem;
+}
+
+.breadcrumb a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    color: var(--color-primary);
+}
+
+.breadcrumb-sep {
+    color: var(--color-text-muted);
+}
+
+.header-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.goal-badges {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.status-badge, .priority-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: rgba(79, 70, 229, 0.15);
+    color: var(--color-void-indigo);
+}
+
+.status-in_progress {
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
+}
+
+.status-completed {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--color-success);
+}
+
+.priority-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-error);
+}
+
+.priority-medium {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--color-warning);
+}
+
+.priority-low {
+    background: rgba(168, 168, 168, 0.15);
+    color: var(--color-text-muted);
+}
+
+.progress-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.progress-bar {
+    height: 12px;
+    background: var(--color-surface-elevated);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-gold), var(--color-radiant));
+    transition: width var(--transition-normal);
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-md);
+}
+
+#action-status:empty {
+    display: none;
+}
+
+#action-status {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--color-radiant);
+}
+
+.info-list {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: var(--space-md) var(--space-lg);
+}
+
+.info-list dt {
+    font-weight: 600;
+}
+
+.info-list dd {
+    margin: 0;
+}
+</style>
+{% end %}

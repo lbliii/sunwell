@@ -1,21 +1,23 @@
 {% block title %}Coordinator - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+{% import "card.html" as ui_card %}
+{% import "status.html" as ui_status %}
+
 <div class="coordinator-container">
     <header class="page-header mb-lg">
-        <h1>🎯 Coordinator</h1>
+        <h1><span class="icon-solid">◆</span> Coordinator</h1>
         <p class="text-muted">Worker management and task distribution</p>
     </header>
 
     {% if workers %}
         <div class="workers-grid grid grid-2">
             {% for worker in workers %}
-                <div class="card worker-card">
+                {% call ui_card.card() %}
                     <div class="worker-header">
                         <h3>{{ worker.name }}</h3>
-                        <span class="status-indicator status-{{ worker.status }}">
-                            {{ worker.status }}
-                        </span>
+                        {% call ui_status.indicator(worker.status) %}{{ worker.status }}{% end %}
                     </div>
                     <dl class="worker-stats">
                         <dt>Running</dt>
@@ -24,17 +26,15 @@
                         <dd>{{ worker.tasks_completed }}</dd>
                     </dl>
                     <div class="worker-actions">
-                        <button class="btn btn-sm" disabled>View Details</button>
+                        <a href="/coordinator/{{ worker.id }}" class="btn btn-sm">View Details</a>
                     </div>
-                </div>
+                {% end %}
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">🎯</div>
-            <h2>No Workers</h2>
+        {% call ui.empty_state("◆", "No Workers") %}
             <p class="text-muted">Workers will appear when coordinator is active</p>
-        </div>
+        {% end %}
     {% end %}
 </div>
 {% end %}
@@ -66,12 +66,12 @@
 }
 
 .status-active {
-    background: rgba(91, 245, 168, 0.2);
+    background: rgba(34, 197, 94, 0.15);
     color: var(--color-success);
 }
 
 .status-idle {
-    background: rgba(136, 146, 166, 0.2);
+    background: rgba(168, 168, 168, 0.15);
     color: var(--color-text-muted);
 }
 

@@ -1,0 +1,262 @@
+{% extends "_layout.html" %}
+
+{% block title %}Activity Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🔔 Activity Monitor</h1>
+  <p class="text-neutral-dim">Real-time tool call activity from AI agents</p>
+</div>
+
+<div class="activity-monitor">
+  <!-- Statistics -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="total-calls">0</div>
+      <div class="stat-label">Total Calls</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="active-agents">0</div>
+      <div class="stat-label">Active Agents</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="success-rate">100%</div>
+      <div class="stat-label">Success Rate</div>
+    </div>
+  </div>
+
+  <!-- Activity Feed -->
+  <div class="activity-feed-container">
+    <div class="feed-header">
+      <h2>Recent Activity</h2>
+      <div class="feed-controls">
+        <button class="btn-sm" onclick="clearFeed()">Clear</button>
+        <select id="category-filter" onchange="filterByCategory(this.value)">
+          <option value="all">All Categories</option>
+          <option value="backlog">Backlog</option>
+          <option value="knowledge">Knowledge</option>
+          <option value="memory">Memory</option>
+          <option value="lens">Lens</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SSE Stream Target -->
+    <div class="activity-feed"
+         hx-get="/activity/feed"
+         hx-trigger="load"
+         hx-swap="beforeend">
+      <div class="empty-state">
+        <p>🔮 Listening for tool calls...</p>
+        <p class="text-sm text-neutral-dim">Activity will appear here when AI agents call Sunwell tools</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Section -->
+  <div class="test-section">
+    <h3>Test Tool Call</h3>
+    <p class="text-sm text-neutral-dim">Trigger a test tool call to see activity monitoring in action</p>
+
+    <form hx-post="/activity/test-call" hx-swap="none">
+      <div class="form-row">
+        <select name="tool" class="input">
+          <option value="sunwell_list_lenses">sunwell_list_lenses</option>
+          <option value="sunwell_workspace">sunwell_workspace</option>
+          <option value="sunwell_goals">sunwell_goals</option>
+        </select>
+        <button type="submit" class="btn">Trigger Call</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.activity-monitor {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--holy-cyan);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.activity-feed-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.feed-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.feed-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.activity-feed {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-dim);
+}
+
+.test-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.test-section h3 {
+  margin-top: 0;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-row .input {
+  flex: 1;
+}
+
+/* Activity Event Styles (for streamed events) */
+.activity-event {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--holy-cyan);
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.event-tool {
+  font-weight: 600;
+  color: var(--holy-cyan);
+  font-family: var(--font-mono);
+}
+
+.event-time {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.event-args {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.event-result {
+  font-size: 0.875rem;
+  color: var(--text-success);
+}
+
+.event-error {
+  color: var(--text-error);
+}
+</style>
+
+<script>
+let totalCalls = 0;
+let successfulCalls = 0;
+
+function clearFeed() {
+  const feed = document.querySelector('.activity-feed');
+  feed.innerHTML = '<div class="empty-state"><p>🔮 Listening for tool calls...</p></div>';
+  totalCalls = 0;
+  successfulCalls = 0;
+  updateStats();
+}
+
+function filterByCategory(category) {
+  const events = document.querySelectorAll('.activity-event');
+  events.forEach(event => {
+    if (category === 'all' || event.dataset.category === category) {
+      event.style.display = 'block';
+    } else {
+      event.style.display = 'none';
+    }
+  });
+}
+
+function updateStats() {
+  document.getElementById('total-calls').textContent = totalCalls;
+  const rate = totalCalls === 0 ? 100 : Math.round((successfulCalls / totalCalls) * 100);
+  document.getElementById('success-rate').textContent = rate + '%';
+}
+
+// Track tool calls when they stream in
+document.addEventListener('htmx:beforeSwap', function(event) {
+  if (event.detail.target.classList.contains('activity-feed')) {
+    totalCalls++;
+    if (!event.detail.xhr.responseText.includes('error')) {
+      successfulCalls++;
+    }
+    updateStats();
+  }
+});
+</script>
+{% endblock %}

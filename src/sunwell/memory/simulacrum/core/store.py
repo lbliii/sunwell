@@ -65,6 +65,7 @@ from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig
 if TYPE_CHECKING:
     from sunwell.knowledge.codebase.extractor import IntelligenceExtractor
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
+    from sunwell.memory.core.reflection import MentalModel, Reflector
     from sunwell.memory.simulacrum.context.focus import Focus
     from sunwell.memory.simulacrum.extractors.topology_extractor import TopologyExtractor
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
@@ -154,6 +155,16 @@ class SimulacrumStore:
 
     _focus: Focus | None = field(default=None, init=False)
     """Focus mechanism for weighted topic tracking (RFC-084)."""
+
+    # Phase 3: Reflection system
+    _reflector: Reflector | None = field(default=None, init=False)
+    """Reflector for generating insights (Phase 3)."""
+
+    _mental_models: dict[str, MentalModel] = field(default_factory=dict, init=False)
+    """Mental models by topic (Phase 3)."""
+
+    _reflection_counter: int = field(default=0, init=False)
+    """Counter for triggering auto-reflection."""
 
     # Modular managers
     _episode_manager: EpisodeManager | None = field(default=None, init=False)
@@ -302,6 +313,12 @@ class SimulacrumStore:
             # HeuristicSummarizer is used for chunk manager (duck-typed)
             if self._chunk_manager:
                 self._chunk_manager.summarizer = heuristic_summarizer  # type: ignore[assignment]
+
+        # Phase 3: Initialize reflection system
+        if self._embedder:
+            from sunwell.memory.core.reflection import Reflector
+
+            self._reflector = Reflector(self._embedder)
 
     def set_summarizer(self, summarizer: Summarizer) -> None:
         """Set the summarizer for chunk processing.
@@ -634,7 +651,26 @@ class SimulacrumStore:
             source_turns=source_turns or (),
             activity_day_created=activity_day,
         )
-        return self._hot_dag.add_learning(learning)
+        learning_id = self._hot_dag.add_learning(learning)
+
+        # Phase 3: Check if we should trigger reflection
+        if self._reflector and category in ("constraint", "pattern"):
+            # Check constraint/pattern count
+            category_learnings = [
+                l for l in self._hot_dag.learnings.values() if l.category == category
+            ]
+            if len(category_learnings) >= 10 and len(category_learnings) % 10 == 0:
+                # Trigger reflection asynchronously (don't block)
+                import asyncio
+
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.trigger_reflection(category))
+                except RuntimeError:
+                    # No running loop, skip async reflection
+                    pass
+
+        return learning_id
 
     def get_dag(self) -> ConversationDAG:
         """Get the current conversation DAG."""
@@ -773,6 +809,186 @@ class SimulacrumStore:
         """
         return self._episode_manager.get_episode_by_id(episode_id)
 
+    # === Phase 3: Reflection System ===
+
+    async def trigger_reflection(
+        self,
+        category: str | None = None,
+        force: bool = False,
+    ) -> list[Reflection]:
+        """Trigger reflection to generate higher-order insights.
+
+        Analyzes learnings to generate reflections about WHY
+        patterns and constraints exist.
+
+        Args:
+            category: Optional category to reflect on (None = all categories)
+            force: Force reflection even if threshold not met
+
+        Returns:
+            List of generated Reflection instances
+        """
+        from sunwell.memory.core.reflection import Reflection
+
+        if not self._reflector:
+            logger.warning("Reflector not initialized (requires embedder)")
+            return []
+
+        # Get learnings to reflect on
+        if category:
+            learnings = [
+                l for l in self._hot_dag.learnings.values() if l.category == category
+            ]
+        else:
+            learnings = list(self._hot_dag.get_active_learnings())
+
+        # Check threshold
+        if not force and len(learnings) < 10:
+            logger.debug(f"Not enough learnings for reflection ({len(learnings)} < 10)")
+            return []
+
+        # Generate reflections
+        if category == "constraint":
+            reflections = await self._reflector.reflect_on_constraints(learnings)
+        else:
+            reflections = await self._reflector.reflect_on_category(
+                learnings, category or "general"
+            )
+
+        # Store reflections as special learnings
+        for reflection in reflections:
+            learning_dict = reflection.to_learning_dict()
+            from sunwell.memory.simulacrum.core.turn import Learning
+
+            reflection_learning = Learning(
+                id=learning_dict["id"],
+                fact=learning_dict["fact"],
+                category=learning_dict["category"],
+                confidence=learning_dict["confidence"],
+                source_turns=learning_dict["source_turns"],
+            )
+            self._hot_dag.add_learning(reflection_learning)
+
+        logger.info(f"Generated {len(reflections)} reflections")
+        return reflections
+
+    async def build_mental_model(
+        self,
+        topic: str,
+        learning_ids: list[str] | None = None,
+    ) -> MentalModel:
+        """Build a mental model for a topic.
+
+        Mental models provide coherent understanding in a single
+        context, saving ~30% tokens vs individual learnings.
+
+        Args:
+            topic: Topic to build model for
+            learning_ids: Optional specific learning IDs (None = auto-select)
+
+        Returns:
+            MentalModel instance
+        """
+        from sunwell.memory.core.reflection import MentalModel
+
+        if not self._reflector:
+            logger.warning("Reflector not initialized (requires embedder)")
+            # Return empty mental model
+            return MentalModel(
+                id=self._reflector._generate_model_id(topic) if self._reflector else topic,
+                topic=topic,
+                confidence=0.0,
+            )
+
+        # Get relevant learnings
+        if learning_ids:
+            learnings = [
+                l
+                for l in self._hot_dag.learnings.values()
+                if l.id in learning_ids
+            ]
+        else:
+            # Auto-select learnings containing topic keywords
+            topic_lower = topic.lower()
+            learnings = [
+                l
+                for l in self._hot_dag.get_active_learnings()
+                if topic_lower in l.fact.lower()
+            ]
+
+        if not learnings:
+            logger.warning(f"No learnings found for topic: {topic}")
+            return MentalModel(
+                id=self._reflector._generate_model_id(topic),
+                topic=topic,
+                confidence=0.0,
+            )
+
+        # Get relevant reflections
+        reflections = [
+            l
+            for l in self._hot_dag.learnings.values()
+            if l.category == "reflection" and topic_lower in l.fact.lower()
+        ]
+
+        # Build mental model
+        from sunwell.memory.core.reflection import Reflection
+
+        reflection_objects = []
+        for refl_learning in reflections:
+            # Convert learning back to Reflection (simplified)
+            reflection_objects.append(
+                Reflection(
+                    id=refl_learning.id,
+                    theme=topic,
+                    causality="",
+                    summary=refl_learning.fact,
+                    confidence=refl_learning.confidence,
+                )
+            )
+
+        mental_model = await self._reflector.build_mental_model(
+            topic, learnings, reflection_objects
+        )
+
+        # Cache the model
+        self._mental_models[topic] = mental_model
+
+        logger.info(f"Built mental model for '{topic}' from {len(learnings)} learnings")
+        return mental_model
+
+    def get_mental_model(self, topic: str) -> MentalModel | None:
+        """Get cached mental model for a topic.
+
+        Args:
+            topic: Topic to get model for
+
+        Returns:
+            MentalModel if exists, None otherwise
+        """
+        return self._mental_models.get(topic)
+
+    async def maybe_auto_reflect(self) -> None:
+        """Auto-trigger reflection if threshold met.
+
+        Called internally after adding learnings.
+        """
+        self._reflection_counter += 1
+
+        # Trigger every 50 learnings (configurable)
+        if self._reflection_counter >= 50:
+            logger.info("Auto-triggering reflection (threshold reached)")
+            await self.trigger_reflection()
+            self._reflection_counter = 0
+
+    def list_mental_models(self) -> list[str]:
+        """List all cached mental model topics.
+
+        Returns:
+            List of topic names
+        """
+        return list(self._mental_models.keys())
+
     # === RFC-122: Knowledge Retrieval for Planning ===
 
     async def retrieve_for_planning(
@@ -786,12 +1002,14 @@ class SimulacrumStore:
         stored in DAG. Returns categorized results for injection into
         HarmonicPlanner via Convergence.
 
+        Phase 3: Checks for mental models and uses them for token efficiency.
+
         Args:
             goal: Task description to match against
             limit_per_category: Max items per category
 
         Returns:
-            PlanningContext with categorized learnings
+            PlanningContext with categorized learnings or mental models
         """
         if not self._planning_retriever:
             # Initialize if not already done
@@ -803,6 +1021,35 @@ class SimulacrumStore:
             episodes = self._episode_manager.get_episodes(limit=100)
             self._planning_retriever._episodes = episodes
 
+        # Phase 3: Check for relevant mental models
+        mental_models = []
+        if self._mental_models:
+            # Find models that match the goal
+            goal_lower = goal.lower()
+            for topic, model in self._mental_models.items():
+                if topic.lower() in goal_lower or any(
+                    keyword in goal_lower
+                    for keyword in topic.lower().split()
+                ):
+                    mental_models.append(model)
+
+        # If we have relevant mental models, use them (token efficient)
+        if mental_models:
+            # Return planning context with mental models
+            # This replaces individual learnings with coherent models
+            context = PlanningContext(
+                facts=(),
+                constraints=(),
+                dead_ends=(),
+                templates=(),
+                heuristics=(),
+                patterns=(),
+                goal=goal,
+                mental_models=tuple(mental_models),
+            )
+            return context
+
+        # Otherwise, use standard retrieval
         return await self._planning_retriever.retrieve(
             goal,
             limit_per_category,

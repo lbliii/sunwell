@@ -1,16 +1,8 @@
 """Create new project handler."""
 
-from dataclasses import dataclass
-
 from chirp import FormAction, Request, ValidationError, form_or_errors
 
-
-@dataclass(frozen=True, slots=True)
-class NewProjectForm:
-    """Form for creating a new project."""
-
-    name: str
-    path: str = ""
+from sunwell.interface.chirp.schemas import NewProjectForm
 
 
 async def post(request: Request) -> FormAction | ValidationError:

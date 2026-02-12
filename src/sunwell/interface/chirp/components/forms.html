@@ -1,0 +1,79 @@
+{# Form field components with error handling #}
+
+{% def text_field(name, value="", label="", placeholder="", required=false, errors=none, attrs="") %}
+<div class="field {% if errors and name in errors %}field--error{% end %}">
+    {% if label %}
+        <label for="{{ name }}">{{ label }}{% if required %} *{% end %}</label>
+    {% end %}
+    <input type="text"
+           id="{{ name }}"
+           name="{{ name }}"
+           value="{{ value }}"
+           {% if placeholder %}placeholder="{{ placeholder }}"{% end %}
+           {% if required %}required{% end %}
+           class="input"
+           {{ attrs | safe }}>
+    {% if errors and name in errors %}
+        <span class="field-error">{{ errors[name][0] }}</span>
+    {% end %}
+    {% if has_slot %}{{ caller() }}{% end %}
+</div>
+{% end %}
+
+{% def textarea_field(name, value="", label="", placeholder="", rows=3, required=false, errors=none, attrs="") %}
+<div class="field {% if errors and name in errors %}field--error{% end %}">
+    {% if label %}
+        <label for="{{ name }}">{{ label }}{% if required %} *{% end %}</label>
+    {% end %}
+    <textarea id="{{ name }}"
+              name="{{ name }}"
+              {% if placeholder %}placeholder="{{ placeholder }}"{% end %}
+              {% if required %}required{% end %}
+              rows="{{ rows }}"
+              class="input"
+              {{ attrs | safe }}>{{ value }}</textarea>
+    {% if errors and name in errors %}
+        <span class="field-error">{{ errors[name][0] }}</span>
+    {% end %}
+    {% if has_slot %}{{ caller() }}{% end %}
+</div>
+{% end %}
+
+{% def select_field(name, value="", label="", options=[], required=false, errors=none, attrs="") %}
+<div class="field {% if errors and name in errors %}field--error{% end %}">
+    {% if label %}
+        <label for="{{ name }}">{{ label }}{% if required %} *{% end %}</label>
+    {% end %}
+    <select id="{{ name }}"
+            name="{{ name }}"
+            {% if required %}required{% end %}
+            class="input"
+            {{ attrs | safe }}>
+        {% for option in options %}
+            <option value="{{ option.value }}" {% if option.value == value %}selected{% end %}>
+                {{ option.label }}
+            </option>
+        {% end %}
+    </select>
+    {% if errors and name in errors %}
+        <span class="field-error">{{ errors[name][0] }}</span>
+    {% end %}
+    {% if has_slot %}{{ caller() }}{% end %}
+</div>
+{% end %}
+
+{% def checkbox_field(name, checked=false, label="", errors=none, attrs="") %}
+<div class="field-checkbox {% if errors and name in errors %}field--error{% end %}">
+    <input type="checkbox"
+           id="{{ name }}"
+           name="{{ name }}"
+           {% if checked %}checked{% end %}
+           {{ attrs | safe }}>
+    {% if label %}
+        <label for="{{ name }}">{{ label }}</label>
+    {% end %}
+    {% if errors and name in errors %}
+        <span class="field-error">{{ errors[name][0] }}</span>
+    {% end %}
+</div>
+{% end %}

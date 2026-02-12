@@ -1,27 +1,32 @@
 {% block title %}Observatory - Sunwell Studio{% end %}
 
 {% block content %}
+{% import "empty.html" as ui %}
+{% import "card.html" as ui_card %}
+{% import "alert.html" as ui_alert %}
+{% import "status.html" as ui_status %}
+
 <div class="observatory-container">
     <header class="page-header mb-lg">
-        <h1>🔭 Observatory</h1>
+        <h1><span class="icon-gold">◎</span> Observatory</h1>
         <p class="text-muted">Agent execution visualization</p>
     </header>
 
-    <div class="placeholder-notice card mb-lg">
-        <h3>🎨 Canvas Visualizations Coming Soon</h3>
+    {% call ui_alert.alert("info") %}
+        <h3><span class="icon-gold">※</span> Canvas Visualizations Coming Soon</h3>
         <p class="text-muted">
             Phase 2 will add ResonanceWave, PrismFracture, ExecutionCinema, and MemoryLattice visualizations.
             For now, view runs in list format below.
         </p>
-    </div>
+    {% end %}
 
     {% if runs %}
         <div class="runs-list">
             {% for run in runs %}
-                <div class="card run-card">
+                {% call ui_card.card() %}
                     <div class="run-header">
                         <h3>{{ run.goal }}</h3>
-                        <span class="status-badge status-{{ run.status }}">{{ run.status }}</span>
+                        {% call ui_status.badge(run.status) %}{{ run.status }}{% end %}
                     </div>
                     <div class="run-stats">
                         <span class="stat">
@@ -32,18 +37,15 @@
                         </span>
                     </div>
                     <div class="run-actions">
-                        <button class="btn btn-sm" disabled>View Visualization</button>
-                        <button class="btn btn-sm btn-ghost" disabled>Event Log</button>
+                        <a href="/observatory/runs/{{ run.id }}" class="btn btn-sm">View Details</a>
                     </div>
-                </div>
+                {% end %}
             {% end %}
         </div>
     {% else %}
-        <div class="empty-state card">
-            <div class="empty-state-icon">🔭</div>
-            <h2>No Runs</h2>
+        {% call ui.empty_state("◎", "No Runs") %}
             <p class="text-muted">Run an agent to see visualizations</p>
-        </div>
+        {% end %}
     {% end %}
 </div>
 {% end %}
@@ -51,13 +53,13 @@
 {% block head %}
 <style>
 .placeholder-notice {
-    background: rgba(91, 156, 245, 0.1);
-    border-color: var(--color-primary);
+    background: rgba(255, 215, 0, 0.05);
+    border: 2px dashed var(--color-gold-dim);
 }
 
 .placeholder-notice h3 {
     margin: 0 0 var(--space-sm) 0;
-    color: var(--color-primary);
+    color: var(--color-gold);
 }
 
 .runs-list {

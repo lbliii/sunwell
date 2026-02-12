@@ -1,0 +1,29 @@
+{# Progress bar component #}
+
+{% def progress_bar(value=0, max=100, variant="default", show_label=true, size="md") %}
+<div class="progress progress--{{ size }}">
+    <div class="progress-bar progress-bar--{{ variant }}"
+         role="progressbar"
+         aria-valuenow="{{ value }}"
+         aria-valuemin="0"
+         aria-valuemax="{{ max }}"
+         style="width: {{ (value / max * 100) | int }}%">
+        {% if show_label %}
+            <span class="progress-label">{{ (value / max * 100) | int }}%</span>
+        {% end %}
+    </div>
+</div>
+{% end %}
+
+{% def progress_steps(current=0, total=0) %}
+<div class="progress-steps">
+    {% for i in range(1, total + 1) %}
+        <div class="progress-step {% if i <= current %}progress-step--complete{% end %} {% if i == current %}progress-step--active{% end %}">
+            <div class="progress-step-marker">{{ i }}</div>
+        </div>
+        {% if i < total %}
+            <div class="progress-step-line {% if i < current %}progress-step-line--complete{% end %}"></div>
+        {% end %}
+    {% end %}
+</div>
+{% end %}

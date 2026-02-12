@@ -1,0 +1,24 @@
+{# Toast notification component #}
+
+{% def toast(variant="info", duration=5000, position="top-right", icon="") %}
+<div class="toast toast--{{ variant }} toast--{{ position }}"
+     data-duration="{{ duration }}"
+     role="alert"
+     aria-live="polite">
+    {% if icon %}
+        <span class="toast-icon">{{ icon }}</span>
+    {% end %}
+    <div class="toast-content">
+        {{ caller() }}
+    </div>
+    <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Close">
+        ×
+    </button>
+</div>
+{% end %}
+
+{% def toast_title() %}
+<div class="toast-title">
+    {{ caller() }}
+</div>
+{% end %}
