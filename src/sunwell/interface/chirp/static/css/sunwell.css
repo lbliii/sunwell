@@ -1,8 +1,277 @@
-/* Sunwell Studio — app-level overrides for ChirpUI design system.
-   ChirpUI provides all base tokens (spacing, radius, typography, color).
-   Only Sunwell-specific accent colors and animation utilities live here. */
+/* Sunwell Studio — Holy Light theme
+ * Token-only override for chirp-ui design system.
+ * Gold accent on void surfaces; warm and radiant.
+ * Supports data-theme="light"|"dark"|"system" for theme toggle.
+ *
+ * Cascade order: :root (base) first, then [data-theme="*"] overrides.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="/static/chirpui.css">
+ *   <link rel="stylesheet" href="/static/css/sunwell.css">
+ */
 
+/* Base: dark theme (default) */
 :root {
-  --sunwell-radiant: #ffd700;
-  --sunwell-gold: #c9a227;
+    color-scheme: dark;
+
+    /* Core palette — deep void surfaces */
+    --chirpui-bg: #0d0d0d;
+    --chirpui-bg-subtle: #1a1a1a;
+    --chirpui-surface: #1a1a1a;
+    --chirpui-surface-alt: #1f1f1f;
+    --chirpui-surface-elevated: #262626;
+    --chirpui-border: #333;
+    --chirpui-text: #e5e5e5;
+    --chirpui-text-muted: #a8a8a8;
+
+    /* Accent — gold spectrum */
+    --chirpui-accent: #c9a227;
+    --chirpui-accent-hover: #a88820;
+    --chirpui-accent-dim: #8a7235;
+    --chirpui-accent-bright: #ffd700;
+
+    /* Links — gold, contextual darkening */
+    --chirpui-link: #c9a227;
+    --chirpui-link-hover: #ffd700;
+    --chirpui-link-visited: #a88820;
+    --chirpui-link-active: #8a7235;
+
+    /* Semantic */
+    --chirpui-primary: #c9a227;
+    --chirpui-success: #22c55e;
+    --chirpui-warning: #4f46e5;
+    --chirpui-error: #7c3aed;
+    --chirpui-muted: #a8a8a8;
+    --chirpui-info: #38bdf8;
+
+    /* Example/admonition — void purple */
+    --chirpui-example: #a78bfa;
+    --chirpui-example-muted: color-mix(in srgb, #a78bfa 15%, black);
+    --chirpui-alert-example-bg: rgba(167, 139, 250, 0.12);
+    --chirpui-alert-example-border: #7c3aed;
+    --chirpui-alert-example-color: #a78bfa;
+
+    /* Cards — gold accent glow */
+    --chirpui-card-header-color: #c9a227;
+    --chirpui-card-hover-border: #c9a227;
+    --chirpui-card-hover-shadow: 0 4px 12px rgba(255, 215, 0, 0.15);
+
+    /* Focus */
+    --chirpui-focus-ring: rgba(255, 215, 0, 0.3);
+
+    /* Alerts */
+    --chirpui-alert-info-bg: rgba(56, 189, 248, 0.12);
+    --chirpui-alert-info-border: #1d7db5;
+    --chirpui-alert-info-color: #38bdf8;
+    --chirpui-alert-success-bg: rgba(34, 197, 94, 0.12);
+    --chirpui-alert-success-border: #16a34a;
+    --chirpui-alert-success-color: #22c55e;
+    --chirpui-alert-warning-bg: rgba(79, 70, 229, 0.12);
+    --chirpui-alert-warning-border: #4338ca;
+    --chirpui-alert-warning-color: #4f46e5;
+    --chirpui-alert-error-bg: rgba(124, 58, 237, 0.12);
+    --chirpui-alert-error-border: #6d28d9;
+    --chirpui-alert-error-color: #7c3aed;
+
+    /* Semantic muted — dark-mode mix toward black */
+    --chirpui-primary-muted: color-mix(in srgb, var(--chirpui-primary) 15%, black);
+    --chirpui-success-muted: color-mix(in srgb, var(--chirpui-success) 15%, black);
+    --chirpui-warning-muted: color-mix(in srgb, var(--chirpui-warning) 15%, black);
+    --chirpui-error-muted: color-mix(in srgb, var(--chirpui-error) 15%, black);
+    --chirpui-muted-bg: color-mix(in srgb, var(--chirpui-muted) 15%, black);
+
+    /* Code — dark surface with gold-tinted types */
+    --chirpui-code-bg: #141414;
+    --chirpui-code-text: #ccc;
+    --chirpui-code-keyword: #a78bfa;
+    --chirpui-code-string: #34d399;
+    --chirpui-code-number: #fbbf24;
+    --chirpui-code-type: #c9a227;
+    --chirpui-code-type-bg: rgba(201, 162, 39, 0.12);
+
+    /* Shadows — deeper for dark surfaces */
+    --chirpui-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --chirpui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --chirpui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+
+    /* Glass / frosted */
+    --chirpui-glass-bg: rgba(26, 26, 26, 0.4);
+    --chirpui-glass-border: rgba(51, 51, 51, 0.3);
+    --chirpui-frosted-bg: rgba(26, 26, 26, 0.5);
+    --chirpui-frosted-border: rgba(51, 51, 51, 0.4);
+    --chirpui-smoke-bg: rgba(0, 0, 0, 0.3);
+    --chirpui-smoke-border: rgba(255, 255, 255, 0.06);
+}
+
+@supports (color: oklch(0 0 0)) {
+    :root {
+        --chirpui-bg: oklch(0.14 0 0);
+        --chirpui-bg-subtle: oklch(0.18 0 0);
+        --chirpui-surface: oklch(0.18 0 0);
+        --chirpui-surface-alt: oklch(0.2 0 0);
+        --chirpui-surface-elevated: oklch(0.23 0 0);
+        --chirpui-border: oklch(0.28 0 0);
+        --chirpui-text: oklch(0.92 0.005 260);
+        --chirpui-text-muted: oklch(0.72 0.01 260);
+        --chirpui-accent: oklch(0.72 0.15 95);
+        --chirpui-accent-hover: oklch(0.63 0.12 95);
+        --chirpui-accent-dim: oklch(0.55 0.08 85);
+        --chirpui-accent-bright: oklch(0.91 0.17 95);
+        --chirpui-link: oklch(0.72 0.15 95);
+        --chirpui-link-hover: oklch(0.91 0.17 95);
+        --chirpui-link-visited: oklch(0.63 0.12 95);
+        --chirpui-link-active: oklch(0.55 0.08 85);
+        --chirpui-primary: oklch(0.72 0.15 95);
+        --chirpui-success: oklch(0.65 0.19 145);
+        --chirpui-warning: oklch(0.5 0.22 265);
+        --chirpui-error: oklch(0.55 0.25 295);
+        --chirpui-muted: oklch(0.72 0.01 260);
+        --chirpui-info: oklch(0.75 0.12 230);
+        --chirpui-example: oklch(0.7 0.18 295);
+    }
+}
+
+/* Light theme — override when data-theme="light" */
+[data-theme="light"] {
+    color-scheme: light;
+    --chirpui-bg: #faf8f0;
+    --chirpui-bg-subtle: #f0ece0;
+    --chirpui-surface: #ffffff;
+    --chirpui-surface-alt: #faf8f2;
+    --chirpui-surface-elevated: #ffffff;
+    --chirpui-border: #e0dac8;
+    --chirpui-text: #1a1a1a;
+    --chirpui-text-muted: #666;
+    --chirpui-accent: #9a7b1a;
+    --chirpui-accent-hover: #7d6315;
+    --chirpui-accent-dim: #6b5513;
+    --chirpui-accent-bright: #c9a227;
+    --chirpui-link: #7d6315;
+    --chirpui-link-hover: #5e4a10;
+    --chirpui-link-visited: #9a7b1a;
+    --chirpui-link-active: #4d3d0d;
+    --chirpui-primary: #9a7b1a;
+    --chirpui-success: #16a34a;
+    --chirpui-warning: #4338ca;
+    --chirpui-error: #6d28d9;
+    --chirpui-muted: #666;
+    --chirpui-info: #0284c7;
+    --chirpui-example: #7c3aed;
+    --chirpui-card-header-color: #9a7b1a;
+    --chirpui-card-hover-border: #9a7b1a;
+    --chirpui-card-hover-shadow: 0 4px 12px rgba(201, 162, 39, 0.2);
+    --chirpui-focus-ring: rgba(154, 123, 26, 0.4);
+    --chirpui-alert-info-bg: rgba(2, 132, 199, 0.1);
+    --chirpui-alert-info-border: #0284c7;
+    --chirpui-alert-info-color: #0369a1;
+    --chirpui-alert-success-bg: rgba(22, 163, 74, 0.1);
+    --chirpui-alert-success-border: #16a34a;
+    --chirpui-alert-success-color: #15803d;
+    --chirpui-alert-warning-bg: rgba(67, 56, 202, 0.1);
+    --chirpui-alert-warning-border: #4338ca;
+    --chirpui-alert-warning-color: #3730a3;
+    --chirpui-alert-error-bg: rgba(109, 40, 217, 0.1);
+    --chirpui-alert-error-border: #6d28d9;
+    --chirpui-alert-error-color: #5b21b6;
+    --chirpui-alert-example-bg: rgba(124, 58, 237, 0.1);
+    --chirpui-alert-example-border: #7c3aed;
+    --chirpui-alert-example-color: #6d28d9;
+    --chirpui-primary-muted: color-mix(in srgb, var(--chirpui-primary) 15%, white);
+    --chirpui-success-muted: color-mix(in srgb, var(--chirpui-success) 15%, white);
+    --chirpui-warning-muted: color-mix(in srgb, var(--chirpui-warning) 15%, white);
+    --chirpui-error-muted: color-mix(in srgb, var(--chirpui-error) 15%, white);
+    --chirpui-muted-bg: color-mix(in srgb, var(--chirpui-muted) 15%, white);
+    --chirpui-example-muted: color-mix(in srgb, var(--chirpui-example) 15%, white);
+    --chirpui-code-bg: #f4f0e4;
+    --chirpui-code-text: #333;
+    --chirpui-code-keyword: #6d28d9;
+    --chirpui-code-string: #059669;
+    --chirpui-code-number: #d97706;
+    --chirpui-code-type: #9a7b1a;
+    --chirpui-code-type-bg: rgba(154, 123, 26, 0.15);
+    --chirpui-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --chirpui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --chirpui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --chirpui-glass-bg: rgba(255, 255, 255, 0.8);
+    --chirpui-glass-border: rgba(0, 0, 0, 0.08);
+    --chirpui-frosted-bg: rgba(255, 255, 255, 0.9);
+    --chirpui-frosted-border: rgba(0, 0, 0, 0.1);
+    --chirpui-smoke-bg: rgba(0, 0, 0, 0.05);
+    --chirpui-smoke-border: rgba(0, 0, 0, 0.08);
+}
+
+/* System preference: light when OS prefers light */
+@media (prefers-color-scheme: light) {
+    [data-theme="system"] {
+        color-scheme: light;
+        --chirpui-bg: #faf8f0;
+        --chirpui-bg-subtle: #f0ece0;
+        --chirpui-surface: #ffffff;
+        --chirpui-surface-alt: #faf8f2;
+        --chirpui-surface-elevated: #ffffff;
+        --chirpui-border: #e0dac8;
+        --chirpui-text: #1a1a1a;
+        --chirpui-text-muted: #666;
+        --chirpui-accent: #9a7b1a;
+        --chirpui-accent-hover: #7d6315;
+        --chirpui-accent-dim: #6b5513;
+        --chirpui-accent-bright: #c9a227;
+        --chirpui-link: #7d6315;
+        --chirpui-link-hover: #5e4a10;
+        --chirpui-link-visited: #9a7b1a;
+        --chirpui-link-active: #4d3d0d;
+        --chirpui-primary: #9a7b1a;
+        --chirpui-success: #16a34a;
+        --chirpui-warning: #4338ca;
+        --chirpui-error: #6d28d9;
+        --chirpui-muted: #666;
+        --chirpui-info: #0284c7;
+        --chirpui-example: #7c3aed;
+        --chirpui-card-header-color: #9a7b1a;
+        --chirpui-card-hover-border: #9a7b1a;
+        --chirpui-card-hover-shadow: 0 4px 12px rgba(201, 162, 39, 0.2);
+        --chirpui-focus-ring: rgba(154, 123, 26, 0.4);
+        --chirpui-alert-info-bg: rgba(2, 132, 199, 0.1);
+        --chirpui-alert-info-border: #0284c7;
+        --chirpui-alert-info-color: #0369a1;
+        --chirpui-alert-success-bg: rgba(22, 163, 74, 0.1);
+        --chirpui-alert-success-border: #16a34a;
+        --chirpui-alert-success-color: #15803d;
+        --chirpui-alert-warning-bg: rgba(67, 56, 202, 0.1);
+        --chirpui-alert-warning-border: #4338ca;
+        --chirpui-alert-warning-color: #3730a3;
+        --chirpui-alert-error-bg: rgba(109, 40, 217, 0.1);
+        --chirpui-alert-error-border: #6d28d9;
+        --chirpui-alert-error-color: #5b21b6;
+        --chirpui-alert-example-bg: rgba(124, 58, 237, 0.1);
+        --chirpui-alert-example-border: #7c3aed;
+        --chirpui-alert-example-color: #6d28d9;
+        --chirpui-primary-muted: color-mix(in srgb, var(--chirpui-primary) 15%, white);
+        --chirpui-success-muted: color-mix(in srgb, var(--chirpui-success) 15%, white);
+        --chirpui-warning-muted: color-mix(in srgb, var(--chirpui-warning) 15%, white);
+        --chirpui-error-muted: color-mix(in srgb, var(--chirpui-error) 15%, white);
+        --chirpui-muted-bg: color-mix(in srgb, var(--chirpui-muted) 15%, white);
+        --chirpui-example-muted: color-mix(in srgb, var(--chirpui-example) 15%, white);
+        --chirpui-code-bg: #f4f0e4;
+        --chirpui-code-text: #333;
+        --chirpui-code-keyword: #6d28d9;
+        --chirpui-code-string: #059669;
+        --chirpui-code-number: #d97706;
+        --chirpui-code-type: #9a7b1a;
+        --chirpui-code-type-bg: rgba(154, 123, 26, 0.15);
+        --chirpui-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --chirpui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        --chirpui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        --chirpui-glass-bg: rgba(255, 255, 255, 0.8);
+        --chirpui-glass-border: rgba(0, 0, 0, 0.08);
+        --chirpui-frosted-bg: rgba(255, 255, 255, 0.9);
+        --chirpui-frosted-border: rgba(0, 0, 0, 0.1);
+        --chirpui-smoke-bg: rgba(0, 0, 0, 0.05);
+        --chirpui-smoke-border: rgba(0, 0, 0, 0.08);
+    }
+}
+
+body {
+    background: var(--chirpui-bg);
+    color: var(--chirpui-text);
 }

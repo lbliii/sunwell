@@ -9,7 +9,8 @@ Replaces WebSocket connections with SSE for simpler architecture:
 
 import asyncio
 import json
-from typing import AsyncGenerator, Any
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from chirp import EventStream
 

@@ -1,0 +1,51 @@
+{#- Fragment blocks for chat message bubbles #}
+{#- Pattern 3 scaffolding: user msg + AI div with sse-connect #}
+{% block chat_start %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="right") %}
+<div><p>{{ user_content }}</p></div>
+{% end %}
+<div class="msg msg-ai chirpui-message-thread" hx-ext="sse" sse-connect="/chat/stream?session_id={{ session_id }}" sse-swap="fragment" hx-swap="beforeend">
+</div>
+{% end %}
+
+{% block user_message %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="right") %}
+<div>
+  <p>{{ content }}</p>
+</div>
+{% end %}
+{% end %}
+
+{% block assistant_message %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="left") %}
+<div>
+  <p>{{ content | default("") }}</p>
+</div>
+{% end %}
+{% end %}
+
+{% block tool_event %}
+<div class="chat-tool-event chirpui-surface chirpui-surface--muted" style="border-radius: var(--chirpui-radius); padding: var(--chirpui-spacing-sm); margin: var(--chirpui-spacing-xs) 0; font-size: var(--chirpui-ui-sm);">
+  <strong class="chirpui-font-mono" style="color: var(--chirpui-accent);">{{ tool_name }}</strong>
+  {% if args %}
+  <div class="chirpui-text-muted chirpui-ui-xs">Args: {{ args }}</div>
+  {% end %}
+  {% if error %}
+  <div style="color: var(--chirpui-error);">Error: {{ error }}</div>
+  {% elif result %}
+  <div>Result: {{ result | excerpt(150) }}</div>
+  {% end %}
+</div>
+{% end %}
+
+{% block error_message %}
+<div class="chat-error chirpui-surface" style="border-left: 3px solid var(--chirpui-error); border-radius: var(--chirpui-radius); padding: var(--chirpui-spacing-md); margin: var(--chirpui-spacing-sm) 0;">
+  <strong>Error:</strong> {{ message }}
+  {% if error %}
+  <pre class="chirpui-ui-xs chirpui-text-muted" style="margin-top: var(--chirpui-spacing-xs);">{{ error }}</pre>
+  {% end %}
+</div>
+{% end %}

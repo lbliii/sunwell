@@ -1,4 +1,5 @@
-{% block content %}
+{% extends "_layout.html" %}
+{% block page_content %}
 {% from "chirpui/layout.html" import container, grid, stack, page_header, section_header %}
 {% from "chirpui/card.html" import card %}
 
@@ -91,13 +92,13 @@
     </section>
     {% end %}
 
-{% end %}
-{% end %}
-{% end %}
+    {# Tool Test Modal #}
+    <div id="tool-test-modal" class="chirpui-modal" style="display: none;">
+    </div>
 
-{# Tool Test Modal #}
-<div id="tool-test-modal" class="chirpui-modal" style="display: none;">
-</div>
+{% end %}
+{% end %}
+{% end %}
 
 {% block scripts %}
 <script>

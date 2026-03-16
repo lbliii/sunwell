@@ -1,8 +1,8 @@
-{% block content %}
+{% extends "_layout.html" %}
+{% block page_content %}
 {% from "chirpui/layout.html" import container, grid, stack, page_header %}
 {% from "chirpui/card.html" import card %}
 {% from "chirpui/badge.html" import badge %}
-{% from "chirpui/alert.html" import alert %}
 
 {% call container() %}
 {% call stack(gap="lg") %}

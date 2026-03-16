@@ -1,7 +1,7 @@
-{% block content %}
-{% from "chirpui/layout.html" import container, stack, page_header, section_header %}
+{% extends "_layout.html" %}
+{% block page_content %}
+{% from "chirpui/layout.html" import container, stack, page_header %}
 {% from "chirpui/card.html" import card %}
-{% from "chirpui/surface.html" import surface %}
 
 {% call container(max_width="800px") %}
 {% call stack(gap="xl") %}

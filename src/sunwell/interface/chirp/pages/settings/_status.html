@@ -1,35 +1,19 @@
+{% from "chirpui/alert.html" import alert %}
+
 {% block provider_status %}
-{% if success %}
-<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+{% call alert(variant="success" if success else "error") %}
     {{ message }}
-</div>
-{% else %}
-<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
-    {{ message }}
-</div>
 {% end %}
 {% end %}
 
 {% block keys_status %}
-{% if success %}
-<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+{% call alert(variant="success" if success else "error") %}
     {{ message }}
-</div>
-{% else %}
-<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
-    {{ message }}
-</div>
 {% end %}
 {% end %}
 
 {% block preferences_status %}
-{% if success %}
-<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+{% call alert(variant="success" if success else "error") %}
     {{ message }}
-</div>
-{% else %}
-<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
-    {{ message }}
-</div>
 {% end %}
 {% end %}

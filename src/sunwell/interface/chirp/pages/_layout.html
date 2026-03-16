@@ -70,7 +70,13 @@
   {% slot sidebar %}
   {{ sidebar_oob(current_path=current_path | default("/")) }}
   {% end %}
-  {% block content %}{% end %}
+  {% block content %}
+  {% block page_root %}
+  <div id="page-root">
+    {% block page_content %}{% end %}
+  </div>
+  {% end %}
+  {% end %}
 {% end %}
 {% block scripts %}{% end %}
 </body>

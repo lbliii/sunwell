@@ -132,3 +132,5 @@ python-preference = "managed"
 # Use path for full ChirpUI support during development:
 [tool.uv.sources]
 bengal-chirp = { path = "../b-stack/chirp", editable = true }
+chirp-ui = { path = "../chirp-ui", editable = true }
+kida-templates = { path = "../b-stack/kida", editable = true }

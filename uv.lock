@@ -257,13 +257,31 @@ wheels = [
 [[package]]
 name = "chirp-ui"
 version = "0.1.6"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../chirp-ui" }
 dependencies = [
     { name = "kida-templates" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/de/200851ee904af3f46895bf3bd2e71abf1edd3e484a1c09d180e4b6f491f7/chirp_ui-0.1.6.tar.gz", hash = "sha256:918edbd556cdda32ee05fe59802d5c4c1dea3cbdf682ef621ffe16a1f013aa3e", size = 138783, upload-time = "2026-03-12T18:14:16.912Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/02/8b9a5976fb2ef2bf3f0bf352e19cbc8b7e6e1183e4adf35be7dc31791079/chirp_ui-0.1.6-py3-none-any.whl", hash = "sha256:2b96de075d64382628316c06e1545a74a78a3cfb7631f8d59313fb09ba881459", size = 152590, upload-time = "2026-03-12T18:14:15.197Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "bengal-chirp", marker = "extra == 'showcase'", specifier = ">=0.1.6" },
+    { name = "kida-templates", specifier = ">=0.2.7" },
+]
+provides-extras = ["showcase"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.3.0" },
+    { name = "ruff", specifier = ">=0.15.1" },
+    { name = "tinycss2", specifier = ">=1.4.0" },
+    { name = "ty", specifier = ">=0.0.11" },
+]
+docs = [
+    { name = "bengal", specifier = ">=0.2.0" },
+    { name = "lunr", specifier = ">=0.7.0" },
 ]
 
 [[package]]
@@ -1605,12 +1623,12 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.18" },
     { name = "apscheduler", marker = "extra == 'external'", specifier = ">=3.10.0" },
     { name = "bengal-chirp", editable = "../b-stack/chirp" },
-    { name = "chirp-ui", specifier = ">=0.1.6" },
+    { name = "chirp-ui", editable = "../chirp-ui" },
     { name = "click", specifier = ">=8.1" },
     { name = "httpx", specifier = ">=0.25" },
     { name = "httpx", marker = "extra == 'external'", specifier = ">=0.27.0" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.0" },
-    { name = "kida-templates", specifier = ">=0.2.6" },
+    { name = "kida-templates", editable = "../b-stack/kida" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "numpy", specifier = ">=1.24" },

@@ -4,15 +4,11 @@ Exposes Sunwell's memory system (briefing, learnings, session history) via Chirp
 Wired to PersistentMemory when project path is provided.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from chirp import App
+from chirp import App
 
 logger = logging.getLogger(__name__)
 

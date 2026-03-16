@@ -1,15 +1,12 @@
 """Tool execution handler."""
 
 import json
-from chirp import Request, Response
+
+from chirp import App, Request, Response
 
 
-async def post(tool_name: str, request: Request) -> Response:
+async def post(tool_name: str, request: Request, app: App) -> Response:
     """Execute a tool with provided arguments."""
-    app = request.app
-    if not app._frozen:
-        app._freeze()
-
     # Parse form data
     form = await request.form()
     arguments = {}

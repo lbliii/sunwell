@@ -1,7 +1,9 @@
-{% block content %}
+{% extends "_layout.html" %}
+{% block page_content %}
 {% from "chirpui/layout.html" import container, grid, stack, page_header %}
 {% from "chirpui/card.html" import card %}
 {% from "chirpui/badge.html" import badge %}
+{% from "chirpui/alert.html" import alert %}
 {% from "chirpui/empty.html" import empty_state %}
 
 {% call container() %}
@@ -38,9 +40,9 @@
                             <code class="chirpui-ui-sm chirpui-text-muted">{{ project.root }}</code>
 
                             {% if not project.valid and project.error_message %}
-                                <div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm);">
-                                    <span class="chirpui-text-muted">{{ project.error_message }}</span>
-                                </div>
+                                {% call alert(variant="error") %}
+                                    {{ project.error_message }}
+                                {% end %}
                             {% end %}
 
                             {% if project.last_used and project.last_used > 0 %}

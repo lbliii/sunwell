@@ -1,0 +1,72 @@
+{% extends "_layout.html" %}
+{% block page_content %}
+{% from "chirpui/layout.html" import container, stack, page_header %}
+{% from "chirpui/message_thread.html" import message_thread %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% from "chirpui/button.html" import btn %}
+
+{% call container() %}
+{% call stack(gap="lg") %}
+
+    {% call page_header("Chat", subtitle="Ask Sunwell anything — same agent intelligence as the CLI") %}{% end %}
+
+    <div class="chat-container" style="display: flex; flex-direction: column; min-height: 400px;">
+        <div id="chat-messages" class="chat-messages" style="flex: 1; overflow-y: auto; padding: var(--chirpui-spacing-md);">
+            {% call message_thread() %}
+            {% if messages %}
+                {% for msg in messages %}
+                {% if msg.role == "user" %}
+                {% call message_bubble(align="right") %}
+                <div><p>{{ msg.content }}</p></div>
+                {% end %}
+                {% else %}
+                {% call message_bubble(align="left") %}
+                <div><p>{{ msg.content | default("") }}</p></div>
+                {% end %}
+                {% end %}
+                {% end %}
+            {% else %}
+            <div class="chat-empty chirpui-text-muted" style="text-align: center; padding: var(--chirpui-spacing-xl);">
+                <p class="chirpui-font-lg">Welcome to Sunwell Chat</p>
+                <p>Ask a question or describe a task. The same agent that powers the CLI is here.</p>
+                <p class="chirpui-ui-sm" style="margin-top: var(--chirpui-spacing-md);">Try: "What is Python 3.14?" or "Explain the project structure"</p>
+            </div>
+            {% end %}
+            {% end %}
+        </div>
+
+        <div class="chat-input-area" style="padding: var(--chirpui-spacing-md); border-top: 1px solid var(--chirpui-border);">
+            <form id="chat-form"
+                  hx-post="/chat/send"
+                  hx-target="#chat-messages"
+                  hx-swap="beforeend"
+                  class="chirpui-chat-input">
+                <input type="hidden" name="session_id" value="{{ session_id }}">
+                <div class="chirpui-chat-input__composer">
+                    <textarea class="chirpui-chat-input__field" name="message" rows="2"
+                        placeholder="Type a message..."
+                        aria-label="Message"></textarea>
+                </div>
+                <footer class="chirpui-chat-input__footer">
+                    {{ btn("Send", variant="primary", type="submit") }}
+                </footer>
+            </form>
+        </div>
+    </div>
+
+{% end %}
+{% end %}
+{% end %}
+
+{% block scripts %}
+<script>
+document.getElementById('chat-form')?.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.successful) {
+        const form = document.getElementById('chat-form');
+        const textarea = form?.querySelector('textarea[name="message"]');
+        if (textarea) textarea.value = '';
+        document.querySelector('.chat-empty')?.remove();
+    }
+});
+</script>
+{% end %}

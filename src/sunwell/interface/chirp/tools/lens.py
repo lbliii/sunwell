@@ -3,14 +3,10 @@
 Exposes Sunwell's lens system (domain expertise) via Chirp's @app.tool() decorator.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from chirp import App
+from chirp import App
 
 logger = logging.getLogger(__name__)
 

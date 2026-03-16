@@ -1,28 +1,26 @@
 """Main Chirp application entry point - page convention routing."""
 
-from __future__ import annotations
-
 import os
 from pathlib import Path
 
 from chirp import App, AppConfig
 from chirp.middleware.static import StaticFiles
 
-def _use_chirp_ui(app: "App") -> None:
+
+def _use_chirp_ui(app: App) -> None:
     """Register ChirpUI: filters, static files, OOB regions, page shell.
-    Uses chirp.ext.chirp_ui when available; falls back to chirp_ui only when not.
+    Requires chirp from path source (bengal-chirp with chirp.ext.chirp_ui).
     """
     try:
         from chirp.ext.chirp_ui import use_chirp_ui
-        use_chirp_ui(app)
-        return
-    except (ImportError, AttributeError):
-        pass
-    # Fallback: PyPI chirp lacks ext; register filters + static only
-    import chirp_ui
 
-    chirp_ui.register_filters(app)
-    app.add_middleware(StaticFiles(directory=str(chirp_ui.static_path()), prefix="/static"))
+        use_chirp_ui(app)
+    except (ImportError, AttributeError) as e:
+        raise RuntimeError(
+            "Sunwell requires chirp with chirp.ext.chirp_ui for HTMX OOB (breadcrumbs, "
+            "sidebar, title). PyPI bengal-chirp 0.1.0 lacks this. Use a path source:\n"
+            '  [tool.uv.sources]\n  bengal-chirp = { path = "../b-stack/chirp", editable = true }'
+        ) from e
 
 
 def _default_debug() -> bool:
@@ -63,13 +61,14 @@ def create_app() -> App:
     pages_dir = pkg_dir / "pages"
     static_dir = pkg_dir / "static"
 
-    # AppConfig: only pass kwargs supported by PyPI chirp 0.1.0
-    # (view_transitions, delegation, alpine exist in local chirp only)
     config = AppConfig(
         template_dir=str(pages_dir),
         static_dir=str(static_dir),
         static_url="/static",
         debug=_default_debug(),
+        alpine=True,  # ChirpUI theme toggle, dropdowns, modals
+        delegation=True,  # copy-btn, compare-switch in SSE-swapped content
+        view_transitions=True,  # View Transitions API for navigation
     )
 
     app = App(config=config)
@@ -81,6 +80,7 @@ def create_app() -> App:
     # Template globals for ChirpUI app shell (sidebar, breadcrumbs)
     _SIDEBAR_LINKS: list[dict[str, str | bool]] = [
         {"id": "home", "label": "Home", "href": "/", "icon": "home"},
+        {"id": "chat", "label": "Chat", "href": "/chat", "icon": "message-circle"},
         {"id": "projects", "label": "Projects", "href": "/projects", "icon": "folder"},
         {"id": "observatory", "label": "Observatory", "href": "/observatory", "icon": "chart"},
         {"id": "activity", "label": "Activity", "href": "/activity", "icon": "activity"},
@@ -161,6 +161,7 @@ def register_providers(app: App) -> None:
             ...
     """
     from sunwell.interface.chirp.services import (
+        ChatService,
         ConfigService,
         MemoryService,
         ProjectService,
@@ -171,6 +172,7 @@ def register_providers(app: App) -> None:
     # Create service instances once (true singletons)
     # This prevents re-importing numpy in Python 3.14 free-threaded build
     _config_service = ConfigService()
+    _chat_service = ChatService()
     _project_service = ProjectService()
     _skill_service = SkillService()
     _memory_service = MemoryService()
@@ -178,6 +180,7 @@ def register_providers(app: App) -> None:
 
     # Register service singletons
     app.provide(ConfigService, lambda: _config_service)
+    app.provide(ChatService, lambda: _chat_service)
     app.provide(ProjectService, lambda: _project_service)
     app.provide(SkillService, lambda: _skill_service)
     app.provide(MemoryService, lambda: _memory_service)
