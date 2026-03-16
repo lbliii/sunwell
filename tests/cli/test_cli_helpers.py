@@ -149,7 +149,7 @@ class TestResolveModel:
             model = resolve_model()
 
         assert isinstance(model, OllamaModel)
-        assert model.model == "gemma3:4b"
+        assert model.model == "llama3.1:8b"  # provider_defaults["ollama"]
 
 
 class TestProviderDefaults:
@@ -160,7 +160,7 @@ class TestProviderDefaults:
         [
             ("openai", "gpt-4o"),
             ("anthropic", "claude-sonnet-4-20250514"),
-            ("ollama", "gemma3:4b"),
+            ("ollama", "llama3.1:8b"),
             ("mock", "mock-model"),  # MockModel returns "mock-model" from model_id
         ],
     )

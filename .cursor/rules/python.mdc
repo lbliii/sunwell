@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+
+# Sunwell Python (3.14, ruff)
+
+- Line length: 100
+- Use `list[str]`, `dict[str, int]`, `str | None` (not List, Dict, Optional)
+- Use `zip(x, y, strict=True)`
+- No mutable default args; use `None` and create in body
+- Import order: stdlib → third-party → local (isort)

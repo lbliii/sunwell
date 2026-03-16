@@ -1,212 +1,80 @@
 {% block title %}{{ run.goal }} - Observatory - Sunwell Studio{% end %}
 
 {% block content %}
-<div class="run-detail-container">
-    <header class="page-header mb-lg">
-        <div class="breadcrumb">
-            <a href="/observatory">Observatory</a>
-            <span class="breadcrumb-sep">/</span>
-            <span>Run</span>
-        </div>
+{% from "chirpui/layout.html" import container, stack, page_header %}
+{% from "chirpui/card.html" import card %}
+{% from "chirpui/badge.html" import badge %}
+{% from "chirpui/alert.html" import alert %}
 
-        <div class="header-content">
-            <h1>{{ run.goal }}</h1>
-            <span class="status-badge status-{{ run.status }}">{{ run.status }}</span>
-        </div>
-    </header>
+{% call container() %}
+{% call stack(gap="lg") %}
 
-    <div class="run-info card mb-lg"
-         {% if run.status == 'running' or run.status == 'pending' %}
+    <div class="chirpui-cluster chirpui-cluster--sm" style="align-items: center;">
+        {% call page_header(run.goal) %}{% end %}
+        {{ badge(run.status, variant="primary") }}
+    </div>
+
+    {# Run Information #}
+    <div {% if run.status == 'running' or run.status == 'pending' %}
          hx-get="/observatory/runs/{{ run.id }}/status"
          hx-trigger="every 2s"
          hx-swap="innerHTML"
          {% end %}>
-        <div class="card-header">
-            <h2>Run Information</h2>
+        {% call card(title="Run Information") %}
             {% if run.status == 'running' %}
-            <span class="live-indicator">🔴 Live</span>
+                <div style="text-align: right; margin-bottom: var(--chirpui-spacing-sm);">
+                    {{ badge("Live", variant="error") }}
+                </div>
             {% end %}
-        </div>
-        <dl class="info-list">
-            <dt>Status</dt>
-            <dd><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></dd>
+            <dl class="chirpui-dl chirpui-dl--horizontal">
+                <dt>Status</dt>
+                <dd>{{ badge(run.status, variant="primary") }}</dd>
 
-            <dt>Started</dt>
-            <dd>{{ run.started_at | relative_time if run.started_at else 'N/A' }}</dd>
+                <dt>Started</dt>
+                <dd>{{ run.started_at | relative_time if run.started_at else 'N/A' }}</dd>
 
-            <dt>Duration</dt>
-            <dd>{{ run.duration | format_duration if run.duration else 'N/A' }}</dd>
+                <dt>Duration</dt>
+                <dd>{{ run.duration | format_duration if run.duration else 'N/A' }}</dd>
 
-            <dt>Tasks Completed</dt>
-            <dd>{{ run.tasks_completed }}</dd>
+                <dt>Tasks Completed</dt>
+                <dd>{{ run.tasks_completed }}</dd>
 
-            <dt>Files Changed</dt>
-            <dd>{{ run.files_changed }}</dd>
-        </dl>
-        {% if run.status == 'running' %}
-        <div class="refresh-notice">
-            <small>↻ Auto-refreshing every 2 seconds...</small>
-        </div>
+                <dt>Files Changed</dt>
+                <dd>{{ run.files_changed }}</dd>
+            </dl>
+            {% if run.status == 'running' %}
+                <p class="chirpui-ui-xs chirpui-text-muted" style="text-align: center; margin-top: var(--chirpui-spacing-md); padding-top: var(--chirpui-spacing-md); border-top: 1px solid var(--chirpui-border);">
+                    Auto-refreshing every 2 seconds...
+                </p>
+            {% end %}
         {% end %}
     </div>
 
     {% if run.result_summary %}
-        <div class="run-summary card mb-lg">
-            <h2>Summary</h2>
+        {% call card(title="Summary") %}
             <p>{{ run.result_summary }}</p>
-        </div>
+        {% end %}
     {% end %}
 
     {% if run.error %}
-        <div class="run-error card mb-lg">
-            <h3><span class="icon-error">⚠</span> Error</h3>
-            <p class="error-message">{{ run.error }}</p>
-        </div>
+        {% call alert(variant="error") %}
+            <h3>Error</h3>
+            <pre class="chirpui-font-mono chirpui-ui-sm" style="margin: var(--chirpui-spacing-sm) 0 0; overflow-x: auto;">{{ run.error }}</pre>
+        {% end %}
     {% end %}
 
-    <div class="visualization-placeholder card mb-lg">
-        <h2><span class="icon-gold">◎</span> Visualization (Coming in Phase 2)</h2>
-        <p class="text-muted">
+    {% call alert(variant="info") %}
+        <h3>Visualization (Coming in Phase 2)</h3>
+        <p class="chirpui-text-muted">
             Canvas visualizations like ResonanceWave, PrismFracture, ExecutionCinema,
             and MemoryLattice will be available in Phase 2.
         </p>
-    </div>
+    {% end %}
 
-    <div class="run-events card">
-        <h2>Event Log</h2>
-        <p class="text-muted">Detailed event log coming soon</p>
-    </div>
-</div>
+    {% call card(title="Event Log") %}
+        <p class="chirpui-text-muted">Detailed event log coming soon</p>
+    {% end %}
+
 {% end %}
-
-{% block head %}
-<style>
-.breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    margin-bottom: var(--space-md);
-    font-size: 0.875rem;
-}
-
-.breadcrumb a {
-    color: var(--color-text-muted);
-    text-decoration: none;
-}
-
-.breadcrumb a:hover {
-    color: var(--color-primary);
-}
-
-.breadcrumb-sep {
-    color: var(--color-text-muted);
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    flex-wrap: wrap;
-}
-
-.status-badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.status-pending {
-    background: rgba(79, 70, 229, 0.15);
-    color: var(--color-void-indigo);
-}
-
-.status-running {
-    background: rgba(255, 215, 0, 0.15);
-    color: var(--color-radiant);
-}
-
-.status-completed {
-    background: rgba(34, 197, 94, 0.15);
-    color: var(--color-success);
-}
-
-.status-failed {
-    background: rgba(239, 68, 68, 0.15);
-    color: var(--color-error);
-}
-
-.info-list {
-    display: grid;
-    grid-template-columns: 150px 1fr;
-    gap: var(--space-md) var(--space-lg);
-}
-
-.info-list dt {
-    font-weight: 600;
-}
-
-.info-list dd {
-    margin: 0;
-}
-
-.run-summary {
-    line-height: 1.6;
-}
-
-.run-error {
-    border-color: var(--color-error);
-}
-
-.run-error h3 {
-    color: var(--color-error);
-    margin-bottom: var(--space-md);
-}
-
-.error-message {
-    font-family: monospace;
-    background: var(--color-surface-elevated);
-    padding: var(--space-md);
-    border-radius: var(--radius-sm);
-    overflow-x: auto;
-}
-
-.visualization-placeholder {
-    background: rgba(255, 215, 0, 0.05);
-    border: 2px dashed var(--color-gold-dim);
-}
-
-.visualization-placeholder h2 {
-    margin-bottom: var(--space-sm);
-    color: var(--color-gold);
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--space-md);
-}
-
-.live-indicator {
-    font-size: 0.875rem;
-    color: var(--color-error);
-    font-weight: 600;
-    animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.refresh-notice {
-    margin-top: var(--space-md);
-    padding-top: var(--space-md);
-    border-top: 1px solid var(--color-surface-border);
-    color: var(--color-text-muted);
-    text-align: center;
-}
-</style>
+{% end %}
 {% end %}

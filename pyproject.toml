@@ -36,7 +36,7 @@ dependencies = [
     # Ollama is default provider, uses OpenAI client for /v1 endpoint
     "openai>=1.0",
     "rosettes>=0.1.0",
-    # Chirp migration: HTML-over-the-wire framework
+    # Chirp migration: HTML-over-the-wire framework (PyPI)
     "bengal-chirp>=0.1.0",
     "chirp-ui>=0.1.6",
     "kida-templates>=0.2.6",
@@ -127,8 +127,8 @@ python-preference = "managed"
 
 # Note: Environment variables like SUNWELL_NO_GIL_WARNING=1 should be set
 # in your shell profile, not in pyproject.toml (uv doesn't support [tool.uv.env])
-
+#
+# PyPI bengal-chirp 0.1.0 lacks chirp.ext, use_chirp_ui, mount_pages, provide.
+# Use path for full ChirpUI support during development:
 [tool.uv.sources]
-# Local editable packages in workspace
-bengal-chirp = { path = "../chirp", editable = true }
-kida-templates = { path = "../kida", editable = true }
+bengal-chirp = { path = "../b-stack/chirp", editable = true }

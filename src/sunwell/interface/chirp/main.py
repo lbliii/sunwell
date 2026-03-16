@@ -1,16 +1,28 @@
 """Main Chirp application entry point - page convention routing."""
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
 from chirp import App, AppConfig
-from chirp.markdown import register_markdown_filter
 from chirp.middleware.static import StaticFiles
 
-try:
-    from chirp import use_chirp_ui
-except ImportError:
-    from chirp.ext.chirp_ui import use_chirp_ui
+def _use_chirp_ui(app: "App") -> None:
+    """Register ChirpUI: filters, static files, OOB regions, page shell.
+    Uses chirp.ext.chirp_ui when available; falls back to chirp_ui only when not.
+    """
+    try:
+        from chirp.ext.chirp_ui import use_chirp_ui
+        use_chirp_ui(app)
+        return
+    except (ImportError, AttributeError):
+        pass
+    # Fallback: PyPI chirp lacks ext; register filters + static only
+    import chirp_ui
+
+    chirp_ui.register_filters(app)
+    app.add_middleware(StaticFiles(directory=str(chirp_ui.static_path()), prefix="/static"))
 
 
 def _default_debug() -> bool:
@@ -19,39 +31,62 @@ def _default_debug() -> bool:
     return val in ("true", "1", "yes")
 
 
+def _check_chirp_compat() -> None:
+    """Ensure chirp has features Sunwell needs (mount_pages, provide).
+    PyPI bengal-chirp 0.1.0 lacks these; use a path source for development.
+    """
+    from chirp import App
+
+    app = App()
+    missing = []
+    if not hasattr(app, "mount_pages"):
+        missing.append("mount_pages")
+    if not hasattr(app, "provide"):
+        missing.append("provide")
+    if missing:
+        raise RuntimeError(
+            f"Sunwell requires chirp with {', '.join(missing)}. "
+            "PyPI bengal-chirp 0.1.0 does not include them. Use a path source:\n"
+            '  [tool.uv.sources]\n  bengal-chirp = { path = "../b-stack/chirp", editable = true }'
+        )
+
+
 def create_app() -> App:
     """Create and configure the Chirp application.
 
     Uses filesystem-based page routing: the pages/ directory defines
     URL paths, layout nesting, and context inheritance.
     """
+    _check_chirp_compat()
+
     pkg_dir = Path(__file__).parent
     pages_dir = pkg_dir / "pages"
     static_dir = pkg_dir / "static"
 
+    # AppConfig: only pass kwargs supported by PyPI chirp 0.1.0
+    # (view_transitions, delegation, alpine exist in local chirp only)
     config = AppConfig(
         template_dir=str(pages_dir),
         static_dir=str(static_dir),
         static_url="/static",
         debug=_default_debug(),
-        view_transitions=True,
-        delegation=True,
-        alpine=True,
     )
 
     app = App(config=config)
-    use_chirp_ui(app)
+    _use_chirp_ui(app)
+
+    # Provide App for handlers that need tool_events, _tool_registry, etc.
+    app.provide(App, lambda: app)
 
     # Template globals for ChirpUI app shell (sidebar, breadcrumbs)
     _SIDEBAR_LINKS: list[dict[str, str | bool]] = [
         {"id": "home", "label": "Home", "href": "/", "icon": "home"},
         {"id": "projects", "label": "Projects", "href": "/projects", "icon": "folder"},
         {"id": "observatory", "label": "Observatory", "href": "/observatory", "icon": "chart"},
-        {"id": "dag", "label": "DAG", "href": "/dag", "icon": "git-branch"},
-        {"id": "writer", "label": "Writer", "href": "/writer", "icon": "edit"},
-        {"id": "backlog", "label": "Backlog", "href": "/backlog", "icon": "list"},
         {"id": "activity", "label": "Activity", "href": "/activity", "icon": "activity"},
         {"id": "tools", "label": "Tools", "href": "/tools", "icon": "wrench"},
+        {"id": "memory", "label": "Memory", "href": "/memory", "icon": "database"},
+        {"id": "library", "label": "Library", "href": "/library", "icon": "book"},
         {"id": "settings", "label": "Settings", "href": "/settings", "icon": "settings"},
     ]
 
@@ -90,11 +125,11 @@ def create_app() -> App:
     app.template_global("sunwell_breadcrumb_items")(_sunwell_breadcrumb_items)
 
     # Register markdown filter - enables {{ content | markdown }} in templates
-    # Optional: requires chirp[markdown] to be installed
+    # Optional: requires chirp[markdown] (patitas) to be installed
     try:
+        from chirp.markdown import register_markdown_filter
         register_markdown_filter(app)
     except Exception:
-        # Markdown support not available (missing patitas dependency)
         pass
 
     # Register custom template filters from lib/
@@ -113,8 +148,6 @@ def create_app() -> App:
         StaticFiles(directory=static_dir, prefix="/static", cache_control=cache_policy)
     )
 
-    # Mount filesystem-based page routes
-    # This scans pages/ and creates routes based on file structure
     app.mount_pages(str(pages_dir))
 
     return app

@@ -1,49 +1,35 @@
 {% block provider_status %}
 {% if success %}
-<div class="status-message status-success">
-    ✓ {{ message }}
+<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% else %}
-<div class="status-message status-error">
-    ✗ {{ message }}
+<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% end %}
 {% end %}
 
 {% block keys_status %}
 {% if success %}
-<div class="status-message status-success">
-    ✓ {{ message }}
+<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% else %}
-<div class="status-message status-error">
-    ✗ {{ message }}
+<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% end %}
 {% end %}
 
 {% block preferences_status %}
 {% if success %}
-<div class="status-message status-success">
-    ✓ {{ message }}
+<div class="chirpui-alert chirpui-alert--success" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% else %}
-<div class="status-message status-error">
-    ✗ {{ message }}
+<div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md);">
+    {{ message }}
 </div>
 {% end %}
 {% end %}
-
-<style>
-.status-success {
-    background: rgba(34, 197, 94, 0.15);
-    border: 1px solid var(--color-success);
-    color: var(--color-success);
-}
-
-.status-error {
-    background: rgba(124, 58, 237, 0.15);
-    border: 1px solid var(--color-void-purple);
-    color: var(--color-void-purple);
-}
-</style>

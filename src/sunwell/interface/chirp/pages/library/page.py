@@ -1,10 +1,10 @@
 """Library page - Skills and Spells management - Using MCP tools."""
 
-from chirp import Page, Request
+from chirp import App, Page
 from sunwell.interface.chirp.services import SkillService
 
 
-async def get(skill_svc: SkillService, request: Request) -> Page:
+async def get(skill_svc: SkillService, app: App) -> Page:
     """Render library page showing available skills and spells.
 
     Now uses sunwell_list_lenses tool for lenses/expertise.
@@ -14,7 +14,6 @@ async def get(skill_svc: SkillService, request: Request) -> Page:
     spells = skill_svc.list_spells()
 
     # Get lenses from MCP tool
-    app = request.app
     if not app._frozen:
         app._freeze()
 

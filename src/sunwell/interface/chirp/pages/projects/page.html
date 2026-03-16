@@ -1,79 +1,73 @@
 {% block title %}Projects - Sunwell Studio{% end %}
 
 {% block content %}
-{% import "badge.html" as ui %}
-{% import "empty.html" as ui_empty %}
+{% from "chirpui/layout.html" import container, grid, stack, page_header %}
+{% from "chirpui/card.html" import card %}
+{% from "chirpui/badge.html" import badge %}
+{% from "chirpui/empty.html" import empty_state %}
 
-<div class="projects-container">
-    <header class="page-header mb-lg">
-        <div class="header-content">
-            <h1>Projects</h1>
-            <p class="text-muted">Manage your Sunwell projects</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn btn-primary"
-                    hx-get="/projects/new-form"
-                    hx-target="#modal-container"
-                    hx-swap="innerHTML">
-                + New Project
-            </button>
-        </div>
-    </header>
+{% call container() %}
+{% call stack(gap="lg") %}
+
+    <div class="chirpui-cluster" style="justify-content: space-between; align-items: flex-start;">
+        {% call page_header("Projects", subtitle="Manage your Sunwell projects") %}{% end %}
+        <button class="chirpui-btn chirpui-btn--primary"
+                hx-get="/projects/new-form"
+                hx-target="#modal-container"
+                hx-swap="innerHTML">
+            + New Project
+        </button>
+    </div>
 
     {% if projects %}
-        <div class="projects-grid">
+        {% call grid(gap="lg") %}
             {% for project in projects %}
-                <div class="project-card card {% if not project.valid %}project-invalid{% end %}">
-                    <div class="project-header">
-                        <h3 class="project-name">
-                            <a href="/projects/{{ project.id }}">{{ project.name }}</a>
-                        </h3>
-                        {% if project.is_default %}
-                            {% call ui.badge("Default", "primary", "✦") %}{% end %}
-                        {% end %}
-                        {% if not project.valid %}
-                            {% call ui.badge("Invalid", "error", "⚠") %}{% end %}
-                        {% end %}
-                    </div>
-
-                    <div class="project-details">
-                        <div class="project-path text-muted">
-                            <code>{{ project.root }}</code>
+                {% call card() %}
+                    <div class="chirpui-stack chirpui-stack--md">
+                        <div class="chirpui-cluster chirpui-cluster--sm" style="flex-wrap: wrap; align-items: center;">
+                            <h3 class="chirpui-ui-lg">
+                                <a href="/projects/{{ project.id }}" style="color: var(--chirpui-text); text-decoration: none;">{{ project.name }}</a>
+                            </h3>
+                            {% if project.is_default %}
+                                {{ badge("Default", variant="primary") }}
+                            {% end %}
+                            {% if not project.valid %}
+                                {{ badge("Invalid", variant="error") }}
+                            {% end %}
                         </div>
 
-                        {% if not project.valid and project.error_message %}
-                            <div class="project-error">
-                                <span class="error-icon icon-error">⚠</span>
-                                <span class="text-error">{{ project.error_message }}</span>
-                            </div>
-                        {% end %}
+                        <div class="chirpui-stack chirpui-stack--sm">
+                            <code class="chirpui-ui-sm chirpui-text-muted">{{ project.root }}</code>
 
-                        {% if project.last_used and project.last_used > 0 %}
-                            <div class="project-meta text-muted">
-                                Last used: {{ project.last_used | relative_time }}
-                            </div>
-                        {% end %}
-                    </div>
+                            {% if not project.valid and project.error_message %}
+                                <div class="chirpui-alert chirpui-alert--error" style="padding: var(--chirpui-spacing-sm);">
+                                    <span class="chirpui-text-muted">{{ project.error_message }}</span>
+                                </div>
+                            {% end %}
 
-                    <div class="project-actions">
-                        <a href="/projects/{{ project.id }}" class="btn btn-sm">
-                            Open
-                        </a>
-                        {% if not project.is_default and project.valid %}
-                            <button class="btn btn-sm btn-ghost"
-                                    hx-post="/projects/{{ project.id }}/set-default"
-                                    hx-target="#app-content">
-                                Set as Default
-                            </button>
-                        {% end %}
+                            {% if project.last_used and project.last_used > 0 %}
+                                <span class="chirpui-ui-sm chirpui-text-muted">Last used: {{ project.last_used | relative_time }}</span>
+                            {% end %}
+                        </div>
+
+                        <div class="chirpui-cluster chirpui-cluster--sm" style="margin-top: auto;">
+                            <a href="/projects/{{ project.id }}" class="chirpui-btn chirpui-btn--sm">Open</a>
+                            {% if not project.is_default and project.valid %}
+                                <button class="chirpui-btn chirpui-btn--sm chirpui-btn--ghost"
+                                        hx-post="/projects/{{ project.id }}/set-default"
+                                        hx-target="#main">
+                                    Set as Default
+                                </button>
+                            {% end %}
+                        </div>
                     </div>
-                </div>
+                {% end %}
             {% end %}
-        </div>
+        {% end %}
     {% else %}
-        {% call ui_empty.empty_state("✧", "No Projects Yet") %}
-            <p class="text-muted">Create your first Sunwell project to get started</p>
-            <button class="btn btn-primary"
+        {% call empty_state(icon="✧", title="No Projects Yet") %}
+            <p class="chirpui-text-muted">Create your first Sunwell project to get started</p>
+            <button class="chirpui-btn chirpui-btn--primary"
                     hx-get="/projects/new-form"
                     hx-target="#modal-container"
                     hx-swap="innerHTML">
@@ -81,136 +75,9 @@
             </button>
         {% end %}
     {% end %}
-</div>
 
-{# Modal container for new project form #}
-<div id="modal-container"></div>
+{% end %}
 {% end %}
 
-{% block head %}
-<style>
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.header-actions {
-    display: flex;
-    gap: var(--space-md);
-}
-
-.projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: var(--space-lg);
-}
-
-.project-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-}
-
-.project-card.project-invalid {
-    border-color: var(--color-error);
-    opacity: 0.7;
-}
-
-.project-header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-}
-
-.project-name {
-    margin: 0;
-    font-size: 1.25rem;
-}
-
-.project-name a {
-    color: var(--color-text);
-    text-decoration: none;
-}
-
-.project-name a:hover {
-    color: var(--color-primary);
-}
-
-.badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.badge-primary {
-    background: rgba(255, 215, 0, 0.15);
-    color: var(--color-radiant);
-    border: 1px solid var(--color-gold-dim);
-}
-
-.badge-error {
-    background: rgba(124, 58, 237, 0.15);
-    color: var(--color-void-purple);
-    border: 1px solid var(--color-void-purple);
-}
-
-.project-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-    flex: 1;
-}
-
-.project-path code {
-    font-size: 0.875rem;
-    word-break: break-all;
-}
-
-.project-error {
-    display: flex;
-    align-items: center;
-    gap: var(--space-xs);
-    padding: var(--space-sm);
-    background: rgba(124, 58, 237, 0.1);
-    border-radius: var(--radius-sm);
-}
-
-.project-meta {
-    font-size: 0.875rem;
-}
-
-.project-actions {
-    display: flex;
-    gap: var(--space-sm);
-    margin-top: auto;
-}
-
-.empty-state {
-    text-align: center;
-    padding: var(--space-2xl);
-}
-
-.empty-state-icon {
-    font-size: 4rem;
-    margin-bottom: var(--space-lg);
-}
-
-.empty-state h2 {
-    margin-bottom: var(--space-sm);
-}
-
-.btn-ghost {
-    background: transparent;
-    color: var(--color-text-muted);
-}
-
-.btn-ghost:hover {
-    background: var(--color-surface-elevated);
-    color: var(--color-text);
-}
-</style>
+<div id="modal-container"></div>
 {% end %}

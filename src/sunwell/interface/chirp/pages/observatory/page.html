@@ -1,104 +1,51 @@
 {% block title %}Observatory - Sunwell Studio{% end %}
 
 {% block content %}
-{% import "empty.html" as ui %}
-{% import "card.html" as ui_card %}
-{% import "alert.html" as ui_alert %}
-{% import "status.html" as ui_status %}
+{% from "chirpui/layout.html" import container, stack, page_header %}
+{% from "chirpui/card.html" import card %}
+{% from "chirpui/badge.html" import badge %}
+{% from "chirpui/alert.html" import alert %}
+{% from "chirpui/empty.html" import empty_state %}
 
-<div class="observatory-container">
-    <header class="page-header mb-lg">
-        <h1><span class="icon-gold">◎</span> Observatory</h1>
-        <p class="text-muted">Agent execution visualization</p>
-    </header>
+{% call container() %}
+{% call stack(gap="lg") %}
 
-    {% call ui_alert.alert("info") %}
-        <h3><span class="icon-gold">※</span> Canvas Visualizations Coming Soon</h3>
-        <p class="text-muted">
+    {% call page_header("Observatory", subtitle="Agent execution visualization") %}{% end %}
+
+    {% call alert(variant="info") %}
+        <h3>Canvas Visualizations Coming Soon</h3>
+        <p class="chirpui-text-muted">
             Phase 2 will add ResonanceWave, PrismFracture, ExecutionCinema, and MemoryLattice visualizations.
             For now, view runs in list format below.
         </p>
     {% end %}
 
     {% if runs %}
-        <div class="runs-list">
+        <div class="chirpui-stack chirpui-stack--lg">
             {% for run in runs %}
-                {% call ui_card.card() %}
-                    <div class="run-header">
-                        <h3>{{ run.goal }}</h3>
-                        {% call ui_status.badge(run.status) %}{{ run.status }}{% end %}
-                    </div>
-                    <div class="run-stats">
-                        <span class="stat">
-                            <strong>{{ run.events }}</strong> events
-                        </span>
-                        <span class="stat text-muted">
-                            {{ run.started | relative_time }}
-                        </span>
-                    </div>
-                    <div class="run-actions">
-                        <a href="/observatory/runs/{{ run.id }}" class="btn btn-sm">View Details</a>
+                {% call card() %}
+                    <div class="chirpui-stack chirpui-stack--md">
+                        <div class="chirpui-cluster" style="justify-content: space-between; align-items: center;">
+                            <h3>{{ run.goal }}</h3>
+                            {{ badge(run.status, variant="primary") }}
+                        </div>
+                        <div class="chirpui-cluster chirpui-cluster--lg chirpui-surface chirpui-surface--muted" style="padding: var(--chirpui-spacing-md); border-radius: var(--chirpui-radius);">
+                            <span class="chirpui-ui-sm"><strong>{{ run.events }}</strong> events</span>
+                            <span class="chirpui-ui-sm chirpui-text-muted">{{ run.started | relative_time }}</span>
+                        </div>
+                        <div class="chirpui-cluster chirpui-cluster--sm">
+                            <a href="/observatory/runs/{{ run.id }}" class="chirpui-btn chirpui-btn--sm">View Details</a>
+                        </div>
                     </div>
                 {% end %}
             {% end %}
         </div>
     {% else %}
-        {% call ui.empty_state("◎", "No Runs") %}
-            <p class="text-muted">Run an agent to see visualizations</p>
+        {% call empty_state(icon="◎", title="No Runs") %}
+            <p class="chirpui-text-muted">Run an agent to see visualizations</p>
         {% end %}
     {% end %}
-</div>
+
 {% end %}
-
-{% block head %}
-<style>
-.placeholder-notice {
-    background: rgba(255, 215, 0, 0.05);
-    border: 2px dashed var(--color-gold-dim);
-}
-
-.placeholder-notice h3 {
-    margin: 0 0 var(--space-sm) 0;
-    color: var(--color-gold);
-}
-
-.runs-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-lg);
-}
-
-.run-card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-}
-
-.run-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.run-header h3 {
-    margin: 0;
-}
-
-.run-stats {
-    display: flex;
-    gap: var(--space-lg);
-    padding: var(--space-md);
-    background: var(--color-surface-elevated);
-    border-radius: var(--radius-md);
-}
-
-.stat {
-    font-size: 0.875rem;
-}
-
-.run-actions {
-    display: flex;
-    gap: var(--space-sm);
-}
-</style>
+{% end %}
 {% end %}

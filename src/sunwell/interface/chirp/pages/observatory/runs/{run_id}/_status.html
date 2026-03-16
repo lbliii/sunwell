@@ -1,13 +1,16 @@
 {% block run_info %}
-<div class="card-header">
+{% from "chirpui/badge.html" import badge %}
+{% from "chirpui/alert.html" import alert %}
+
+<div class="chirpui-cluster" style="justify-content: space-between; align-items: center; margin-bottom: var(--chirpui-spacing-md);">
     <h2>Run Information</h2>
     {% if run.status == 'running' %}
-    <span class="live-indicator">🔴 Live</span>
+        {{ badge("Live", variant="error") }}
     {% end %}
 </div>
-<dl class="info-list">
+<dl class="chirpui-dl chirpui-dl--horizontal">
     <dt>Status</dt>
-    <dd><span class="status-badge status-{{ run.status }}">{{ run.status }}</span></dd>
+    <dd>{{ badge(run.status, variant="primary") }}</dd>
 
     <dt>Started</dt>
     <dd>{{ run.started_at | relative_time if run.started_at else 'N/A' }}</dd>
@@ -21,19 +24,18 @@
     <dt>Files Changed</dt>
     <dd>{{ run.files_changed }}</dd>
 </dl>
-{% import "alert.html" as ui %}
 
 {% if is_active %}
-<div style="margin-top: var(--space-md); padding: var(--space-sm); border-radius: var(--radius-sm); text-align: center; background: var(--color-surface); color: var(--color-text-muted);">
-    <small>↻ Auto-refreshing every 2 seconds...</small>
-</div>
+    <p class="chirpui-ui-xs chirpui-text-muted" style="text-align: center; margin-top: var(--chirpui-spacing-md); padding-top: var(--chirpui-spacing-md); border-top: 1px solid var(--chirpui-border);">
+        Auto-refreshing every 2 seconds...
+    </p>
 {% elif run.status == 'completed' %}
-{% call ui.alert(variant="success") %}
-    <small>✅ Session completed!</small>
-{% end %}
+    {% call alert(variant="success") %}
+        Session completed!
+    {% end %}
 {% elif run.status == 'failed' %}
-{% call ui.alert(variant="error") %}
-    <small>❌ Session failed. See error details below.</small>
-{% end %}
+    {% call alert(variant="error") %}
+        Session failed. See error details below.
+    {% end %}
 {% end %}
 {% end %}

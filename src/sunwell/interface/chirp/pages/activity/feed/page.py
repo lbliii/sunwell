@@ -1,10 +1,10 @@
 """Activity feed - SSE stream of tool call events."""
 
 import time
-from chirp import EventStream, Fragment, Request
+from chirp import App, EventStream, Fragment
 
 
-async def get(request: Request) -> EventStream:
+async def get(app: App) -> EventStream:
     """Stream tool call events via SSE.
 
     This subscribes to app.tool_events and streams each tool call
@@ -12,9 +12,6 @@ async def get(request: Request) -> EventStream:
     """
 
     async def generate():
-        # Get the app instance to access tool_events
-        app = request.app
-
         # Subscribe to tool events
         async for event in app.tool_events.subscribe():
             # Determine category from tool name

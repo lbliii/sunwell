@@ -1,85 +1,76 @@
 {% block title %}Home - Sunwell Studio{% end %}
 
 {% block content %}
-{% import "empty.html" as ui %}
+{% from "chirpui/layout.html" import container, grid, stack, page_header %}
+{% from "chirpui/card.html" import card %}
+{% from "chirpui/empty.html" import empty_state %}
 
-<div class="stack stack-xl">
-    <header class="page-header scroll-fade-in">
-        <h1>Welcome to Sunwell Studio</h1>
-        <p class="text-muted">RAG for Judgment - Dynamic expertise retrieval for LLMs</p>
-    </header>
+{% call container() %}
+{% call stack(gap="xl") %}
 
-    <section class="stack scroll-fade-in">
+    {% call page_header("Welcome to Sunwell Studio", subtitle="RAG for Judgment — Dynamic expertise retrieval for LLMs") %}{% end %}
+
+    <section>
+    {% call stack(gap="md") %}
         <h2>Quick Actions</h2>
-        <div class="grid grid-auto">
-            <div class="card card-interactive">
-                <div class="stack stack-sm">
-                    <h3><span class="icon-radiant">✦</span> New Project</h3>
-                    <p class="text-muted">Start a new Sunwell project</p>
-                    <button class="hover-scale"
-                            hx-get="/projects/new-form"
-                            hx-target="#app-content"
-                            hx-push-url="true">
-                        Create Project
-                    </button>
-                </div>
-            </div>
+        {% call grid(cols=3, gap="md") %}
+            {% call card(title="New Project", icon="✦") %}
+                <p class="chirpui-text-muted">Start a new Sunwell project</p>
+                <button class="chirpui-btn chirpui-btn--primary"
+                        hx-get="/projects/new-form"
+                        hx-target="#modal-container"
+                        hx-swap="innerHTML">
+                    Create Project
+                </button>
+            {% end %}
 
-            <div class="card card-interactive">
-                <div class="stack stack-sm">
-                    <h3><span class="icon-solid">◆</span> Observatory</h3>
-                    <p class="text-muted">Visualize agent execution</p>
-                    <a href="/observatory" class="btn hover-scale">Open Observatory</a>
-                </div>
-            </div>
+            {% call card(title="Observatory", icon="◆") %}
+                <p class="chirpui-text-muted">Visualize agent execution</p>
+                <a href="/observatory" class="chirpui-btn">Open Observatory</a>
+            {% end %}
 
-            <div class="card card-interactive">
-                <div class="stack stack-sm">
-                    <h3><span class="icon-hollow">◇</span> DAG Viewer</h3>
-                    <p class="text-muted">Explore execution graphs</p>
-                    <a href="/dag" class="btn hover-scale">View DAG</a>
-                </div>
-            </div>
-        </div>
+            {% call card(title="Activity", icon="◇") %}
+                <p class="chirpui-text-muted">Monitor tool calls and agent activity</p>
+                <a href="/activity" class="chirpui-btn">Open Activity</a>
+            {% end %}
+        {% end %}
+    {% end %}
     </section>
 
-    <section class="stack scroll-fade-in">
+    <section>
+    {% call stack(gap="md") %}
         <h2>Recent Projects</h2>
 
         {% if recent_projects %}
-            <div class="grid grid-auto">
+            {% call grid(cols=3, gap="md") %}
                 {% for project in recent_projects %}
-                    <a href="/projects/{{ project.id }}" class="card card-interactive project-card">
-                        <div class="stack stack-sm">
+                    <a href="/projects/{{ project.id }}" class="chirpui-card chirpui-card--link">
+                        <div class="chirpui-stack chirpui-stack--sm">
                             <h3>{{ project.name }}</h3>
-                            <p class="text-muted">{{ project.description }}</p>
-                            <small class="text-muted">Last modified: {{ project.last_modified }}</small>
+                            <p class="chirpui-text-muted">{{ project.description }}</p>
+                            <small class="chirpui-text-muted chirpui-ui-xs">Last modified: {{ project.last_modified }}</small>
                         </div>
                     </a>
                 {% end %}
-            </div>
+            {% end %}
         {% else %}
-            {% call ui.empty_state("✧", "No Recent Projects") %}
-                <p class="text-muted">Create one to get started!</p>
+            {% call empty_state(icon="✧", title="No Recent Projects") %}
+                <p class="chirpui-text-muted">Create one to get started!</p>
             {% end %}
         {% end %}
+    {% end %}
     </section>
 
-    {# SSE connection for live updates (placeholder) #}
-    <div hx-ext="sse"
-         sse-connect="/system/stream"
-         hx-disinherit="hx-target hx-swap"
-         style="display: none;">
-        <div id="notifications" sse-swap="notification" hx-target="this"></div>
-    </div>
-</div>
+{% end %}
 {% end %}
 
-{% block scripts %}
-<script>
-    // Add smooth scroll behavior
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('✨ Sunwell Studio (Chirp + Page Convention) loaded');
-    });
-</script>
+<div id="modal-container"></div>
+
+{# SSE connection for live updates #}
+<div hx-ext="sse"
+     sse-connect="/system/stream"
+     hx-disinherit="hx-target hx-swap"
+     style="display: none;">
+    <div id="notifications" sse-swap="notification" hx-target="this"></div>
+</div>
 {% end %}
