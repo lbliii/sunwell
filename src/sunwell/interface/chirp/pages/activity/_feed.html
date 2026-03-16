@@ -1,0 +1,18 @@
+{% block feed_content %}
+{% if events %}
+  {% for e in events %}
+    {% set tool_name = e.tool_name %}
+    {% set category = e.category %}
+    {% set timestamp = e.timestamp %}
+    {% set args = e.args %}
+    {% set result = e.result %}
+    {% set error = e.error %}
+    {% include "activity/_event.html" %}
+  {% end %}
+{% else %}
+  <div style="text-align: center; padding: var(--chirpui-spacing-xl) var(--chirpui-spacing-md);">
+    <p class="chirpui-text-muted">Listening for tool calls...</p>
+    <p class="chirpui-ui-sm chirpui-text-muted">Activity will appear here when AI agents call Sunwell tools</p>
+  </div>
+{% end %}
+{% end %}

@@ -3,7 +3,6 @@
 Handles task graph execution, artifact creation, and incremental execution.
 """
 
-
 import asyncio
 from collections.abc import Callable
 from datetime import datetime
@@ -75,9 +74,9 @@ class ExecutionCoordinator:
                 break
 
             ready = [
-                t for t in tasks
-                if t.status == TaskStatus.PENDING
-                and t.is_ready(completed_ids, completed_artifacts)
+                t
+                for t in tasks
+                if t.status == TaskStatus.PENDING and t.is_ready(completed_ids, completed_artifacts)
             ]
 
             if not ready:
@@ -193,6 +192,7 @@ class ExecutionCoordinator:
             return
 
         import shlex
+
         parts = shlex.split(task.description)
         if not parts:
             task.status = TaskStatus.FAILED
@@ -251,6 +251,7 @@ class ExecutionCoordinator:
             except Exception as e:
                 # Fall back to text generation on error
                 import logging
+
                 logging.getLogger(__name__).warning(
                     "Tool-based generation failed, falling back to text: %s", e
                 )
@@ -512,9 +513,7 @@ Respond with "PASS" or "FAIL" with reason."""
         from sunwell.planning.naaru.analysis import validate_contracts
 
         # Get tasks that have contracts
-        has_contracts = any(
-            hasattr(t, "contract") and t.contract for t in tasks
-        )
+        has_contracts = any(hasattr(t, "contract") and t.contract for t in tasks)
         if not has_contracts:
             return []
 
@@ -532,23 +531,31 @@ Respond with "PASS" or "FAIL" with reason."""
 
             for result in results:
                 if result.passed:
-                    self._emitter.emit(AgentEvent(
-                        EventType.CONTRACT_VERIFY_PASS,
-                        {
-                            "task_id": "",  # Would need task context
-                            "protocol_name": result.protocol_name,
-                            "final_tier": result.final_tier.value if result.final_tier else "unknown",
-                        },
-                    ))
+                    self._emitter.emit(
+                        AgentEvent(
+                            EventType.CONTRACT_VERIFY_PASS,
+                            {
+                                "task_id": "",  # Would need task context
+                                "protocol_name": result.protocol_name,
+                                "final_tier": result.final_tier.value
+                                if result.final_tier
+                                else "unknown",
+                            },
+                        )
+                    )
                 elif result.status.value == "failed":
-                    self._emitter.emit(AgentEvent(
-                        EventType.CONTRACT_VERIFY_FAIL,
-                        {
-                            "task_id": "",
-                            "protocol_name": result.protocol_name,
-                            "final_tier": result.final_tier.value if result.final_tier else "unknown",
-                            "error_message": result.summary,
-                        },
-                    ))
+                    self._emitter.emit(
+                        AgentEvent(
+                            EventType.CONTRACT_VERIFY_FAIL,
+                            {
+                                "task_id": "",
+                                "protocol_name": result.protocol_name,
+                                "final_tier": result.final_tier.value
+                                if result.final_tier
+                                else "unknown",
+                                "error_message": result.summary,
+                            },
+                        )
+                    )
 
         return errors

@@ -11,7 +11,7 @@ import json
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 from sunwell.agent.intent.dag import IntentNode, IntentPath
@@ -61,7 +61,7 @@ class ApprovalPattern:
             self.approval_count += 1
         else:
             self.rejection_count += 1
-        self.last_decision = datetime.now(timezone.utc)
+        self.last_decision = datetime.now(UTC)
         self.last_approved = approved
 
     def to_dict(self) -> dict:
@@ -75,7 +75,7 @@ class ApprovalPattern:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ApprovalPattern":
+    def from_dict(cls, data: dict) -> ApprovalPattern:
         """Deserialize from dictionary."""
         last_decision = None
         if data.get("last_decision"):
@@ -117,9 +117,7 @@ class ApprovalTracker:
     min_approval_ratio: float = MIN_APPROVAL_RATIO
     """Minimum approval ratio (0.0-1.0) to suggest upgrade."""
 
-    _patterns: dict[tuple[str, ...], ApprovalPattern] = field(
-        default_factory=dict, init=False
-    )
+    _patterns: dict[tuple[str, ...], ApprovalPattern] = field(default_factory=dict, init=False)
     """In-memory pattern cache."""
 
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)

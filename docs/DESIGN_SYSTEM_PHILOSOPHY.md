@@ -106,7 +106,7 @@ Our design system is **hypermedia-first, progressively enhanced, and built on 20
 
 ---
 
-### ✅ View Transitions API
+### ⚠️ View Transitions API (disabled)
 **Smooth page transitions with zero JavaScript:**
 ```css
 ::view-transition-old(liquid-blob),
@@ -121,7 +121,7 @@ Our design system is **hypermedia-first, progressively enhanced, and built on 20
 - Liquid morphing effects
 - No FLIP library needed
 
-**Status:** Active for liquid transitions in biomorphic system
+**Status:** Disabled — View Transitions conflict with HTMX partial swaps (causes layout glitches). Use hybrid routing (polling, POST→fragment) instead.
 
 ---
 
@@ -345,7 +345,7 @@ Not a checkbox, a fundamental requirement.
 | oklch() Colors | ✅ Active | 256 uses |
 | clamp() Fluid | ✅ Active | 17 tokens |
 | Container Queries | ✅ Active | Cards |
-| View Transitions | ✅ Active | Liquid |
+| View Transitions | ⚠️ Disabled | Conflicts with HTMX |
 | dvh/dvw Units | ✅ Active | Body |
 | Logical Properties | ✅ Active | All layouts |
 | :is/:has Selectors | ✅ Ready | On demand |

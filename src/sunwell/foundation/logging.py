@@ -92,23 +92,23 @@ def _cleanup_old_logs(log_dir: Path, max_sessions: int = _MAX_LOG_SESSIONS) -> N
 
 def _check_config_debug() -> bool:
     """Check if debug is enabled in config file.
-    
+
     This is a lightweight check that doesn't import the full config system
     to avoid circular imports. Only reads the debug setting from YAML.
     """
     global _config_debug_checked, _config_debug_value
-    
+
     if _config_debug_checked:
         return _config_debug_value
-    
+
     _config_debug_checked = True
-    
+
     # Check config files in priority order
     config_paths = [
         Path(".sunwell/config.yaml"),
         Path.home() / ".sunwell" / "config.yaml",
     ]
-    
+
     for config_path in config_paths:
         if config_path.exists():
             try:
@@ -123,7 +123,7 @@ def _check_config_debug() -> bool:
                         return _config_debug_value
             except Exception:
                 pass
-    
+
     return False
 
 

@@ -32,8 +32,13 @@ console = create_sunwell_console()
 @click.option("--hint", "-H", default=None, help="Hint for agent when using --auto-fix")
 @click.option("--errors", is_flag=True, help="Show detailed error list")
 @click.option("--context", is_flag=True, help="Show healing context for agent")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider for auto-fix")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider for auto-fix",
+)
 @click.option("--model", "-m", default=None, help="Model for auto-fix")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.pass_context
@@ -109,17 +114,15 @@ async def _list_recoveries(recovery_dir: Path, verbose: bool) -> None:
 
     if not pending:
         console.print("[neutral.dim]No pending recoveries.[/neutral.dim]")
-        console.print(
-            "\n[neutral.dim]Recoveries are created when agent runs fail.[/neutral.dim]"
-        )
+        console.print("\n[neutral.dim]Recoveries are created when agent runs fail.[/neutral.dim]")
         return
 
     table = Table(title="↻ Pending Recoveries", show_header=True)
     table.add_column("ID", style="holy.radiant")
     table.add_column("Goal", max_width=50)
     table.add_column("★", style="holy.success", justify="right")  # passed
-    table.add_column("△", style="holy.gold", justify="right")      # failed
-    table.add_column("◇", style="neutral.dim", justify="right")    # waiting
+    table.add_column("△", style="holy.gold", justify="right")  # failed
+    table.add_column("◇", style="neutral.dim", justify="right")  # waiting
     table.add_column("Age")
 
     for summary in pending:
@@ -234,13 +237,15 @@ async def _review_recovery(
 def _display_recovery_state(state) -> None:
     """Display recovery state in a nice format (RFC-131: Holy Light)."""
     # Header
-    console.print(Panel(
-        f"[sunwell.heading]{state.goal}[/sunwell.heading]\n\n"
-        f"Run ID: {state.run_id}\n"
-        f"Reason: {state.failure_reason}",
-        title="↻ Recovery State",
-        border_style="holy.gold",
-    ))
+    console.print(
+        Panel(
+            f"[sunwell.heading]{state.goal}[/sunwell.heading]\n\n"
+            f"Run ID: {state.run_id}\n"
+            f"Reason: {state.failure_reason}",
+            title="↻ Recovery State",
+            border_style="holy.gold",
+        )
+    )
 
     # Artifact status table
     table = Table(show_header=True, header_style="sunwell.heading")
@@ -437,11 +442,13 @@ async def _show_errors(recovery_dir: Path, recovery_id: str) -> None:
         console.print(f"[void.purple]✗ Recovery not found: {recovery_id}[/void.purple]")
         return
 
-    console.print(Panel(
-        "\n".join(state.error_details[:30]) or "[neutral.dim]No error details[/neutral.dim]",
-        title="Error Details",
-        border_style="void.purple",
-    ))
+    console.print(
+        Panel(
+            "\n".join(state.error_details[:30]) or "[neutral.dim]No error details[/neutral.dim]",
+            title="Error Details",
+            border_style="void.purple",
+        )
+    )
 
     if len(state.error_details) > 30:
         remain = len(state.error_details) - 30

@@ -1,57 +1,20 @@
-"""Activity feed - SSE stream of tool call events."""
+"""Activity feed - polling endpoint returning Fragment (hybrid routing).
 
-import time
-from chirp import App, EventStream, Fragment
+Use hx-get="/activity/feed" hx-trigger="every 5s" hx-swap="innerHTML".
+Avoid page-load SSE (sse-connect on load causes infinite spinner).
+"""
+
+from chirp import App, Fragment
 
 
-async def get(app: App) -> EventStream:
-    """Stream tool call events via SSE.
+def get(app: App) -> Fragment:
+    """Return recent tool call events as HTML fragment for polling.
 
-    This subscribes to app.tool_events and streams each tool call
-    as an HTML fragment that gets appended to the activity feed.
+    Polling pattern: GET returns Fragment; no long-lived SSE on page load.
+    ToolEventBus has subscribe() only (no buffer); events placeholder for now.
     """
-
-    async def generate():
-        # Subscribe to tool events
-        async for event in app.tool_events.subscribe():
-            # Determine category from tool name
-            tool_name = event.tool_name
-            category = "unknown"
-            if "search" in tool_name or "ask" in tool_name or "codebase" in tool_name:
-                category = "knowledge"
-            elif "recall" in tool_name or "briefing" in tool_name or "lineage" in tool_name:
-                category = "memory"
-            elif "lens" in tool_name or "route" in tool_name:
-                category = "lens"
-
-            # Format timestamp
-            timestamp = time.strftime("%H:%M:%S", time.localtime(event.started_at))
-
-            # Format arguments
-            args_str = ", ".join(
-                f"{k}={repr(v)[:50]}" for k, v in event.arguments.items()
-            )
-
-            # Check if error
-            has_error = hasattr(event, "error") and event.error
-
-            # Format result
-            if has_error:
-                result_str = None
-                error_str = str(event.error)
-            else:
-                result_str = str(event.result)[:200] if event.result else "Success"
-                error_str = None
-
-            yield Fragment(
-                "activity/_event.html",
-                "event_row",
-                tool_name=tool_name,
-                category=category,
-                timestamp=timestamp,
-                args=args_str,
-                result=result_str,
-                error=error_str,
-            )
-
-    return EventStream(generate())
+    return Fragment(
+        "activity/_feed.html",
+        "feed_content",
+        events=[],
+    )

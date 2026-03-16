@@ -163,9 +163,7 @@ class BindingIndexManager:
         bindings_dir: Directory for bindings (~/.sunwell/bindings or project/.sunwell/bindings)
     """
 
-    bindings_dir: Path = field(
-        default_factory=lambda: Path.home() / ".sunwell" / "bindings"
-    )
+    bindings_dir: Path = field(default_factory=lambda: Path.home() / ".sunwell" / "bindings")
 
     _index: BindingIndex | None = field(default=None, init=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False)

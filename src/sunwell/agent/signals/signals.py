@@ -15,7 +15,6 @@ Two extraction modes:
    Use when you only need 1-2 specific signals, not full extraction.
 """
 
-
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
@@ -139,7 +138,7 @@ class AdaptiveSignals:
         More relevant learnings → higher confidence boost.
         """
         # Diminishing returns: sqrt scaling
-        boost = min(0.15, (n_learnings ** 0.5) * 0.05)
+        boost = min(0.15, (n_learnings**0.5) * 0.05)
         return AdaptiveSignals(
             complexity=self.complexity,
             needs_tools=self.needs_tools,
@@ -253,26 +252,66 @@ def _heuristic_needs_tools(goal: str) -> bool | None:
 
     # Action verbs that almost always need tools
     tool_verbs = (
-        "create", "make", "build", "write", "generate",
-        "add", "update", "modify", "edit", "change", "fix",
-        "delete", "remove", "install", "run", "execute",
-        "save", "store", "read", "open", "list", "show",
-        "find", "search", "grep", "analyze", "check",
+        "create",
+        "make",
+        "build",
+        "write",
+        "generate",
+        "add",
+        "update",
+        "modify",
+        "edit",
+        "change",
+        "fix",
+        "delete",
+        "remove",
+        "install",
+        "run",
+        "execute",
+        "save",
+        "store",
+        "read",
+        "open",
+        "list",
+        "show",
+        "find",
+        "search",
+        "grep",
+        "analyze",
+        "check",
     )
 
     # Patterns that clearly need tools
     tool_patterns = (
-        "to my todo", "to the backlog", "to my list",
-        "in the file", "the code", "the project",
-        "this directory", "this folder", "the repo",
-        ".py", ".js", ".ts", ".yaml", ".json", ".md",
+        "to my todo",
+        "to the backlog",
+        "to my list",
+        "in the file",
+        "the code",
+        "the project",
+        "this directory",
+        "this folder",
+        "the repo",
+        ".py",
+        ".js",
+        ".ts",
+        ".yaml",
+        ".json",
+        ".md",
     )
 
     # Question words that usually DON'T need tools (pure conversation)
     question_only = (
-        "what is", "what are", "who is", "who are",
-        "why is", "why are", "how does", "explain",
-        "tell me about", "describe",
+        "what is",
+        "what are",
+        "who is",
+        "who are",
+        "why is",
+        "why are",
+        "how does",
+        "explain",
+        "tell me about",
+        "describe",
     )
 
     # Check for clear tool-needing patterns
@@ -307,24 +346,46 @@ def _heuristic_is_dangerous(goal: str) -> bool | None:
     # Dangerous commands and patterns
     dangerous_patterns = (
         # Destructive file operations
-        "rm -rf", "rmdir", "delete all", "remove all", "wipe",
-        "drop table", "drop database", "truncate",
+        "rm -rf",
+        "rmdir",
+        "delete all",
+        "remove all",
+        "wipe",
+        "drop table",
+        "drop database",
+        "truncate",
         # System commands
-        "sudo", "chmod 777", "chown", "shutdown", "reboot",
+        "sudo",
+        "chmod 777",
+        "chown",
+        "shutdown",
+        "reboot",
         # Git destructive
-        "force push", "git push -f", "git reset --hard",
+        "force push",
+        "git push -f",
+        "git reset --hard",
         "git clean -fd",
         # Data destruction
-        "format", "erase", "destroy", "nuke",
+        "format",
+        "erase",
+        "destroy",
+        "nuke",
         # Credentials/security
-        "password", "secret", "api key", "private key",
-        "credential", ".env",
+        "password",
+        "secret",
+        "api key",
+        "private key",
+        "credential",
+        ".env",
     )
 
     # Patterns that suggest bulk operations (potentially dangerous)
     bulk_patterns = (
-        "all files", "entire", "everything",
-        "recursively", "recursive",
+        "all files",
+        "entire",
+        "everything",
+        "recursively",
+        "recursive",
     )
 
     # Check for dangerous patterns
@@ -354,8 +415,14 @@ def _heuristic_complexity(goal: str) -> str | None:
 
     # Simple tasks (likely NO complexity)
     simple_patterns = (
-        "what is", "what are", "show me", "list", "display",
-        "explain", "describe", "tell me",
+        "what is",
+        "what are",
+        "show me",
+        "list",
+        "display",
+        "explain",
+        "describe",
+        "tell me",
     )
 
     for pattern in simple_patterns:
@@ -366,16 +433,33 @@ def _heuristic_complexity(goal: str) -> str | None:
     # Complex indicators (likely YES)
     complex_indicators = (
         # Multi-step language
-        "and then", "after that", "followed by",
-        "first", "second", "third", "finally",
+        "and then",
+        "after that",
+        "followed by",
+        "first",
+        "second",
+        "third",
+        "finally",
         # Multi-component
-        "multiple", "several", "all the", "each",
+        "multiple",
+        "several",
+        "all the",
+        "each",
         # Integration language
-        "integrate", "connect", "combine", "merge",
+        "integrate",
+        "connect",
+        "combine",
+        "merge",
         # Architecture language
-        "architecture", "system", "framework", "infrastructure",
+        "architecture",
+        "system",
+        "framework",
+        "infrastructure",
         # Refactoring
-        "refactor", "restructure", "reorganize", "migrate",
+        "refactor",
+        "restructure",
+        "reorganize",
+        "migrate",
     )
 
     for indicator in complex_indicators:
@@ -403,19 +487,35 @@ def _heuristic_is_epic(goal: str) -> bool | None:
     # Epic indicators (ambitious scope)
     epic_patterns = (
         # "Build a X" patterns
-        "build a game", "build an app", "build a platform",
-        "build a saas", "build a website", "build a system",
-        "create a game", "create an app", "create a platform",
-        "make a game", "make an app",
+        "build a game",
+        "build an app",
+        "build a platform",
+        "build a saas",
+        "build a website",
+        "build a system",
+        "create a game",
+        "create an app",
+        "create a platform",
+        "make a game",
+        "make an app",
         # Scope words
-        "full application", "complete application",
-        "entire system", "whole project",
-        "from scratch", "end-to-end",
+        "full application",
+        "complete application",
+        "entire system",
+        "whole project",
+        "from scratch",
+        "end-to-end",
         # Multi-component
-        "with authentication", "with database", "with api",
-        "with frontend", "with backend", "with tests",
+        "with authentication",
+        "with database",
+        "with api",
+        "with frontend",
+        "with backend",
+        "with tests",
         # Creative works
-        "write a novel", "write a book", "create a course",
+        "write a novel",
+        "write a book",
+        "create a course",
     )
 
     for pattern in epic_patterns:
@@ -424,9 +524,18 @@ def _heuristic_is_epic(goal: str) -> bool | None:
 
     # Non-epic indicators (bounded scope)
     non_epic_patterns = (
-        "fix the", "fix a", "update the", "change the",
-        "add a", "remove the", "rename", "refactor the",
-        "single", "this file", "this function", "this class",
+        "fix the",
+        "fix a",
+        "update the",
+        "change the",
+        "add a",
+        "remove the",
+        "rename",
+        "refactor the",
+        "single",
+        "this file",
+        "this function",
+        "this class",
     )
 
     for pattern in non_epic_patterns:
@@ -903,8 +1012,10 @@ class FastSignalChecker:
         )
 
         # Map to AdaptiveSignals format
-        complexity = "YES" if complex_check == "complex" else (
-            "MAYBE" if complex_check == "standard" else "NO"
+        complexity = (
+            "YES"
+            if complex_check == "complex"
+            else ("MAYBE" if complex_check == "standard" else "NO")
         )
 
         return AdaptiveSignals(

@@ -226,14 +226,10 @@ class TaskGraphAdvisor:
 
         # Suggest subtasks based on complexity
         if advice.complexity and advice.complexity.fan_out > 10:
-            advice.subtask_hints.append(
-                "Consider breaking into smaller functions (high fan-out)"
-            )
+            advice.subtask_hints.append("Consider breaking into smaller functions (high fan-out)")
 
         if advice.impact and advice.impact.transitive_dependents > 20:
-            advice.subtask_hints.append(
-                "Add integration tests for affected components"
-            )
+            advice.subtask_hints.append("Add integration tests for affected components")
             advice.suggested_tests.extend(
                 [f"Test {n.name}" for n in advice.impact.affected_nodes[:5]]
             )
@@ -251,9 +247,7 @@ class TaskGraphAdvisor:
 
         # Suggest debugging approach
         if advice.context and len(advice.context.relevant_nodes) > 10:
-            advice.subtask_hints.append(
-                "Narrow down by tracing call flow"
-            )
+            advice.subtask_hints.append("Narrow down by tracing call flow")
 
         if advice.impact and advice.impact.transitive_dependents > 5:
             advice.potential_issues.append(
@@ -265,14 +259,10 @@ class TaskGraphAdvisor:
         # Find tightly coupled code
         sccs = self.algorithms.find_sccs(EdgeType.CALLS, min_size=2)
         if sccs:
-            advice.potential_issues.append(
-                f"Found {len(sccs)} tightly coupled clusters"
-            )
+            advice.potential_issues.append(f"Found {len(sccs)} tightly coupled clusters")
             for scc in sccs[:3]:
                 names = [n.name for n in scc[:5]]
-                advice.subtask_hints.append(
-                    f"Consider extracting cluster: {', '.join(names)}"
-                )
+                advice.subtask_hints.append(f"Consider extracting cluster: {', '.join(names)}")
 
         # Find high fan-out (orchestrators)
         complex_nodes = self.algorithms.most_complex(top_n=5)
@@ -288,8 +278,7 @@ class TaskGraphAdvisor:
         for metrics in depended:
             if metrics.fan_in > 20:
                 advice.potential_issues.append(
-                    f"{metrics.node.name} has high fan-in ({metrics.fan_in}) - "
-                    "potential god object"
+                    f"{metrics.node.name} has high fan-in ({metrics.fan_in}) - potential god object"
                 )
 
         # Impact scope
@@ -323,9 +312,7 @@ class TaskGraphAdvisor:
                     f"Deleting will break {advice.impact.transitive_dependents} dependents"
                 )
                 for node in advice.impact.affected_nodes[:5]:
-                    advice.subtask_hints.append(
-                        f"Update or remove reference in {node.name}"
-                    )
+                    advice.subtask_hints.append(f"Update or remove reference in {node.name}")
             else:
                 advice.subtask_hints.append("Safe to delete - no dependents found")
 
@@ -337,9 +324,7 @@ class TaskGraphAdvisor:
         advice.context = self.get_focused_context(advice.target, depth=1)
 
         if advice.impact and advice.impact.transitive_dependents > 10:
-            advice.potential_issues.append(
-                "High-impact change - consider feature flag"
-            )
+            advice.potential_issues.append("High-impact change - consider feature flag")
 
     def _analyze_test(self, advice: TaskAdvice) -> None:
         """Analyze for writing tests."""
@@ -354,9 +339,7 @@ class TaskGraphAdvisor:
         internal_deps = [n for n in deps if n.file_path]
 
         if external_deps:
-            advice.subtask_hints.append(
-                f"Mock {len(external_deps)} external dependencies"
-            )
+            advice.subtask_hints.append(f"Mock {len(external_deps)} external dependencies")
 
         if internal_deps:
             advice.subtask_hints.append(
@@ -475,9 +458,7 @@ class TaskGraphAdvisor:
             rationale=rationale,
         )
 
-    def _impact_rationale(
-        self, total_affected: int, file_count: int, direct: int
-    ) -> str:
+    def _impact_rationale(self, total_affected: int, file_count: int, direct: int) -> str:
         """Generate human-readable impact rationale."""
         if total_affected == 0:
             return "No dependents found - isolated code"

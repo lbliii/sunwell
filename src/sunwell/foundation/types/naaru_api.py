@@ -6,7 +6,6 @@ These types define the contract between all entry points (CLI, chat, Studio, API
 All other layers (Rust/Tauri, Svelte) should generate their types from these.
 """
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -122,8 +121,7 @@ class ProcessInput:
             "mode": self.mode.value,
             "page_type": self.page_type,
             "conversation_history": [
-                {"role": m.role, "content": m.content}
-                for m in self.conversation_history
+                {"role": m.role, "content": m.content} for m in self.conversation_history
             ],
             "workspace": str(self.workspace) if self.workspace else None,
             "stream": self.stream,

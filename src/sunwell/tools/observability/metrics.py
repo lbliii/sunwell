@@ -63,7 +63,9 @@ class MetricsCollector:
     _error_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int), init=False)
 
     # Per-tool latency samples (keep last N for percentile calculation)
-    _latencies: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list), init=False)
+    _latencies: dict[str, list[float]] = field(
+        default_factory=lambda: defaultdict(list), init=False
+    )
     _max_latency_samples: int = 1000
 
     # Global counters
@@ -105,7 +107,7 @@ class MetricsCollector:
 
             # Prune old samples if needed
             if len(latencies) > self._max_latency_samples:
-                self._latencies[tool_name] = latencies[-self._max_latency_samples:]
+                self._latencies[tool_name] = latencies[-self._max_latency_samples :]
 
             # Track bytes written
             if bytes_written > 0:
@@ -138,7 +140,9 @@ class MetricsCollector:
                     tool_name=tool_name,
                     call_count=call_count,
                     error_count=error_count,
-                    success_rate=1.0 if error_count == 0 else (call_count - error_count) / call_count,
+                    success_rate=1.0
+                    if error_count == 0
+                    else (call_count - error_count) / call_count,
                     total_latency_ms=0,
                     avg_latency_ms=0,
                     min_latency_ms=0,
@@ -178,13 +182,17 @@ class MetricsCollector:
         """
         with self._lock:
             uptime_seconds = time.time() - self._start_time
-            calls_per_minute = (self._total_calls / uptime_seconds) * 60 if uptime_seconds > 0 else 0
+            calls_per_minute = (
+                (self._total_calls / uptime_seconds) * 60 if uptime_seconds > 0 else 0
+            )
 
             return {
                 "uptime_seconds": uptime_seconds,
                 "total_calls": self._total_calls,
                 "total_errors": self._total_errors,
-                "error_rate": self._total_errors / self._total_calls if self._total_calls > 0 else 0,
+                "error_rate": self._total_errors / self._total_calls
+                if self._total_calls > 0
+                else 0,
                 "calls_per_minute": calls_per_minute,
                 "total_bytes_written": self._total_bytes_written,
                 "rate_limit_hits": self._rate_limit_hits,
@@ -258,7 +266,9 @@ class MetricsCollector:
         for tool_name in self.get_all_tool_names():
             metrics = self.get_tool_metrics(tool_name)
             if metrics:
-                lines.append(metric("sunwell_tool_call_count", metrics.call_count, {"tool": tool_name}))
+                lines.append(
+                    metric("sunwell_tool_call_count", metrics.call_count, {"tool": tool_name})
+                )
 
         lines.append("# HELP sunwell_tool_latency_seconds Tool execution latency")
         lines.append("# TYPE sunwell_tool_latency_seconds summary")
@@ -266,11 +276,35 @@ class MetricsCollector:
             metrics = self.get_tool_metrics(tool_name)
             if metrics:
                 labels = {"tool": tool_name}
-                lines.append(metric("sunwell_tool_latency_seconds", metrics.avg_latency_ms / 1000, {**labels, "quantile": "0.5"}))
-                lines.append(metric("sunwell_tool_latency_seconds", metrics.p95_latency_ms / 1000, {**labels, "quantile": "0.95"}))
-                lines.append(metric("sunwell_tool_latency_seconds", metrics.p99_latency_ms / 1000, {**labels, "quantile": "0.99"}))
-                lines.append(metric("sunwell_tool_latency_seconds_sum", metrics.total_latency_ms / 1000, labels))
-                lines.append(metric("sunwell_tool_latency_seconds_count", metrics.call_count, labels))
+                lines.append(
+                    metric(
+                        "sunwell_tool_latency_seconds",
+                        metrics.avg_latency_ms / 1000,
+                        {**labels, "quantile": "0.5"},
+                    )
+                )
+                lines.append(
+                    metric(
+                        "sunwell_tool_latency_seconds",
+                        metrics.p95_latency_ms / 1000,
+                        {**labels, "quantile": "0.95"},
+                    )
+                )
+                lines.append(
+                    metric(
+                        "sunwell_tool_latency_seconds",
+                        metrics.p99_latency_ms / 1000,
+                        {**labels, "quantile": "0.99"},
+                    )
+                )
+                lines.append(
+                    metric(
+                        "sunwell_tool_latency_seconds_sum", metrics.total_latency_ms / 1000, labels
+                    )
+                )
+                lines.append(
+                    metric("sunwell_tool_latency_seconds_count", metrics.call_count, labels)
+                )
 
         return "\n".join(lines)
 

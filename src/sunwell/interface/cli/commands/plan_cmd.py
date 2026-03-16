@@ -15,7 +15,6 @@ Example:
     sunwell plan diff abc123 1 2
 """
 
-
 import asyncio
 import json
 import re
@@ -44,13 +43,15 @@ console = Console()
 @click.pass_context
 @click.argument("goal", required=False)
 @click.option(
-    "--file", "-f",
+    "--file",
+    "-f",
     "input_file",
     type=click.Path(exists=True),
     help="Read goal/context from file (markdown, txt)",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Save plan to file (json format)",
 )
@@ -62,18 +63,21 @@ console = Console()
     help="Output format (default: human)",
 )
 @click.option(
-    "--provider", "-p",
+    "--provider",
+    "-p",
     type=click.Choice(["openai", "anthropic", "ollama"]),
     default=None,
     help="Model provider (default: from config)",
 )
 @click.option(
-    "--model", "-m",
+    "--model",
+    "-m",
     default=None,
     help="Override model selection",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output including dependencies",
 )
@@ -163,15 +167,17 @@ def plan(
     if output_format == "json" and not output:
         output = "-"  # stdout marker
 
-    asyncio.run(_plan_async(
-        goal=final_goal,
-        input_file=input_file,
-        output_path=output,
-        output_format=output_format,
-        provider_override=provider,
-        model_override=model,
-        verbose=verbose,
-    ))
+    asyncio.run(
+        _plan_async(
+            goal=final_goal,
+            input_file=input_file,
+            output_path=output,
+            output_format=output_format,
+            provider_override=provider,
+            model_override=model,
+            verbose=verbose,
+        )
+    )
 
 
 def _resolve_goal(
@@ -204,10 +210,10 @@ def _resolve_goal(
 
 def _extract_key_sections(content: str) -> str:
     """Extract key sections from a document for planning context.
-    
+
     Instead of truncating, intelligently extract:
     - Summary/Overview
-    - Goals/Non-Goals  
+    - Goals/Non-Goals
     - Technical Architecture
     - Implementation Plan
     - Requirements (from headers)
@@ -281,7 +287,7 @@ async def _squash_extract(
     verbose: bool,
 ) -> str:
     """Use squash extraction to get grounded facts from document.
-    
+
     This extracts each question 3x and only keeps what all extractors agree on.
     Much more reliable than single-shot extraction.
     """
@@ -291,7 +297,9 @@ async def _squash_extract(
     content = path.read_text()
 
     if verbose:
-        console.print(f"[dim]Squash extracting from {len(content):,} chars (3x per question)...[/dim]")
+        console.print(
+            f"[dim]Squash extracting from {len(content):,} chars (3x per question)...[/dim]"
+        )
 
     # Load model using resolve_model()
     model = None
@@ -340,13 +348,13 @@ async def _digest_document(
     verbose: bool,
 ) -> str:
     """Use Simulacrum to fully digest a document.
-    
+
     This ingests the document into memory, then queries for:
     - Summary/overview
     - Technical requirements
     - Key constraints
     - Implementation guidance
-    
+
     No truncation - the full document is available via semantic retrieval.
     """
     from sunwell.memory.simulacrum.core.store import SimulacrumStore
@@ -396,13 +404,13 @@ async def _compound_extract(
     verbose: bool,
 ) -> str:
     """Use Compound Eye to extract requirements from multiple perspectives.
-    
+
     Runs the document through multiple "lenses":
     - Product lens: What are we building?
     - Tech lens: What stack/architecture?
     - UX lens: What's the user experience?
     - Constraints lens: What are the boundaries?
-    
+
     Synthesizes into a comprehensive goal.
     """
     from sunwell.interface.cli.helpers import resolve_model
@@ -592,14 +600,16 @@ def _build_plan_data(
     for wave_num, wave in enumerate(waves, 1):
         for artifact_id in wave:
             artifact = graph[artifact_id]
-            artifacts.append({
-                "id": artifact_id,
-                "description": artifact.description,
-                "domain_type": artifact.domain_type,
-                "produces_file": artifact.produces_file,
-                "requires": list(artifact.requires) if artifact.requires else [],
-                "wave": wave_num,
-            })
+            artifacts.append(
+                {
+                    "id": artifact_id,
+                    "description": artifact.description,
+                    "domain_type": artifact.domain_type,
+                    "produces_file": artifact.produces_file,
+                    "requires": list(artifact.requires) if artifact.requires else [],
+                    "wave": wave_num,
+                }
+            )
 
     expertise = {}
     if hasattr(planner, "get_expertise_summary"):
@@ -750,7 +760,8 @@ def _output_tree(plan_data: dict, graph, waves: list) -> None:
 @plan.command("history")
 @click.argument("plan_id", required=False)
 @click.option(
-    "--limit", "-l",
+    "--limit",
+    "-l",
     default=20,
     help="Maximum number of versions to show",
 )
@@ -858,11 +869,13 @@ def plan_diff(plan_id: str, v1: int, v2: int) -> None:
         console.print("[red]Could not compute diff. Check plan ID and versions exist.[/red]")
         return
 
-    console.print(Panel(
-        f"Comparing v{v1} → v{v2}",
-        title=f"Plan Diff: {plan_id[:16]}",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            f"Comparing v{v1} → v{v2}",
+            title=f"Plan Diff: {plan_id[:16]}",
+            border_style="blue",
+        )
+    )
 
     # Show changes
     if diff.added:
@@ -884,7 +897,9 @@ def plan_diff(plan_id: str, v1: int, v2: int) -> None:
         console.print("\n[dim]No changes detected between versions[/dim]")
 
     # Summary
-    console.print(f"\n[dim]Summary: +{len(diff.added)} -{len(diff.removed)} ~{len(diff.modified)}[/dim]")
+    console.print(
+        f"\n[dim]Summary: +{len(diff.added)} -{len(diff.removed)} ~{len(diff.modified)}[/dim]"
+    )
 
 
 @plan.command("show")
@@ -919,11 +934,13 @@ def plan_show_version(plan_id: str, version: int, output_format: str) -> None:
         return
 
     # Human format
-    console.print(Panel(
-        f"Version {v.version} • {v.created_at.strftime('%Y-%m-%d %H:%M')}",
-        title=f"Plan: {plan_id[:16]}",
-        border_style="blue",
-    ))
+    console.print(
+        Panel(
+            f"Version {v.version} • {v.created_at.strftime('%Y-%m-%d %H:%M')}",
+            title=f"Plan: {plan_id[:16]}",
+            border_style="blue",
+        )
+    )
 
     console.print(f"\n[bold]Goal:[/bold] {v.goal[:100]}{'...' if len(v.goal) > 100 else ''}")
     console.print(f"[bold]Reason:[/bold] {v.reason}")

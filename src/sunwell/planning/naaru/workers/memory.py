@@ -1,6 +1,5 @@
 """Memory worker - simulacrum operations, learning persistence."""
 
-
 import asyncio
 from collections import deque
 from datetime import datetime
@@ -24,19 +23,23 @@ class MemoryWorker(RegionWorker):
 
             if msg and msg.type == MessageType.MEMORIZE_REQUEST:
                 learning = msg.payload
-                self.learnings.append({
-                    "content": learning,
-                    "timestamp": datetime.now().isoformat(),
-                    "source": msg.source.value,
-                })
+                self.learnings.append(
+                    {
+                        "content": learning,
+                        "timestamp": datetime.now().isoformat(),
+                        "source": msg.source.value,
+                    }
+                )
                 self.stats["tasks_completed"] += 1
 
             elif msg and msg.type == MessageType.PATTERN_FOUND:
-                self.learnings.append({
-                    "type": "pattern",
-                    "content": msg.payload,
-                    "timestamp": datetime.now().isoformat(),
-                })
+                self.learnings.append(
+                    {
+                        "type": "pattern",
+                        "content": msg.payload,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
             elif msg and msg.type == MessageType.SHUTDOWN:
                 break

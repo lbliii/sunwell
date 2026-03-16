@@ -36,9 +36,7 @@ def _format_time_ago(dt: datetime) -> str:
 @click.command()
 @click.argument("session_id", required=False)
 @click.option("--list", "-l", "list_sessions", is_flag=True, help="List resumable goals")
-@click.option(
-    "--workspace", "-w", is_flag=True, help="Filter to current workspace only"
-)
+@click.option("--workspace", "-w", is_flag=True, help="Filter to current workspace only")
 @click.option("--all", "-a", "show_all", is_flag=True, help="Show all sessions, not just resumable")
 @click.option("--provider", "-p", default=None, help="Model provider")
 @click.option("--model", "-m", default=None, help="Override model")
@@ -105,7 +103,7 @@ async def resume(
 
         if not resumable:
             console.print("[neutral.dim]No resumable goals found.[/neutral.dim]")
-            console.print("[dim]Run a goal first: sunwell \"your goal\"[/dim]")
+            console.print('[dim]Run a goal first: sunwell "your goal"[/dim]')
             return
 
         session = resumable[0]  # Most recent
@@ -159,7 +157,7 @@ async def _list_sessions(
             console.print("[neutral.dim]No sessions found.[/neutral.dim]")
         else:
             console.print("[neutral.dim]No resumable goals found.[/neutral.dim]")
-        console.print("[dim]Run a goal first: sunwell \"your goal\"[/dim]")
+        console.print('[dim]Run a goal first: sunwell "your goal"[/dim]')
         return
 
     # Header
@@ -264,7 +262,9 @@ async def _execute_resume(
             context={
                 "cwd": str(workspace),
                 "session_id": session_id,
-                "completed_ids": [c.opportunity_id for c in state.completed] if state.completed else [],
+                "completed_ids": [c.opportunity_id for c in state.completed]
+                if state.completed
+                else [],
                 "resume": True,
             },
             on_progress=console.print if verbose else None,

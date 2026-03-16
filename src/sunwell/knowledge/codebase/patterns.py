@@ -8,7 +8,6 @@ RFC-050 adds:
 - Methods to handle bootstrap pattern overrides from user edits
 """
 
-
 import ast
 import json
 import re
@@ -212,9 +211,7 @@ def _extract_function_names(code: str) -> list[str]:
     """Extract function names from code."""
     try:
         tree = ast.parse(code)
-        return [
-            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-        ]
+        return [node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
     except SyntaxError:
         return []
 
@@ -253,9 +250,7 @@ def _learn_naming(
                     1.0,
                 )
                 if session_id:
-                    profile.evidence.setdefault("naming_function", []).append(
-                        session_id
-                    )
+                    profile.evidence.setdefault("naming_function", []).append(session_id)
 
 
 def _learn_type_annotations(

@@ -10,7 +10,7 @@ import json
 import logging
 import zlib
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -43,7 +43,7 @@ class SessionToken:
         """Check if token has expired."""
         if self.expires_at is None:
             return False
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
     def to_url(self, base_url: str = "sunwell://session") -> str:
         """Convert to a shareable URL.
@@ -89,7 +89,7 @@ class PortableSession:
 
     def __post_init__(self) -> None:
         if self.exported_at is None:
-            object.__setattr__(self, "exported_at", datetime.now(timezone.utc))
+            object.__setattr__(self, "exported_at", datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
@@ -108,7 +108,7 @@ class PortableSession:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PortableSession":
+    def from_dict(cls, data: dict[str, Any]) -> PortableSession:
         """Deserialize from dictionary."""
         created_at = None
         if data.get("created_at"):
@@ -142,7 +142,7 @@ class PortableSession:
         return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
-    def from_json(cls, json_str: str) -> "PortableSession":
+    def from_json(cls, json_str: str) -> PortableSession:
         """Deserialize from JSON string."""
         data = json.loads(json_str)
         return cls.from_dict(data)
@@ -171,17 +171,18 @@ class PortableSession:
         expires_at = None
         if expires_hours is not None:
             from datetime import timedelta
-            expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_hours)
+
+            expires_at = datetime.now(UTC) + timedelta(hours=expires_hours)
 
         return SessionToken(
             token=token,
             session_id=self.session_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             expires_at=expires_at,
         )
 
     @classmethod
-    def from_token(cls, token: str) -> "PortableSession":
+    def from_token(cls, token: str) -> PortableSession:
         """Restore session from a token.
 
         Args:
@@ -220,7 +221,7 @@ class PortableSession:
         logger.debug("Saved portable session to %s", path)
 
     @classmethod
-    def load(cls, path: Path) -> "PortableSession":
+    def load(cls, path: Path) -> PortableSession:
         """Load session from file.
 
         Args:
@@ -238,7 +239,7 @@ class PortableSession:
         cls,
         loop: Any,  # UnifiedChatLoop
         pending_checkpoint: ChatCheckpoint | None = None,
-    ) -> "PortableSession":
+    ) -> PortableSession:
         """Create portable session from a UnifiedChatLoop instance.
 
         Args:
@@ -307,10 +308,9 @@ class PortableSession:
         # Restore DAG path if available
         if self.current_dag_path and hasattr(loop, "_current_dag_path"):
             from sunwell.agent.intent.dag import IntentNode
+
             try:
-                loop._current_dag_path = tuple(
-                    IntentNode(n) for n in self.current_dag_path
-                )
+                loop._current_dag_path = tuple(IntentNode(n) for n in self.current_dag_path)
             except ValueError:
                 pass  # Invalid node values, skip
 
@@ -319,6 +319,7 @@ class PortableSession:
             config = loop._auto_approve_config
             for path_tuple in self.auto_approve_paths:
                 from sunwell.agent.intent.dag import IntentNode
+
                 try:
                     path = tuple(IntentNode(n) for n in path_tuple)
                     if not config.has_rule(path):

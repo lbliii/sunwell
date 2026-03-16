@@ -58,16 +58,13 @@ class ScopeTracker:
             return ScopeCheckResult(
                 passed=False,
                 reason=(
-                    f"Goal touches {files_count} files "
-                    f"(limit: {self.limits.max_files_per_goal})"
+                    f"Goal touches {files_count} files (limit: {self.limits.max_files_per_goal})"
                 ),
                 limit_type="files_per_goal",
             )
 
         # Check per-goal line limit
-        lines_count = sum(
-            c.lines_added + c.lines_removed for c in planned_changes
-        )
+        lines_count = sum(c.lines_added + c.lines_removed for c in planned_changes)
         if lines_count > self.limits.max_lines_changed_per_goal:
             return ScopeCheckResult(
                 passed=False,
@@ -135,8 +132,7 @@ class ScopeTracker:
             return ScopeCheckResult(
                 passed=False,
                 reason=(
-                    f"Session duration exceeded "
-                    f"{self.limits.max_duration_per_session_hours} hours"
+                    f"Session duration exceeded {self.limits.max_duration_per_session_hours} hours"
                 ),
                 limit_type="duration_per_session",
             )
@@ -162,9 +158,7 @@ class ScopeTracker:
             changes: List of file changes that were made
         """
         self.session_files.update(c.path for c in changes)
-        self.session_lines_changed += sum(
-            c.lines_added + c.lines_removed for c in changes
-        )
+        self.session_lines_changed += sum(c.lines_added + c.lines_removed for c in changes)
         self.session_goals_completed += 1
         self._goal_start = None
 
@@ -181,12 +175,8 @@ class ScopeTracker:
             "goals_completed": self.session_goals_completed,
             "duration_minutes": elapsed.total_seconds() / 60,
             "limits": {
-                "files_remaining": (
-                    self.limits.max_files_per_session - len(self.session_files)
-                ),
-                "lines_remaining": (
-                    self.limits.max_lines_per_session - self.session_lines_changed
-                ),
+                "files_remaining": (self.limits.max_files_per_session - len(self.session_files)),
+                "lines_remaining": (self.limits.max_lines_per_session - self.session_lines_changed),
                 "goals_remaining": (
                     self.limits.max_goals_per_session - self.session_goals_completed
                 ),
@@ -259,8 +249,4 @@ class ScopeTracker:
     def _is_test_file(self, path: Path) -> bool:
         """Check if path is a test file."""
         path_str = str(path)
-        return (
-            "tests/" in path_str
-            or "test_" in path.name
-            or path.name.endswith("_test.py")
-        )
+        return "tests/" in path_str or "test_" in path.name or path.name.endswith("_test.py")

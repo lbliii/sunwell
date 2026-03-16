@@ -89,14 +89,6 @@ from sunwell.agent.events.delegation import (
 )
 
 # =============================================================================
-# Intent Events (Conversational DAG Architecture)
-# =============================================================================
-from sunwell.agent.events.intent import (
-    intent_classified_event,
-    node_transition_event,
-)
-
-# =============================================================================
 # Domain Events (RFC-DOMAINS)
 # =============================================================================
 from sunwell.agent.events.domain import domain_detected_event
@@ -117,6 +109,14 @@ from sunwell.agent.events.integration import (
     prefetch_timeout_event,
     stub_detected_event,
     wire_task_generated_event,
+)
+
+# =============================================================================
+# Intent Events (Conversational DAG Architecture)
+# =============================================================================
+from sunwell.agent.events.intent import (
+    intent_classified_event,
+    node_transition_event,
 )
 
 # =============================================================================

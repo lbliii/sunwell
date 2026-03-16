@@ -4,8 +4,6 @@ Listens to file events and updates LineageStore automatically.
 Can be called directly from tool handlers for synchronous updates.
 """
 
-from __future__ import annotations
-
 from typing import Any, Protocol
 
 from sunwell.memory.lineage.human_detection import HumanEditDetector
@@ -40,12 +38,14 @@ class LineageEventListener:
     """
 
     # Event types we handle
-    FILE_EVENTS = frozenset([
-        "file_created",
-        "file_modified",
-        "file_deleted",
-        "file_renamed",
-    ])
+    FILE_EVENTS = frozenset(
+        [
+            "file_created",
+            "file_modified",
+            "file_deleted",
+            "file_renamed",
+        ]
+    )
 
     def __init__(
         self,

@@ -10,6 +10,6 @@ class RoutingTier(int, Enum):
     This enum is specifically for cognitive routing tier decisions.
     """
 
-    FAST = 0    # No analysis, direct dispatch, ~50ms
-    LIGHT = 1   # Brief acknowledgment, auto-proceed, ~200ms
-    FULL = 2    # Full CoT reasoning, confirmation required, ~500ms
+    FAST = 0  # No analysis, direct dispatch, ~50ms
+    LIGHT = 1  # Brief acknowledgment, auto-proceed, ~200ms
+    FULL = 2  # Full CoT reasoning, confirmation required, ~500ms

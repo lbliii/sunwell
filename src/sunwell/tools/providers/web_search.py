@@ -9,7 +9,6 @@ Usage:
     page = await provider.fetch("https://example.com")
 """
 
-
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
@@ -104,7 +103,7 @@ class OllamaWebSearch:
     base_url: str = "https://ollama.com/api"
     _client: httpx.AsyncClient | None = field(default=None, init=False, repr=False)
 
-    async def __aenter__(self) -> "OllamaWebSearch":
+    async def __aenter__(self) -> OllamaWebSearch:
         """Enter async context manager."""
         return self
 
@@ -128,9 +127,7 @@ class OllamaWebSearch:
             try:
                 import httpx
             except ImportError as e:
-                raise ImportError(
-                    "httpx not installed. Run: pip install httpx"
-                ) from e
+                raise ImportError("httpx not installed. Run: pip install httpx") from e
 
             self._client = httpx.AsyncClient(
                 headers={"Authorization": f"Bearer {self._get_api_key()}"},
@@ -231,7 +228,7 @@ class TavilyWebSearch:
     search_depth: str = "basic"  # "basic" or "advanced"
     _client: httpx.AsyncClient | None = field(default=None, init=False, repr=False)
 
-    async def __aenter__(self) -> "TavilyWebSearch":
+    async def __aenter__(self) -> TavilyWebSearch:
         """Enter async context manager."""
         return self
 
@@ -255,9 +252,7 @@ class TavilyWebSearch:
             try:
                 import httpx
             except ImportError as e:
-                raise ImportError(
-                    "httpx not installed. Run: pip install httpx"
-                ) from e
+                raise ImportError("httpx not installed. Run: pip install httpx") from e
 
             self._client = httpx.AsyncClient(timeout=30.0)
         return self._client
@@ -368,7 +363,7 @@ class BraveWebSearch:
     base_url: str = "https://api.search.brave.com/res/v1"
     _client: httpx.AsyncClient | None = field(default=None, init=False, repr=False)
 
-    async def __aenter__(self) -> "BraveWebSearch":
+    async def __aenter__(self) -> BraveWebSearch:
         """Enter async context manager."""
         return self
 
@@ -392,9 +387,7 @@ class BraveWebSearch:
             try:
                 import httpx
             except ImportError as e:
-                raise ImportError(
-                    "httpx not installed. Run: pip install httpx"
-                ) from e
+                raise ImportError("httpx not installed. Run: pip install httpx") from e
 
             self._client = httpx.AsyncClient(
                 headers={
@@ -573,11 +566,13 @@ class WebSearchHandler:
         ]
 
         if result.links:
-            output_lines.extend([
-                "",
-                "## Links found:",
-                *[f"- {link}" for link in result.links[:20]],
-            ])
+            output_lines.extend(
+                [
+                    "",
+                    "## Links found:",
+                    *[f"- {link}" for link in result.links[:20]],
+                ]
+            )
 
         return "\n".join(output_lines)
 

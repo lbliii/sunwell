@@ -17,7 +17,6 @@ Example:
     >>> await runner.start()
 """
 
-
 import asyncio
 import json
 import queue
@@ -42,6 +41,7 @@ from sunwell.planning.naaru.types import (
 @dataclass(slots=True)
 class WorkerStats:
     """Stats for a single worker."""
+
     worker_id: int
     tasks_completed: int = 0
     tasks_failed: int = 0
@@ -256,16 +256,19 @@ class ParallelAutonomousRunner:
 
         # Run async handler in sync context
         async def create_proposal() -> str:
-            return await mirror.handle("propose_improvement", {
-                "scope": scope,
-                "problem": opp.description,
-                "evidence": [
-                    f"Worker: {worker_id}",
-                    f"Target: {opp.target_module}",
-                    f"Category: {opp.category.value}",
-                ],
-                "diff": f"# {opp.description}\n# Worker {worker_id}",
-            })
+            return await mirror.handle(
+                "propose_improvement",
+                {
+                    "scope": scope,
+                    "problem": opp.description,
+                    "evidence": [
+                        f"Worker: {worker_id}",
+                        f"Target: {opp.target_module}",
+                        f"Category: {opp.category.value}",
+                    ],
+                    "diff": f"# {opp.description}\n# Worker {worker_id}",
+                },
+            )
 
         try:
             # Create new event loop for this thread
@@ -424,7 +427,12 @@ class ParallelAutonomousRunner:
 
         for stats in self.state.worker_stats:
             avg_ms = stats.total_time_ms // max(1, stats.tasks_completed)
-            print(f"║    W{stats.worker_id}: {stats.tasks_completed} tasks, {stats.proposals_created} proposals, {avg_ms}ms avg".ljust(79) + "║")
+            print(
+                f"║    W{stats.worker_id}: {stats.tasks_completed} tasks, {stats.proposals_created} proposals, {avg_ms}ms avg".ljust(
+                    79
+                )
+                + "║"
+            )
 
         # Calculate speedup
         total_work_time = sum(s.total_time_ms for s in self.state.worker_stats)

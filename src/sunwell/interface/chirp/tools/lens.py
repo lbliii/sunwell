@@ -37,7 +37,7 @@ def register_lens_tools(app: App) -> None:
 
     @app.tool(
         "sunwell_lens",
-        description="Get domain expertise from a lens (professional perspective and heuristics)"
+        description="Get domain expertise from a lens (professional perspective and heuristics)",
     )
     def sunwell_lens(
         name: str,
@@ -78,7 +78,9 @@ def register_lens_tools(app: App) -> None:
                 "name": lens.metadata.name,
                 "domain": lens.metadata.domain,
                 "version": str(lens.metadata.version) if lens.metadata.version else "0.1.0",
-                "description": lens.metadata.description[:200] if lens.metadata.description else None,
+                "description": lens.metadata.description[:200]
+                if lens.metadata.description
+                else None,
                 "heuristics_count": len(lens.heuristics),
                 "skills_count": len(lens.skills) if hasattr(lens, "skills") else 0,
             }
@@ -87,11 +89,13 @@ def register_lens_tools(app: App) -> None:
             if lens.heuristics:
                 heuristics = []
                 for h in lens.heuristics[:10]:  # Limit to 10 for summary
-                    heuristics.append({
-                        "name": h.name,
-                        "type": h.type,
-                        "description": h.description[:100] if h.description else None,
-                    })
+                    heuristics.append(
+                        {
+                            "name": h.name,
+                            "type": h.type,
+                            "description": h.description[:100] if h.description else None,
+                        }
+                    )
                 result["heuristics"] = heuristics
 
             return result
@@ -102,7 +106,7 @@ def register_lens_tools(app: App) -> None:
 
     @app.tool(
         "sunwell_list_lenses",
-        description="List all available lenses with their domains and capabilities"
+        description="List all available lenses with their domains and capabilities",
     )
     def sunwell_list_lenses() -> dict:
         """List available lenses.
@@ -118,12 +122,14 @@ def register_lens_tools(app: App) -> None:
             for search_path in discovery.search_paths:
                 if search_path.exists():
                     for lens_file in search_path.glob("*.lens"):
-                        lenses.append({
-                            "name": lens_file.stem,
-                            "path": str(lens_file),
-                            "domain": None,  # Would need to parse .lens file
-                            "description": f"Lens file: {lens_file.name}",
-                        })
+                        lenses.append(
+                            {
+                                "name": lens_file.stem,
+                                "path": str(lens_file),
+                                "domain": None,  # Would need to parse .lens file
+                                "description": f"Lens file: {lens_file.name}",
+                            }
+                        )
 
             return {
                 "lenses": lenses,
@@ -134,10 +140,7 @@ def register_lens_tools(app: App) -> None:
             logger.error(f"Error listing lenses: {e}")
             return {"error": str(e), "lenses": []}
 
-    @app.tool(
-        "sunwell_route",
-        description="Route a shortcut command to the appropriate lens"
-    )
+    @app.tool("sunwell_route", description="Route a shortcut command to the appropriate lens")
     def sunwell_route(command: str) -> dict:
         """Route shortcut to lens with confidence scoring.
 

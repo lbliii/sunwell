@@ -7,7 +7,6 @@ It provides three strategies for refining outputs:
 - full: Always use full LLM judge, iterate until approved (~2000 tokens per iteration)
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -128,7 +127,7 @@ async def refine_tiered(
     from sunwell.models import GenerateOptions
 
     refine_prompt = f"""Your previous response had issues:
-{chr(10).join(f'- {issue}' for issue in judge_issues[:5])}
+{chr(10).join(f"- {issue}" for issue in judge_issues[:5])}
 
 Original task: {task[:500]}
 
@@ -189,9 +188,7 @@ async def refine_full(
 
     for _attempt in range(max_attempts):
         # Judge the current output
-        verdict, score, issues, judge_tokens = await _judge_output(
-            judge_model, task, current
-        )
+        verdict, score, issues, judge_tokens = await _judge_output(judge_model, task, current)
         total_tokens += judge_tokens
         all_issues.extend(issues)
 
@@ -209,7 +206,7 @@ async def refine_full(
         from sunwell.models import GenerateOptions
 
         refine_prompt = f"""Your previous response had issues:
-{chr(10).join(f'- {issue}' for issue in issues[:5])}
+{chr(10).join(f"- {issue}" for issue in issues[:5])}
 
 Original task: {task[:500]}
 
@@ -252,17 +249,17 @@ def _lightweight_validate(output: str, task: str) -> list[str]:
     if len(output.strip()) < 50:
         issues.append("Output too short")
 
-    if output.count('TODO') > 0:
+    if output.count("TODO") > 0:
         issues.append("Contains TODO markers")
 
-    if output.count('...') > 2:
+    if output.count("...") > 2:
         issues.append("Contains multiple ellipses (incomplete)")
 
     # For code tasks, check basic structure
-    if 'code' in task.lower() or 'function' in task.lower() or 'class' in task.lower():
-        if 'def ' not in output and 'class ' not in output:
+    if "code" in task.lower() or "function" in task.lower() or "class" in task.lower():
+        if "def " not in output and "class " not in output:
             issues.append("Missing function or class definition")
-        if '```' not in output and 'def ' in output:
+        if "```" not in output and "def " in output:
             issues.append("Code not properly formatted")
 
     return issues
@@ -310,7 +307,7 @@ Respond in JSON format:
     text = result.text.strip()
 
     # Try to extract JSON
-    json_match = re.search(r'\{[^}]+\}', text, re.DOTALL)
+    json_match = re.search(r"\{[^}]+\}", text, re.DOTALL)
     if json_match:
         try:
             data = json.loads(json_match.group())
@@ -322,7 +319,7 @@ Respond in JSON format:
             pass
 
     # Fallback: try to extract score from text
-    score_match = re.search(r'score[:\s]+(\d+\.?\d*)', text, re.IGNORECASE)
+    score_match = re.search(r"score[:\s]+(\d+\.?\d*)", text, re.IGNORECASE)
     if score_match:
         score = float(score_match.group(1))
         verdict = "approve" if score >= 7.0 else "reject"

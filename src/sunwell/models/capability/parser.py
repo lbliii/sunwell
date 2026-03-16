@@ -96,29 +96,33 @@ _PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 # Provider prefixes that indicate hosting platform
-_PROVIDER_PREFIXES = frozenset({
-    "ollama",
-    "together",
-    "anyscale",
-    "fireworks",
-    "groq",
-    "openrouter",
-    "perplexity",
-    "deepinfra",
-})
+_PROVIDER_PREFIXES = frozenset(
+    {
+        "ollama",
+        "together",
+        "anyscale",
+        "fireworks",
+        "groq",
+        "openrouter",
+        "perplexity",
+        "deepinfra",
+    }
+)
 
 # Known first-party organizations (not custom)
-_FIRST_PARTY_ORGS = frozenset({
-    "meta",
-    "meta-llama",
-    "mistralai",
-    "google",
-    "openai",
-    "anthropic",
-    "deepseek-ai",
-    "qwen",
-    "microsoft",
-})
+_FIRST_PARTY_ORGS = frozenset(
+    {
+        "meta",
+        "meta-llama",
+        "mistralai",
+        "google",
+        "openai",
+        "anthropic",
+        "deepseek-ai",
+        "qwen",
+        "microsoft",
+    }
+)
 
 
 def parse_model_id(model_id: str) -> ModelSpec:
@@ -168,10 +172,7 @@ def parse_model_id(model_id: str) -> ModelSpec:
 
             # Parse version - handle multiple version fields (anthropic)
             version_str = (
-                groups.get("version")
-                or groups.get("version1")
-                or groups.get("version2")
-                or ""
+                groups.get("version") or groups.get("version1") or groups.get("version2") or ""
             )
             version = _parse_version(version_str)
 

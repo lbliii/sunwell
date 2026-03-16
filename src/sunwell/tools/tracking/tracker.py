@@ -123,15 +123,13 @@ class InvocationTracker:
 
     def get_successful_calls(self, tool_name: str) -> list[ToolInvocation]:
         """Get successful invocations of a specific tool."""
-        return [
-            inv for inv in self.invocations
-            if inv.tool_name == tool_name and inv.success
-        ]
+        return [inv for inv in self.invocations if inv.tool_name == tool_name and inv.success]
 
     def get_output_tool_calls(self) -> list[ToolInvocation]:
         """Get all OUTPUT category tool calls (write_file, edit_file, etc.)."""
         return [
-            inv for inv in self.invocations
+            inv
+            for inv in self.invocations
             if TOOL_CATEGORIES.get(inv.tool_name) == ToolCategory.OUTPUT
         ]
 

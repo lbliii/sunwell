@@ -396,13 +396,13 @@ PATTERN: Using Flask-SQLAlchemy with create_app pattern"""
 Goal: {goal}
 
 Files created/modified:
-{chr(10).join(f'- {f}' for f in files_changed)}
+{chr(10).join(f"- {f}" for f in files_changed)}
 
 Artifacts produced:
-{chr(10).join(f'- {a}' for a in artifacts_created)}
+{chr(10).join(f"- {a}" for a in artifacts_created)}
 
 Tasks executed:
-{chr(10).join(f'- {t.description}' for t in tasks[:10])}
+{chr(10).join(f"- {t.description}" for t in tasks[:10])}
 
 Is this a repeatable pattern? If yes, extract:
 1. Pattern name (e.g., "CRUD Endpoint", "Service Module")

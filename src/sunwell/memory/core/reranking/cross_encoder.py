@@ -105,9 +105,7 @@ class CrossEncoderReranker:
         if cached:
             ranked_ids, scores = cached
             # Rebuild results from cached order
-            id_to_item = {
-                candidate_ids[i]: candidates[i] for i in range(len(candidates))
-            }
+            id_to_item = {candidate_ids[i]: candidates[i] for i in range(len(candidates))}
             return [
                 (id_to_item[rid][0], score)
                 for rid, score in zip(ranked_ids, scores, strict=True)
@@ -133,10 +131,7 @@ class CrossEncoderReranker:
             )
 
             # Combine items with new scores
-            reranked = [
-                (candidates[i][0], float(scores[i]))
-                for i in range(len(candidates))
-            ]
+            reranked = [(candidates[i][0], float(scores[i])) for i in range(len(candidates))]
 
             # Sort by cross-encoder score
             reranked.sort(key=lambda x: x[1], reverse=True)

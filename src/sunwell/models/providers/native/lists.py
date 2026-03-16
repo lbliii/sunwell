@@ -39,9 +39,7 @@ class SunwellLists(ListProvider):
         """Get all list names."""
         return [f.stem for f in self.dir.glob("*.json")]
 
-    async def get_items(
-        self, list_name: str, include_completed: bool = False
-    ) -> list[ListItem]:
+    async def get_items(self, list_name: str, include_completed: bool = False) -> list[ListItem]:
         """Get items in a list."""
         items = self._load_list(list_name)
         result = []

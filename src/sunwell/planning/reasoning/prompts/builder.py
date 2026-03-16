@@ -39,9 +39,9 @@ class PromptBuilder:
         """Fast prompt for severity assessment."""
         return f"""Assess the severity of this code signal. Respond with ONLY valid JSON.
 
-Signal: {context.get('signal_type', 'unknown')}
-Content: "{context.get('content', '')}"
-File: {context.get('file_path', 'unknown')}
+Signal: {context.get("signal_type", "unknown")}
+Content: "{context.get("content", "")}"
+File: {context.get("file_path", "unknown")}
 
 Respond with this exact JSON structure:
 {{"severity": "critical" | "high" | "medium" | "low", "confidence": 0.0-1.0, "rationale": "brief explanation"}}
@@ -53,9 +53,9 @@ JSON:"""
         """Fast prompt for recovery strategy."""
         return f"""Decide recovery strategy for this error. Respond with ONLY valid JSON.
 
-Error: {context.get('error_type', 'unknown')}
-Message: "{context.get('error_message', '')}"
-Attempt: #{context.get('attempt_number', 1)}
+Error: {context.get("error_type", "unknown")}
+Message: "{context.get("error_message", "")}"
+Attempt: #{context.get("attempt_number", 1)}
 
 Options: retry (transient), retry_different (new approach), escalate (need human), abort (give up)
 
@@ -68,9 +68,9 @@ JSON:"""
         """Fast prompt for approval decision."""
         return f"""Decide if this change can be auto-approved. Respond with ONLY valid JSON.
 
-Goal: {context.get('goal_title', 'unknown')}
-Category: {context.get('goal_category', 'unknown')}
-Files: {context.get('files_affected', [])}
+Goal: {context.get("goal_title", "unknown")}
+Category: {context.get("goal_category", "unknown")}
+Files: {context.get("files_affected", [])}
 
 {{"decision": "approve" | "flag" | "deny", "confidence": 0.0-1.0, "rationale": "why"}}
 
@@ -117,21 +117,21 @@ JSON:"""
         # Build context section - only include non-empty/non-unknown fields
         context_lines = []
 
-        if context.get('code_context'):
+        if context.get("code_context"):
             context_lines.append(f"Code:\n```\n{context['code_context']}\n```")
 
-        if context.get('in_hot_path') is True:
+        if context.get("in_hot_path") is True:
             context_lines.append("• In hot path (high traffic)")
-        if context.get('is_error_prone') is True:
+        if context.get("is_error_prone") is True:
             context_lines.append("• Error-prone file (history of bugs)")
-        if context.get('downstream_artifacts'):
-            deps = context['downstream_artifacts']
+        if context.get("downstream_artifacts"):
+            deps = context["downstream_artifacts"]
             context_lines.append(f"• {len(deps)} downstream dependencies")
-        if context.get('similar_decisions'):
+        if context.get("similar_decisions"):
             context_lines.append(
                 f"Similar: {PromptBuilder._format_similar(context['similar_decisions'])}"
             )
-        if context.get('related_failures'):
+        if context.get("related_failures"):
             context_lines.append(
                 f"Past failures: {PromptBuilder._format_failures(context['related_failures'])}"
             )
@@ -140,9 +140,9 @@ JSON:"""
 
         return f"""Call `decide_severity` to assess this code signal.
 
-Signal: {context.get('signal_type', 'unknown')}
-Content: "{context.get('content', '')}"
-File: {context.get('file_path', 'unknown')}
+Signal: {context.get("signal_type", "unknown")}
+Content: "{context.get("content", "")}"
+File: {context.get("file_path", "unknown")}
 
 {context_section}
 
@@ -155,8 +155,8 @@ Severity levels:
     @staticmethod
     def _recovery_prompt(context: dict[str, Any]) -> str:
         """Build prompt for recovery strategy decision."""
-        attempt = context.get('attempt_number', 1)
-        past = context.get('past_failures', [])
+        attempt = context.get("attempt_number", 1)
+        past = context.get("past_failures", [])
 
         extra = ""
         if past:
@@ -164,8 +164,8 @@ Severity levels:
 
         return f"""Call `decide_recovery` for this error.
 
-Error: {context.get('error_type', 'unknown')}
-Message: "{context.get('error_message', '')}"
+Error: {context.get("error_type", "unknown")}
+Message: "{context.get("error_message", "")}"
 Attempt: #{attempt}{extra}
 
 Strategies:
@@ -177,13 +177,13 @@ Strategies:
     @staticmethod
     def _approval_prompt(context: dict[str, Any]) -> str:
         """Build prompt for semantic approval decision."""
-        files = context.get('files_affected', [])
+        files = context.get("files_affected", [])
         file_str = f"{len(files)} files" if len(files) > 3 else ", ".join(files)
 
         return f"""Call `decide_approval` for this change.
 
-Goal: {context.get('goal_title', 'unknown')}
-Category: {context.get('goal_category', 'unknown')}
+Goal: {context.get("goal_title", "unknown")}
+Category: {context.get("goal_category", "unknown")}
 Files: {file_str}
 
 Decisions:
@@ -197,17 +197,17 @@ Decisions:
         return f"""Analyze the root cause of this failure.
 
 ## Failure
-- **Description**: {context.get('description', '')}
-- **Error type**: {context.get('error_type', 'unknown')}
-- **Error message**: {context.get('error_message', '')}
+- **Description**: {context.get("description", "")}
+- **Error type**: {context.get("error_type", "unknown")}
+- **Error message**: {context.get("error_message", "")}
 
 ## Code Snapshot
 ```
-{context.get('code_snapshot', 'N/A')}
+{context.get("code_snapshot", "N/A")}
 ```
 
 ## Similar Failures
-{PromptBuilder._format_failures(context.get('similar_failures', []))}
+{PromptBuilder._format_failures(context.get("similar_failures", []))}
 
 ---
 
@@ -222,12 +222,12 @@ Analyze by calling `decide_root_cause`. Identify:
         return f"""Determine if this signal can be auto-fixed.
 
 ## Signal
-- **Type**: {context.get('signal_type', 'unknown')}
-- **Content**: {context.get('content', '')}
-- **File**: {context.get('file_path', 'unknown')}
+- **Type**: {context.get("signal_type", "unknown")}
+- **Content**: {context.get("content", "")}
+- **File**: {context.get("file_path", "unknown")}
 
 ## Context
-{context.get('code_context', 'N/A')}
+{context.get("code_context", "N/A")}
 
 ---
 
@@ -241,14 +241,14 @@ Decide by calling `decide_auto_fixable`:
         return f"""Assess the risk of this change.
 
 ## Change
-- **Description**: {context.get('change_description', '')}
-- **Files affected**: {context.get('files_affected', [])}
-- **Lines changed**: {context.get('lines_changed', 'unknown')}
+- **Description**: {context.get("change_description", "")}
+- **Files affected**: {context.get("files_affected", [])}
+- **Lines changed**: {context.get("lines_changed", "unknown")}
 
 ## Context
-- **In hot path**: {context.get('in_hot_path', 'unknown')}
-- **Downstream artifacts**: {context.get('downstream_artifacts', [])}
-- **Error history**: {context.get('is_error_prone', 'unknown')}
+- **In hot path**: {context.get("in_hot_path", "unknown")}
+- **Downstream artifacts**: {context.get("downstream_artifacts", [])}
+- **Error history**: {context.get("is_error_prone", "unknown")}
 
 ---
 
@@ -291,8 +291,7 @@ Call the appropriate decision tool with your reasoning."""
         if not failures:
             return "None found"
         return "\n".join(
-            f"- {f.get('description', f.get('error_type', '?'))[:60]}"
-            for f in failures[:3]
+            f"- {f.get('description', f.get('error_type', '?'))[:60]}" for f in failures[:3]
         )
 
     @staticmethod

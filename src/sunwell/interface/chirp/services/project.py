@@ -36,13 +36,15 @@ class ProjectService:
                 except (AttributeError, TypeError):
                     pass
 
-            projects.append({
-                "id": project.id,
-                "name": project.name,
-                "path": str(project.root),
-                "last_used": last_used_float,
-                "is_default": project.id == default_id,
-            })
+            projects.append(
+                {
+                    "id": project.id,
+                    "name": project.name,
+                    "path": str(project.root),
+                    "last_used": last_used_float,
+                    "is_default": project.id == default_id,
+                }
+            )
 
         # Sort by last_used (most recent first)
         projects.sort(key=lambda p: p["last_used"], reverse=True)

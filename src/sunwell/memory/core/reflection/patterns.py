@@ -140,7 +140,9 @@ class PatternDetector:
                             learning_embeddings[id2],
                         )
                         similarities.append(sim)
-                cluster.coherence_score = sum(similarities) / len(similarities) if similarities else 0.0
+                cluster.coherence_score = (
+                    sum(similarities) / len(similarities) if similarities else 0.0
+                )
             else:
                 cluster.coherence_score = 1.0
 
@@ -213,10 +215,29 @@ class PatternDetector:
         """
         # Common stopwords
         stopwords = {
-            "that", "this", "with", "from", "have", "will",
-            "would", "could", "should", "their", "there", "where",
-            "which", "when", "what", "about", "after", "before",
-            "because", "being", "between", "during", "through",
+            "that",
+            "this",
+            "with",
+            "from",
+            "have",
+            "will",
+            "would",
+            "could",
+            "should",
+            "their",
+            "there",
+            "where",
+            "which",
+            "when",
+            "what",
+            "about",
+            "after",
+            "before",
+            "because",
+            "being",
+            "between",
+            "during",
+            "through",
         }
 
         # Extract words

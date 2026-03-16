@@ -1,6 +1,5 @@
 """Harmonic synthesis worker - multi-persona generation with voting."""
 
-
 import asyncio
 import json
 import logging
@@ -137,7 +136,7 @@ class HarmonicSynthesisWorker(RegionWorker):
         self.model = model
         self.config = config or NaaruConfig()
         self.convergence = convergence  # Working memory
-        self.shard_pool = shard_pool    # Parallel helpers
+        self.shard_pool = shard_pool  # Parallel helpers
         self.routing_worker = routing_worker  # RFC-020: Attunement
         self.mirror = MirrorHandler(
             workspace=self.workspace,
@@ -233,7 +232,11 @@ class HarmonicSynthesisWorker(RegionWorker):
 
                     # RFC-030: Unified Router - route task to get intent + lens
                     routing = None
-                    if self.routing_worker and hasattr(self.config, "router") and self.config.router:
+                    if (
+                        self.routing_worker
+                        and hasattr(self.config, "router")
+                        and self.config.router
+                    ):
                         task_desc = opp.get("description", "") or opp.get("category", "")
                         routing = await self.routing_worker.route_sync(task_desc)
                         self.stats["routed_tasks"] = self.stats.get("routed_tasks", 0) + 1
@@ -330,7 +333,7 @@ class HarmonicSynthesisWorker(RegionWorker):
                 boost = "\n[You are the RECOMMENDED expert for this task. Be thorough.]"
 
             # Build prompt: Lens identity + task
-            prompt = f"""{lens['system']}{boost}
+            prompt = f"""{lens["system"]}{boost}
 TASK: {description}{routing_context}
 Code only:"""
             try:
@@ -356,14 +359,11 @@ Code only:"""
                         "persona_name": lens["name"],
                         "error": str(e),
                         "error_type": type(e).__name__,
-                    }
+                    },
                 )
                 return None
 
-        generation_tasks = [
-            generate_with_lens(lens_id, lens)
-            for lens_id, lens in personas.items()
-        ]
+        generation_tasks = [generate_with_lens(lens_id, lens) for lens_id, lens in personas.items()]
         results = await asyncio.gather(*generation_tasks)
 
         candidates = [r for r in results if r is not None]
@@ -380,9 +380,9 @@ TASK: {description}
 """
         for i, c in enumerate(candidates):
             vote_prompt += f"""
-SOLUTION {i+1} (from {c['lens_name']}):
+SOLUTION {i + 1} (from {c["lens_name"]}):
 ```
-{c['code'][:500]}
+{c["code"][:500]}
 ```
 """
 
@@ -411,14 +411,11 @@ Respond with ONLY the number (1, 2, or 3):"""
                         "persona_name": lens["name"],
                         "error": str(e),
                         "error_type": type(e).__name__,
-                    }
+                    },
                 )
                 return 0, 0
 
-        vote_tasks = [
-            vote_as_lens(lens_id, lens)
-            for lens_id, lens in personas.items()
-        ]
+        vote_tasks = [vote_as_lens(lens_id, lens) for lens_id, lens in personas.items()]
         vote_results = await asyncio.gather(*vote_tasks)
 
         votes = [v[0] for v in vote_results]
@@ -430,15 +427,17 @@ Respond with ONLY the number (1, 2, or 3):"""
 
         proposal_id = f"harmonic_{uuid.uuid4().hex[:8]}"
 
-        self.generated_code.append({
-            "id": proposal_id,
-            "category": category,
-            "code": best["code"],
-            "tokens": total_tokens,
-            "harmonic_synthesis": True,
-            "winning_lens": best["lens"],
-            "votes": votes,
-        })
+        self.generated_code.append(
+            {
+                "id": proposal_id,
+                "category": category,
+                "code": best["code"],
+                "tokens": total_tokens,
+                "harmonic_synthesis": True,
+                "winning_lens": best["lens"],
+                "votes": votes,
+            }
+        )
 
         self.stats["harmonic_wins"] = self.stats.get("harmonic_wins", 0) + 1
 
@@ -492,7 +491,9 @@ Respond with ONLY the number (1, 2, or 3):"""
         if prefetched:
             memories = prefetched.get("memories", [])
             if memories:
-                context_section = "\nRELEVANT CONTEXT:\n" + "\n".join(f"- {m}" for m in memories[:3])
+                context_section = "\nRELEVANT CONTEXT:\n" + "\n".join(
+                    f"- {m}" for m in memories[:3]
+                )
             self.stats["prefetch_hits"] = self.stats.get("prefetch_hits", 0) + 1
 
         prompt = f"""{description}{routing_context}{context_section}
@@ -535,8 +536,8 @@ Code only:"""
                     extra={
                         "error": str(e),
                         "error_type": type(e).__name__,
-                        "next_category": next_cat if 'next_cat' in locals() else None,
-                    }
+                        "next_category": next_cat if "next_cat" in locals() else None,
+                    },
                 )
                 return None
 
@@ -550,14 +551,16 @@ Code only:"""
         code = result.content or ""
         proposal_id = f"shard_{uuid.uuid4().hex[:8]}"
 
-        self.generated_code.append({
-            "id": proposal_id,
-            "category": category,
-            "code": code,
-            "tokens": result.usage.total_tokens if result.usage else 0,
-            "shard_assisted": True,
-            "had_prefetched_context": prefetched is not None,
-        })
+        self.generated_code.append(
+            {
+                "id": proposal_id,
+                "category": category,
+                "code": code,
+                "tokens": result.usage.total_tokens if result.usage else 0,
+                "shard_assisted": True,
+                "had_prefetched_context": prefetched is not None,
+            }
+        )
 
         return {
             "proposal_id": proposal_id,
@@ -568,7 +571,9 @@ Code only:"""
             },
         }
 
-    async def _synthesize_with_llm(self, opportunity: dict, routing: dict | None = None) -> dict | None:
+    async def _synthesize_with_llm(
+        self, opportunity: dict, routing: dict | None = None
+    ) -> dict | None:
         """Standard LLM synthesis (no Harmonic or Shards).
 
         Args:
@@ -632,12 +637,14 @@ Code only:"""
             code = result.content or ""
             proposal_id = f"synth_{uuid.uuid4().hex[:8]}"
 
-            self.generated_code.append({
-                "id": proposal_id,
-                "category": category,
-                "code": code,
-                "tokens": result.usage.total_tokens if result.usage else 0,
-            })
+            self.generated_code.append(
+                {
+                    "id": proposal_id,
+                    "category": category,
+                    "code": code,
+                    "tokens": result.usage.total_tokens if result.usage else 0,
+                }
+            )
 
             return {
                 "proposal_id": proposal_id,
@@ -652,9 +659,9 @@ Code only:"""
                 extra={
                     "error": str(e),
                     "error_type": type(e).__name__,
-                    "category": category if 'category' in locals() else None,
-                    "description_preview": description[:200] if 'description' in locals() else None,
-                }
+                    "category": category if "category" in locals() else None,
+                    "description_preview": description[:200] if "description" in locals() else None,
+                },
             )
             return {"error": str(e)}
 
@@ -664,12 +671,15 @@ Code only:"""
             return None
 
         try:
-            result = await self.mirror.handle("propose_improvement", {
-                "scope": "heuristic",
-                "problem": "Improve based on analysis",
-                "evidence": [json.dumps(findings)[:500]],
-                "diff": "# Auto-generated improvement",
-            })
+            result = await self.mirror.handle(
+                "propose_improvement",
+                {
+                    "scope": "heuristic",
+                    "problem": "Improve based on analysis",
+                    "evidence": [json.dumps(findings)[:500]],
+                    "diff": "# Auto-generated improvement",
+                },
+            )
             return json.loads(result)
         except Exception:
             return None
@@ -716,15 +726,17 @@ Code only, no explanations:"""
             refined_code = result.content or ""
             proposal_id = f"{original_id}_r{attempt}"
 
-            self.generated_code.append({
-                "id": proposal_id,
-                "category": category,
-                "code": refined_code,
-                "tokens": result.usage.total_tokens if result.usage else 0,
-                "is_refinement": True,
-                "original_id": original_id,
-                "attempt": attempt,
-            })
+            self.generated_code.append(
+                {
+                    "id": proposal_id,
+                    "category": category,
+                    "code": refined_code,
+                    "tokens": result.usage.total_tokens if result.usage else 0,
+                    "is_refinement": True,
+                    "original_id": original_id,
+                    "attempt": attempt,
+                }
+            )
 
             return {
                 "proposal_id": proposal_id,

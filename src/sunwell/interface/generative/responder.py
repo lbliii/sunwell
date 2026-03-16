@@ -76,7 +76,7 @@ _TEMPLATES: dict[str, list[str]] = {
 # RESPONSE GENERATION PROMPT — Constrained by route decision
 # =============================================================================
 
-_RESPONDER_PROMPT = '''Generate a response for this user interaction.
+_RESPONDER_PROMPT = """Generate a response for this user interaction.
 
 ## User Goal
 "{goal}"
@@ -108,7 +108,7 @@ DO NOT ask clarifying questions if the route is WORKSPACE with high confidence.
 - Concise (1-3 sentences)
 - Action-oriented
 
-Respond with ONLY the user-facing message (no JSON, no metadata):'''
+Respond with ONLY the user-facing message (no JSON, no metadata):"""
 
 
 @dataclass(slots=True)

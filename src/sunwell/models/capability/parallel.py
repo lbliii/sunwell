@@ -28,49 +28,55 @@ class ToolCategory(Enum):
 
 
 # Tool name patterns for classification
-_READ_PATTERNS = frozenset({
-    "read",
-    "get",
-    "list",
-    "find",
-    "search",
-    "check",
-    "view",
-    "show",
-    "query",
-    "fetch",
-    "describe",
-    "inspect",
-})
+_READ_PATTERNS = frozenset(
+    {
+        "read",
+        "get",
+        "list",
+        "find",
+        "search",
+        "check",
+        "view",
+        "show",
+        "query",
+        "fetch",
+        "describe",
+        "inspect",
+    }
+)
 
-_WRITE_PATTERNS = frozenset({
-    "write",
-    "create",
-    "update",
-    "delete",
-    "remove",
-    "modify",
-    "set",
-    "put",
-    "patch",
-    "append",
-    "insert",
-    "move",
-    "rename",
-    "copy",
-})
+_WRITE_PATTERNS = frozenset(
+    {
+        "write",
+        "create",
+        "update",
+        "delete",
+        "remove",
+        "modify",
+        "set",
+        "put",
+        "patch",
+        "append",
+        "insert",
+        "move",
+        "rename",
+        "copy",
+    }
+)
 
-_SIDE_EFFECT_PATTERNS = frozenset({
-    "run",
-    "execute",
-    "send",
-    "post",
-    "submit",
-    "trigger",
-    "deploy",
-    "publish",
-    "notify",
-})
+_SIDE_EFFECT_PATTERNS = frozenset(
+    {
+        "run",
+        "execute",
+        "send",
+        "post",
+        "submit",
+        "trigger",
+        "deploy",
+        "publish",
+        "notify",
+    }
+)
 
 
 def classify_tool(tool: Tool) -> ToolCategory:

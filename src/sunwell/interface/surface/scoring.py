@@ -278,7 +278,7 @@ def select_primitives(
     primary_id = primary.primitive_id if primary else None
     secondary = tuple(
         s
-        for s in scoring_result.secondary_candidates[:max_secondary + 1]
+        for s in scoring_result.secondary_candidates[: max_secondary + 1]
         if s.score >= min_score and s.primitive_id != primary_id
     )[:max_secondary]
 
@@ -286,7 +286,7 @@ def select_primitives(
     excluded_ids = {primary_id} | {s.primitive_id for s in secondary}
     contextual = tuple(
         s
-        for s in scoring_result.contextual_candidates[:max_contextual + 1]
+        for s in scoring_result.contextual_candidates[: max_contextual + 1]
         if s.score >= min_score and s.primitive_id not in excluded_ids
     )[:max_contextual]
 

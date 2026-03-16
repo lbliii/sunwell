@@ -1,6 +1,5 @@
 """Status command for agent CLI."""
 
-
 from pathlib import Path
 
 import click
@@ -56,8 +55,8 @@ def status() -> None:
     console.print("\n[bold]Model Status:[/bold]")
     try:
         from sunwell.models import OllamaModel
+
         _ = OllamaModel(model="gemma3:1b")  # noqa: F841
         console.print("  [green]✓[/green] Ollama available")
     except Exception:
         console.print("  [red]✗[/red] Ollama not available")
-

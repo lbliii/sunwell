@@ -21,8 +21,6 @@ Example:
     >>> registry.register_factory("gpt-4o", lambda: OpenAIModel("gpt-4o"))
 """
 
-from __future__ import annotations
-
 import threading
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -237,9 +235,7 @@ class ModelRegistry:
 
 
 # Global registry instance (thread-safe singleton via ContextVar)
-_global_registry: ContextVar[ModelRegistry | None] = ContextVar(
-    "_global_registry", default=None
-)
+_global_registry: ContextVar[ModelRegistry | None] = ContextVar("_global_registry", default=None)
 
 
 def get_registry() -> ModelRegistry:

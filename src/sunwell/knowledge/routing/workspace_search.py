@@ -167,10 +167,7 @@ class WorkspaceSearch:
 
             chunks = await index.query(text, top_k=top_k, threshold=threshold)
 
-            return [
-                SearchResult(chunk=chunk, project_id=project.id, score=0.5)
-                for chunk in chunks
-            ]
+            return [SearchResult(chunk=chunk, project_id=project.id, score=0.5) for chunk in chunks]
 
         except Exception as e:
             logger.warning(f"Search failed for {project.id}: {e}")

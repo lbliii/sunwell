@@ -3,7 +3,6 @@
 Provides interactive workspace selection and confirmation for the CLI.
 """
 
-
 import sys
 from pathlib import Path
 
@@ -78,6 +77,7 @@ def _prompt_workspace_confirmation(
     default_path = default_workspace_root()
     if project_name:
         from sunwell.knowledge.workspace.resolver import _slugify
+
         default_path = default_path / _slugify(project_name)
 
     console.print()
@@ -202,6 +202,7 @@ def _find_available_name(path: Path) -> Path:
 
     # Fallback
     import time
+
     return parent / f"{base}-{int(time.time())}"
 
 
@@ -233,7 +234,7 @@ def _shorten_path(path: Path) -> str:
     home = str(Path.home())
 
     if path_str.startswith(home):
-        return "~" + path_str[len(home):]
+        return "~" + path_str[len(home) :]
 
     return path_str
 

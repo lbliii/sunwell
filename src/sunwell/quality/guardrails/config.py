@@ -35,9 +35,7 @@ class GuardrailConfig:
     """Scope limits configuration."""
 
     # Verification thresholds
-    verification: VerificationThresholds = field(
-        default_factory=VerificationThresholds
-    )
+    verification: VerificationThresholds = field(default_factory=VerificationThresholds)
     """Verification confidence thresholds."""
 
     # Trust zones (extend defaults)
@@ -115,9 +113,7 @@ def _load_from_pyproject(path: Path) -> GuardrailConfig | None:
         content = path.read_text()
         data = tomllib.loads(content)
 
-        guardrails_config = (
-            data.get("tool", {}).get("sunwell", {}).get("guardrails", {})
-        )
+        guardrails_config = data.get("tool", {}).get("sunwell", {}).get("guardrails", {})
 
         if not guardrails_config:
             return None
@@ -164,18 +160,12 @@ def _parse_config(data: dict[str, Any]) -> GuardrailConfig:
         scope = ScopeLimits(
             max_files_per_goal=scope_data.get("max_files_per_goal", 10),
             max_lines_changed_per_goal=scope_data.get("max_lines_per_goal", 500),
-            max_duration_per_goal_minutes=scope_data.get(
-                "max_duration_per_goal_minutes", 30
-            ),
+            max_duration_per_goal_minutes=scope_data.get("max_duration_per_goal_minutes", 30),
             max_goals_per_session=scope_data.get("max_goals_per_session", 20),
             max_files_per_session=scope_data.get("max_files_per_session", 50),
             max_lines_per_session=scope_data.get("max_lines_per_session", 2000),
-            max_duration_per_session_hours=scope_data.get(
-                "max_duration_per_session_hours", 8
-            ),
-            require_tests_for_source_changes=scope_data.get(
-                "require_tests_for_source", True
-            ),
+            max_duration_per_session_hours=scope_data.get("max_duration_per_session_hours", 8),
+            require_tests_for_source_changes=scope_data.get("require_tests_for_source", True),
             require_git_clean_start=scope_data.get("require_clean_start", True),
             commit_after_each_goal=scope_data.get("commit_after_each_goal", True),
         )

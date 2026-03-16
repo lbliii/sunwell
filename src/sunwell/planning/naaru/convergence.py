@@ -48,7 +48,6 @@ Example:
     >>> print(slot.content)
 """
 
-
 import asyncio
 import time
 from dataclasses import dataclass, field
@@ -281,10 +280,7 @@ class Convergence:
         """
         async with self._lock:
             now = time.monotonic()
-            expired = [
-                s for s in self.slots
-                if s.ttl is not None and now - s.created_at > s.ttl
-            ]
+            expired = [s for s in self.slots if s.ttl is not None and now - s.created_at > s.ttl]
             for slot in expired:
                 self.slots.remove(slot)
             return len(expired)
@@ -385,4 +381,5 @@ async def demo() -> None:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(demo())

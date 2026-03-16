@@ -15,7 +15,6 @@ Thread Safety:
     safe access in free-threaded Python (3.14t).
 """
 
-
 import asyncio
 import hashlib
 import threading
@@ -135,10 +134,7 @@ class ParallelExecutor:
         own_pool = self._pool is None
 
         try:
-            futures = {
-                pool.submit(ctx.run, task): i
-                for i, task in enumerate(tasks)
-            }
+            futures = {pool.submit(ctx.run, task): i for i, task in enumerate(tasks)}
 
             # Collect results maintaining order
             results: list[T | None] = [None] * len(tasks)
@@ -214,9 +210,7 @@ class HashedChunk:
     content: str
     """Original content."""
 
-    metadata: MappingProxyType[str, Any] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
+    metadata: MappingProxyType[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     """Additional metadata (immutable)."""
 
     @classmethod

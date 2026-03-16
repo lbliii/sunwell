@@ -98,7 +98,8 @@ class LearningStore:
         with self._lock:
             # Find all patterns for this task type
             matching = [
-                p for p in self._tool_patterns.values()
+                p
+                for p in self._tool_patterns.values()
                 if p.task_type == task_type and p.success_count > 0
             ]
 
@@ -123,7 +124,8 @@ class LearningStore:
         """
         with self._lock:
             return [
-                p for p in self._tool_patterns.values()
+                p
+                for p in self._tool_patterns.values()
                 if (p.success_count + p.failure_count) >= min_samples
             ]
 
@@ -140,7 +142,8 @@ class LearningStore:
         with self._lock:
             # Find all patterns for this task type
             matching = [
-                p for p in self._tool_patterns.values()
+                p
+                for p in self._tool_patterns.values()
                 if p.task_type == task_type and p.success_count > 0
             ]
 
@@ -364,6 +367,7 @@ class LearningStore:
             return loaded
         except (ImportError, AttributeError) as e:
             import logging
+
             logging.getLogger(__name__).debug(f"Failed to load from simulacrum: {e}")
             return 0
 

@@ -6,7 +6,6 @@ Extended for RFC-024 with:
 - Monorepo subproject detection
 """
 
-
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +18,7 @@ if TYPE_CHECKING:
 # =============================================================================
 # Workspace Configuration (RFC-024)
 # =============================================================================
+
 
 @dataclass(frozen=True, slots=True)
 class Workspace:
@@ -95,6 +95,7 @@ class WorkspaceConfig:
 # Workspace Detector (RFC-024 Extended)
 # =============================================================================
 
+
 class WorkspaceDetector:
     """Detects workspace root and configuration.
 
@@ -111,20 +112,43 @@ class WorkspaceDetector:
     """
 
     DEFAULT_IGNORE = (
-        ".git", ".venv", "venv", "__pycache__", "node_modules",
-        ".pytest_cache", ".mypy_cache", ".ruff_cache", "*.pyc", "*.pyo",
-        ".DS_Store", "*.egg-info", "dist", "build", ".tox", ".coverage", "htmlcov",
+        ".git",
+        ".venv",
+        "venv",
+        "__pycache__",
+        "node_modules",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "*.pyc",
+        "*.pyo",
+        ".DS_Store",
+        "*.egg-info",
+        "dist",
+        "build",
+        ".tox",
+        ".coverage",
+        "htmlcov",
     )
 
     PROJECT_MARKERS = (
-        "pyproject.toml", "setup.py", "setup.cfg",  # Python
-        "package.json", "package-lock.json",         # Node.js
-        "Cargo.toml", "Cargo.lock",                  # Rust
-        "go.mod", "go.sum",                          # Go
-        "pom.xml", "build.gradle", "build.gradle.kts",  # JVM
-        "Makefile", "CMakeLists.txt",                # C/C++
-        "Gemfile", "*.gemspec",                      # Ruby
-        "composer.json",                             # PHP
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",  # Python
+        "package.json",
+        "package-lock.json",  # Node.js
+        "Cargo.toml",
+        "Cargo.lock",  # Rust
+        "go.mod",
+        "go.sum",  # Go
+        "pom.xml",
+        "build.gradle",
+        "build.gradle.kts",  # JVM
+        "Makefile",
+        "CMakeLists.txt",  # C/C++
+        "Gemfile",
+        "*.gemspec",  # Ruby
+        "composer.json",  # PHP
     )
 
     def detect(self, start_path: Path | None = None) -> Workspace:
@@ -220,6 +244,7 @@ class WorkspaceDetector:
         if config_path.exists():
             try:
                 import yaml
+
                 with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f) or {}
             except ImportError:
@@ -231,7 +256,13 @@ class WorkspaceDetector:
 
         # Parse trust level from config
         config_trust = config.get("trust_level")
-        if config_trust and config_trust not in ("discovery", "read_only", "workspace", "shell", "full"):
+        if config_trust and config_trust not in (
+            "discovery",
+            "read_only",
+            "workspace",
+            "shell",
+            "full",
+        ):
             config_trust = None  # Invalid trust level
 
         # Check for git
@@ -293,8 +324,17 @@ class WorkspaceDetector:
         subprojects: set[Path] = set()
 
         # Skip these directories entirely
-        skip_dirs = {".git", "node_modules", "vendor", ".venv", "venv",
-                     "__pycache__", "dist", "build", ".tox"}
+        skip_dirs = {
+            ".git",
+            "node_modules",
+            "vendor",
+            ".venv",
+            "venv",
+            "__pycache__",
+            "dist",
+            "build",
+            ".tox",
+        }
 
         for marker in self.PROJECT_MARKERS:
             if "*" in marker:
@@ -314,9 +354,7 @@ class WorkspaceDetector:
 
         return sorted(subprojects)
 
-    def _find_current_subproject(
-        self, cwd: Path, subprojects: list[Path]
-    ) -> Path | None:
+    def _find_current_subproject(self, cwd: Path, subprojects: list[Path]) -> Path | None:
         """Find which subproject cwd is inside."""
         cwd = cwd.resolve()
         for sub in sorted(subprojects, key=lambda p: len(p.parts), reverse=True):

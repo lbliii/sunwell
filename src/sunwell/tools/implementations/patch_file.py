@@ -56,9 +56,7 @@ def _parse_unified_diff(diff: str) -> list[tuple[int, int, int, int, list[str]]]
     return hunks
 
 
-def _apply_hunks(
-    content: str, hunks: list[tuple[int, int, int, int, list[str]]]
-) -> str:
+def _apply_hunks(content: str, hunks: list[tuple[int, int, int, int, list[str]]]) -> str:
     """Apply diff hunks to file content."""
     lines = content.split("\n")
 

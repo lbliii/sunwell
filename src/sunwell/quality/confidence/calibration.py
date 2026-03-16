@@ -8,8 +8,6 @@ Tracks user feedback on confidence predictions to:
 Target: 90% correlation between predicted confidence and actual correctness.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from dataclasses import dataclass, field
@@ -174,19 +172,17 @@ class CalibrationTracker:
         # where actual is 1 for correct, 0.5 for partial, 0 for incorrect
         brier_sum = 0.0
         for f in feedback:
-            actual = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}[
-                f.user_judgment
-            ]
+            actual = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}[f.user_judgment]
             brier_sum += (f.predicted_confidence - actual) ** 2
 
         brier_score = brier_sum / len(feedback)
 
         # Calculate accuracy by confidence band
         bands = {
-            "high": [],      # 90-100%
+            "high": [],  # 90-100%
             "moderate": [],  # 70-89%
-            "low": [],       # 50-69%
-            "uncertain": [], # <50%
+            "low": [],  # 50-69%
+            "uncertain": [],  # <50%
         }
 
         for f in feedback:
@@ -201,14 +197,11 @@ class CalibrationTracker:
                 band = "uncertain"
 
             # Score: 1 for correct, 0.5 for partial, 0 for incorrect
-            score = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}[
-                f.user_judgment
-            ]
+            score = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}[f.user_judgment]
             bands[band].append(score)
 
         accuracy_by_band = tuple(
-            (band, sum(scores) / len(scores) if scores else 0.0)
-            for band, scores in bands.items()
+            (band, sum(scores) / len(scores) if scores else 0.0) for band, scores in bands.items()
         )
 
         # Override rate (incorrect + partial) / total
@@ -224,9 +217,7 @@ class CalibrationTracker:
             override_rate=override_rate,
         )
 
-    def should_request_feedback(
-        self, predicted_confidence: float, claim_id: str
-    ) -> bool:
+    def should_request_feedback(self, predicted_confidence: float, claim_id: str) -> bool:
         """Determine if we should request user feedback on a claim.
 
         Prioritizes requesting feedback on:
@@ -251,6 +242,7 @@ class CalibrationTracker:
         if 50 <= pct < 90:
             # Sample rate based on confidence (lower = more likely to ask)
             import random
+
             sample_rate = 0.3 if pct < 70 else 0.2
             return random.random() < sample_rate
 
@@ -265,9 +257,7 @@ class CalibrationTracker:
         Returns:
             List of recent feedback items
         """
-        return sorted(
-            self._feedback, key=lambda f: f.timestamp, reverse=True
-        )[:limit]
+        return sorted(self._feedback, key=lambda f: f.timestamp, reverse=True)[:limit]
 
     def _load(self) -> None:
         """Load feedback from storage."""

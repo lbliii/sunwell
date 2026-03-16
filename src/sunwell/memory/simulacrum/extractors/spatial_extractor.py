@@ -8,7 +8,6 @@ Supports:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 import re
 from pathlib import Path
 
@@ -38,7 +37,7 @@ class SpatialExtractor:
 
         for i, line in enumerate(lines, start=line_start):
             # Detect heading
-            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            heading_match = re.match(r"^(#{1,6})\s+(.+)$", line)
 
             if heading_match:
                 # Save previous chunk
@@ -101,11 +100,16 @@ class SpatialExtractor:
             tree = ast.parse(content)
         except SyntaxError:
             # Fall back to treating entire file as one chunk
-            return [(content, SpatialContext(
-                position_type=PositionType.CODE,
-                file_path=file_path,
-                module_path=file_path.replace("/", ".").replace(".py", ""),
-            ))]
+            return [
+                (
+                    content,
+                    SpatialContext(
+                        position_type=PositionType.CODE,
+                        file_path=file_path,
+                        module_path=file_path.replace("/", ".").replace(".py", ""),
+                    ),
+                )
+            ]
 
         module_path = file_path.replace("/", ".").replace(".py", "")
         if module_path.startswith("src."):
@@ -201,7 +205,12 @@ class SpatialExtractor:
             return cls.from_python(file_path_str, content)
         else:
             # Fallback: single chunk with basic context
-            return [(content, SpatialContext(
-                position_type=PositionType.DOCUMENT,
-                file_path=file_path_str,
-            ))]
+            return [
+                (
+                    content,
+                    SpatialContext(
+                        position_type=PositionType.DOCUMENT,
+                        file_path=file_path_str,
+                    ),
+                )
+            ]

@@ -57,8 +57,13 @@ class CascadePreview:
             "risk_assessment": self.risk_assessment,
             "has_contracts": len(self.extracted_contracts) > 0,
             "has_deltas": len(self.delta_previews) > 0,
-            "extracted_contracts": {k: v.to_dict() if hasattr(v, 'to_dict') else str(v) for k, v in self.extracted_contracts},
-            "delta_previews": {k: v.to_dict() if hasattr(v, 'to_dict') else str(v) for k, v in self.delta_previews},
+            "extracted_contracts": {
+                k: v.to_dict() if hasattr(v, "to_dict") else str(v)
+                for k, v in self.extracted_contracts
+            },
+            "delta_previews": {
+                k: v.to_dict() if hasattr(v, "to_dict") else str(v) for k, v in self.delta_previews
+            },
         }
 
 

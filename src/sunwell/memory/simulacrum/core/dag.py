@@ -330,10 +330,7 @@ class ConversationDAG:
 
     def get_active_learnings(self) -> list[Learning]:
         """Get all learnings not superseded by newer versions."""
-        return [
-            l for l in self.learnings.values()
-            if l.superseded_by is None
-        ]
+        return [l for l in self.learnings.values() if l.superseded_by is None]
 
     @property
     def stats(self) -> dict:
@@ -413,12 +410,14 @@ class ConversationDAG:
         learning_graph_edges = []
         for edge_list in self.learning_graph._outgoing.values():
             for edge in edge_list:
-                learning_graph_edges.append({
-                    "source_id": edge.source_id,
-                    "target_id": edge.target_id,
-                    "relation_type": edge.relation_type.value,
-                    "weight": edge.weight,
-                })
+                learning_graph_edges.append(
+                    {
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "relation_type": edge.relation_type.value,
+                        "weight": edge.weight,
+                    }
+                )
 
         data = {
             "turns": {

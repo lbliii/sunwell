@@ -192,11 +192,7 @@ def optimize_tool_definitions(
     def estimate_tokens(tool: Tool) -> int:
         """Estimate token count for a tool definition."""
         # Rough estimate: ~4 chars per token
-        return (
-            len(tool.name)
-            + len(tool.description) // 4
-            + len(str(tool.parameters)) // 4
-        )
+        return len(tool.name) + len(tool.description) // 4 + len(str(tool.parameters)) // 4
 
     # Budget: 20% of context for tools
     tool_budget = context_window // 5

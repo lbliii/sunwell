@@ -9,7 +9,6 @@ Enables queries across multiple axes simultaneously:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -17,6 +16,7 @@ from typing import Any
 
 class DiataxisType(Enum):
     """Diataxis documentation types."""
+
     TUTORIAL = "tutorial"
     HOWTO = "howto"
     REFERENCE = "reference"
@@ -25,25 +25,28 @@ class DiataxisType(Enum):
 
 class PersonaType(Enum):
     """Target audience personas."""
-    NOVICE = "novice"           # New to the tool
-    PRAGMATIST = "pragmatist"   # Just wants code
-    SKEPTIC = "skeptic"         # Needs convincing
-    EXPERT = "expert"           # Advanced user
+
+    NOVICE = "novice"  # New to the tool
+    PRAGMATIST = "pragmatist"  # Just wants code
+    SKEPTIC = "skeptic"  # Needs convincing
+    EXPERT = "expert"  # Advanced user
 
 
 class VerificationState(Enum):
     """Verification status of content."""
-    UNVERIFIED = "unverified"   # Not yet checked
-    VERIFIED = "verified"       # Confirmed accurate
-    DISPUTED = "disputed"       # Known issues
-    OUTDATED = "outdated"       # Needs update
+
+    UNVERIFIED = "unverified"  # Not yet checked
+    VERIFIED = "verified"  # Confirmed accurate
+    DISPUTED = "disputed"  # Known issues
+    OUTDATED = "outdated"  # Needs update
 
 
 class ConfidenceLevel(Enum):
     """Confidence in the content."""
-    HIGH = "high"         # 90-100%
-    MODERATE = "moderate" # 70-89%
-    LOW = "low"           # 50-69%
+
+    HIGH = "high"  # 90-100%
+    MODERATE = "moderate"  # 70-89%
+    LOW = "low"  # 50-69%
     UNCERTAIN = "uncertain"  # <50%
 
 
@@ -133,7 +136,9 @@ class ContentFacets:
                 ConfidenceLevel.MODERATE,
                 ConfidenceLevel.HIGH,
             ]
-            if confidence_order.index(self.confidence) >= confidence_order.index(query.min_confidence):
+            if confidence_order.index(self.confidence) >= confidence_order.index(
+                query.min_confidence
+            ):
                 score += 1.0
 
         # Domain match
@@ -171,14 +176,16 @@ class FacetQuery:
 
     def has_constraints(self) -> bool:
         """Check if query has any constraints."""
-        return any([
-            self.diataxis_type,
-            self.persona,
-            self.verification_states,
-            self.min_confidence,
-            self.domain_tags,
-            self.source_types,
-        ])
+        return any(
+            [
+                self.diataxis_type,
+                self.persona,
+                self.verification_states,
+                self.min_confidence,
+                self.domain_tags,
+                self.source_types,
+            ]
+        )
 
 
 @dataclass(slots=True)

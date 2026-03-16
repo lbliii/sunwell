@@ -311,7 +311,7 @@ def create_polling_watcher(
 # =============================================================================
 
 
-def create_learning_store_callback(learning_store: "LearningStore") -> LearningCallback:
+def create_learning_store_callback(learning_store: LearningStore) -> LearningCallback:
     """Create a callback that adds learnings to a LearningStore.
 
     Args:
@@ -320,6 +320,7 @@ def create_learning_store_callback(learning_store: "LearningStore") -> LearningC
     Returns:
         Callback function for watcher
     """
+
     def on_learning(learning: Learning) -> None:
         learning_store.add_learning(learning)
 

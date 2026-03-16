@@ -125,8 +125,15 @@ async def learn_from_execution(
 
         # Expanded file types (beyond just code)
         extractable_suffixes = (
-            ".py", ".js", ".ts", ".jsx", ".tsx",  # Code
-            ".yaml", ".yml", ".json", ".toml",     # Config
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",  # Code
+            ".yaml",
+            ".yml",
+            ".json",
+            ".toml",  # Config
         )
         if path.suffix not in extractable_suffixes:
             continue
@@ -164,10 +171,7 @@ async def learn_from_execution(
                 extracted_count += 1
         elif force:
             # Learn from failure: record what approach didn't work
-            failed_tasks = [
-                t for t in task_graph.tasks
-                if t.id not in task_graph.completed_ids
-            ]
+            failed_tasks = [t for t in task_graph.tasks if t.id not in task_graph.completed_ids]
             if failed_tasks:
                 failed_task = failed_tasks[0]
                 learning = Learning(

@@ -23,9 +23,7 @@ def index() -> None:
 
 
 @index.command()
-@click.option(
-    "--json", "json_output", is_flag=True, help="JSON output for Studio integration"
-)
+@click.option("--json", "json_output", is_flag=True, help="JSON output for Studio integration")
 @click.option("--progress", is_flag=True, help="Stream progress updates")
 @click.option("--force", is_flag=True, help="Force full rebuild (ignore cache)")
 def build(json_output: bool, progress: bool, force: bool) -> None:
@@ -100,8 +98,7 @@ async def _build_index(json_output: bool, progress: bool, force: bool) -> None:
             console.print(f"[dim]Project type: {project_type}[/dim]")
         elif service.status.state == IndexState.DEGRADED:
             console.print(
-                f"[yellow]⚠️[/yellow] Running in fallback mode: "
-                f"{service.status.fallback_reason}"
+                f"[yellow]⚠️[/yellow] Running in fallback mode: {service.status.fallback_reason}"
             )
         else:
             console.print(f"[red]✗[/red] Indexing failed: {service.status.error}")
@@ -128,9 +125,7 @@ async def _query_index(query_text: str, top_k: int, json_output: bool) -> None:
     await service.start()
     if not await service.wait_ready(timeout=5):
         if json_output:
-            print(
-                json.dumps({"error": "Index not ready", "chunks": [], "fallback_used": True})
-            )
+            print(json.dumps({"error": "Index not ready", "chunks": [], "fallback_used": True}))
         else:
             console.print("[yellow]Index not ready. Building...[/yellow]")
         return
@@ -141,24 +136,26 @@ async def _query_index(query_text: str, top_k: int, json_output: bool) -> None:
 
     if json_output:
         print(
-            json.dumps({
-                "chunks": [
-                    {
-                        "id": c.id,
-                        "file_path": str(c.file_path),
-                        "start_line": c.start_line,
-                        "end_line": c.end_line,
-                        "content": c.content,
-                        "chunk_type": c.chunk_type,
-                        "name": c.name,
-                        "score": round(c.score, 4),
-                    }
-                    for c in chunks
-                ],
-                "fallback_used": False,
-                "query_time_ms": elapsed_ms,
-                "total_chunks_searched": service.status.chunk_count or 0,
-            })
+            json.dumps(
+                {
+                    "chunks": [
+                        {
+                            "id": c.id,
+                            "file_path": str(c.file_path),
+                            "start_line": c.start_line,
+                            "end_line": c.end_line,
+                            "content": c.content,
+                            "chunk_type": c.chunk_type,
+                            "name": c.name,
+                            "score": round(c.score, 4),
+                        }
+                        for c in chunks
+                    ],
+                    "fallback_used": False,
+                    "query_time_ms": elapsed_ms,
+                    "total_chunks_searched": service.status.chunk_count or 0,
+                }
+            )
         )
     else:
         if not chunks:
@@ -212,14 +209,16 @@ async def _show_status(json_output: bool) -> None:
 
     if json_output:
         print(
-            json.dumps({
-                "state": "ready",
-                "chunk_count": meta.get("chunk_count", 0),
-                "file_count": meta.get("file_count", 0),
-                "last_updated": meta.get("updated_at"),
-                "content_hash": meta.get("content_hash"),
-                "project_type": meta.get("project_type", "unknown"),
-            })
+            json.dumps(
+                {
+                    "state": "ready",
+                    "chunk_count": meta.get("chunk_count", 0),
+                    "file_count": meta.get("file_count", 0),
+                    "last_updated": meta.get("updated_at"),
+                    "content_hash": meta.get("content_hash"),
+                    "project_type": meta.get("project_type", "unknown"),
+                }
+            )
         )
     else:
         console.print("[bold]Index Status[/bold]")

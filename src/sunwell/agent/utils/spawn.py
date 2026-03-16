@@ -184,9 +184,7 @@ class SpecialistState:
             focus=data["focus"],
             started_at=datetime.fromisoformat(data["started_at"]),
             completed_at=(
-                datetime.fromisoformat(data["completed_at"])
-                if data.get("completed_at")
-                else None
+                datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None
             ),
             result=data.get("result"),
             tokens_used=data.get("tokens_used", 0),

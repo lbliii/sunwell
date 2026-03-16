@@ -9,7 +9,6 @@ This module auto-detects Ollama's capacity and provides optimal concurrency sett
 See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-does-ollama-handle-concurrent-requests
 """
 
-
 import asyncio
 import os
 import threading

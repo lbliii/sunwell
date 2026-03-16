@@ -1,6 +1,5 @@
 """File operation handlers."""
 
-
 import logging
 import re
 import shutil
@@ -69,19 +68,25 @@ def parse_unified_diff(diff: str) -> list[DiffHunk]:
             i += 1
             while i < len(lines):
                 hunk_line = lines[i]
-                if hunk_line.startswith("@@") or hunk_line.startswith("---") or hunk_line.startswith("+++"):
+                if (
+                    hunk_line.startswith("@@")
+                    or hunk_line.startswith("---")
+                    or hunk_line.startswith("+++")
+                ):
                     break
                 if hunk_line.startswith(("-", "+", " ")) or hunk_line == "":
                     hunk_lines.append(hunk_line)
                 i += 1
 
-            hunks.append(DiffHunk(
-                old_start=old_start,
-                old_count=old_count,
-                new_start=new_start,
-                new_count=new_count,
-                lines=tuple(hunk_lines),
-            ))
+            hunks.append(
+                DiffHunk(
+                    old_start=old_start,
+                    old_count=old_count,
+                    new_start=new_start,
+                    new_count=new_count,
+                    lines=tuple(hunk_lines),
+                )
+            )
         else:
             i += 1
 
@@ -126,7 +131,7 @@ def apply_hunks(content: str, hunks: list[DiffHunk]) -> str:
                 new_lines.append("")
 
         # Check that old lines match
-        actual_old = lines[start_idx:start_idx + len(old_lines)]
+        actual_old = lines[start_idx : start_idx + len(old_lines)]
         if actual_old != old_lines:
             # Try fuzzy match with stripped whitespace
             stripped_actual = [l.rstrip() for l in actual_old]
@@ -139,9 +144,10 @@ def apply_hunks(content: str, hunks: list[DiffHunk]) -> str:
                 )
 
         # Replace old lines with new lines
-        lines[start_idx:start_idx + len(old_lines)] = new_lines
+        lines[start_idx : start_idx + len(old_lines)] = new_lines
 
     return "\n".join(lines)
+
 
 if TYPE_CHECKING:
     from sunwell.planning.skills.sandbox import ScriptSandbox
@@ -317,7 +323,9 @@ class FileHandlers(BaseHandler):
         count = content.count(old_content_arg)
 
         if count == 0:
-            preview = old_content_arg[:100] + "..." if len(old_content_arg) > 100 else old_content_arg
+            preview = (
+                old_content_arg[:100] + "..." if len(old_content_arg) > 100 else old_content_arg
+            )
             raise ValueError(
                 f"Content not found in {user_path}.\n"
                 f"Looking for:\n{preview}\n\n"
@@ -333,12 +341,14 @@ class FileHandlers(BaseHandler):
             replaced_count = count
             # For replace-all, report first occurrence line
             first_idx = content.find(old_content_arg)
-            lines_before = content[:first_idx].count('\n') + 1
+            lines_before = content[:first_idx].count("\n") + 1
         elif occurrence == -1:
             idx = content.rfind(old_content_arg)
-            new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
+            new_file_content = (
+                content[:idx] + new_content_arg + content[idx + len(old_content_arg) :]
+            )
             replaced_count = 1
-            lines_before = content[:idx].count('\n') + 1
+            lines_before = content[:idx].count("\n") + 1
         else:
             if occurrence > count:
                 raise ValueError(
@@ -347,19 +357,23 @@ class FileHandlers(BaseHandler):
             idx = -1
             for _ in range(occurrence):
                 idx = content.find(old_content_arg, idx + 1)
-            new_file_content = content[:idx] + new_content_arg + content[idx + len(old_content_arg):]
+            new_file_content = (
+                content[:idx] + new_content_arg + content[idx + len(old_content_arg) :]
+            )
             replaced_count = 1
-            lines_before = content[:idx].count('\n') + 1
+            lines_before = content[:idx].count("\n") + 1
 
         path.write_text(new_file_content, encoding="utf-8")
 
-        old_lines = old_content_arg.count('\n') + 1
-        new_lines = new_content_arg.count('\n') + 1
+        old_lines = old_content_arg.count("\n") + 1
+        new_lines = new_content_arg.count("\n") + 1
 
         # Emit file event for lineage tracking (RFC-121)
         lines_added = max(0, new_lines - old_lines) * replaced_count
         lines_removed = max(0, old_lines - new_lines) * replaced_count
-        self._emit_file_event("file_modified", user_path, new_file_content, lines_added, lines_removed)
+        self._emit_file_event(
+            "file_modified", user_path, new_file_content, lines_added, lines_removed
+        )
 
         return (
             f"✓ Edited {user_path}\n"
@@ -395,14 +409,7 @@ class FileHandlers(BaseHandler):
 
         rg_path = shutil.which("rg")
         if rg_path:
-            cmd = [
-                rg_path,
-                "-n",
-                "--max-filesize", "1M",
-                "--glob", glob_pattern,
-                pattern,
-                "."
-            ]
+            cmd = [rg_path, "-n", "--max-filesize", "1M", "--glob", glob_pattern, pattern, "."]
         else:
             cmd = ["grep", "-rn", pattern, "."]
 
@@ -416,7 +423,7 @@ class FileHandlers(BaseHandler):
             )
             output = result.stdout[:10_000]
             if result.returncode == 0:
-                lines = output.strip().split('\n')
+                lines = output.strip().split("\n")
                 return f"Found {len(lines)} matches:\n{output}" if output else "No matches found"
             elif result.returncode == 1:
                 return "No matches found"

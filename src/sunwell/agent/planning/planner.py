@@ -218,11 +218,13 @@ Capabilities needed (one per line):
                 if not any(m.skill_name == best_match.skill_name for m in matched):
                     matched.append(best_match)
             else:
-                gaps.append(CapabilityGap(
-                    description=cap,
-                    requires=(),
-                    produces=(),
-                ))
+                gaps.append(
+                    CapabilityGap(
+                        description=cap,
+                        requires=(),
+                        produces=(),
+                    )
+                )
 
         return matched, gaps
 
@@ -234,11 +236,13 @@ Capabilities needed (one per line):
         for skill in self.skills:
             # Check if skill name appears in goal
             if skill.name.replace("-", " ") in goal_lower or skill.name in goal_lower:
-                matched.append(CapabilityMatch(
-                    skill_name=skill.name,
-                    capability=skill.description,
-                    confidence=0.9,
-                ))
+                matched.append(
+                    CapabilityMatch(
+                        skill_name=skill.name,
+                        capability=skill.description,
+                        confidence=0.9,
+                    )
+                )
 
         return matched
 
@@ -251,11 +255,13 @@ Capabilities needed (one per line):
             for trigger in meta.triggers:
                 if trigger.lower() in goal_lower:
                     if not any(m.skill_name == meta.name for m in matched):
-                        matched.append(CapabilityMatch(
-                            skill_name=meta.name,
-                            capability=meta.description,
-                            confidence=0.7,
-                        ))
+                        matched.append(
+                            CapabilityMatch(
+                                skill_name=meta.name,
+                                capability=meta.description,
+                                confidence=0.7,
+                            )
+                        )
                     break
 
         return matched
@@ -296,34 +302,36 @@ Capabilities needed (one per line):
 
             # Create skill with merged dependencies
             all_deps = tuple(skill.depends_on) + tuple(
-                d for d in inferred_deps if d.skill_name not in {
-                    e.skill_name for e in skill.depends_on
-                }
+                d
+                for d in inferred_deps
+                if d.skill_name not in {e.skill_name for e in skill.depends_on}
             )
 
             # Filter deps to only include skills in our set
             skill_names = {s.name for s in skills}
             filtered_deps = tuple(d for d in all_deps if d.skill_name in skill_names)
 
-            skills_with_deps.append(Skill(
-                name=skill.name,
-                description=skill.description,
-                skill_type=skill.skill_type,
-                depends_on=filtered_deps,
-                produces=skill.produces,
-                requires=skill.requires,
-                triggers=skill.triggers,
-                instructions=skill.instructions,
-                scripts=skill.scripts,
-                templates=skill.templates,
-                resources=skill.resources,
-                preset=skill.preset,
-                permissions=skill.permissions,
-                security=skill.security,
-                trust=skill.trust,
-                timeout=skill.timeout,
-                validate_with=skill.validate_with,
-            ))
+            skills_with_deps.append(
+                Skill(
+                    name=skill.name,
+                    description=skill.description,
+                    skill_type=skill.skill_type,
+                    depends_on=filtered_deps,
+                    produces=skill.produces,
+                    requires=skill.requires,
+                    triggers=skill.triggers,
+                    instructions=skill.instructions,
+                    scripts=skill.scripts,
+                    templates=skill.templates,
+                    resources=skill.resources,
+                    preset=skill.preset,
+                    permissions=skill.permissions,
+                    security=skill.security,
+                    trust=skill.trust,
+                    timeout=skill.timeout,
+                    validate_with=skill.validate_with,
+                )
+            )
 
         return SkillGraph.from_skills(skills_with_deps)
 
@@ -421,12 +429,10 @@ SHORTCUT_SKILL_MAP: dict[str, set[str]] = {
     "d": {"create-api-reference"},
     "q": {"create-quickstart"},
     "arch": {"create-architecture-doc"},
-
     # Analysis shortcuts
     "api": {"extract-api-surface"},
     "deps": {"analyze-dependencies"},
     "map": {"map-codebase-structure"},
-
     # Validation shortcuts
     "links": {"check-documentation-links"},
     "examples": {"validate-code-examples"},

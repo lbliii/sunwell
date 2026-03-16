@@ -87,7 +87,7 @@ class Reflection:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Reflection":
+    def from_dict(cls, data: dict) -> Reflection:
         """Deserialize reflection."""
         return cls(
             id=data["id"],
@@ -179,7 +179,9 @@ class MentalModel:
                 parts.append(f"- {anti}")
 
         parts.append("")
-        parts.append(f"(Confidence: {self.confidence:.1%}, based on {self.source_learning_count} learnings)")
+        parts.append(
+            f"(Confidence: {self.confidence:.1%}, based on {self.source_learning_count} learnings)"
+        )
 
         return "\n".join(parts)
 
@@ -198,7 +200,7 @@ class MentalModel:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MentalModel":
+    def from_dict(cls, data: dict) -> MentalModel:
         """Deserialize mental model."""
         return cls(
             id=data["id"],

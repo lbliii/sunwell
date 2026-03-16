@@ -721,26 +721,64 @@ GIT_TOOLS: dict[str, Tool] = {
 # =============================================================================
 
 # Safe environment variables that don't contain secrets
-ENV_ALLOWLIST: frozenset[str] = frozenset({
-    # System info
-    "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL",
-    "PWD", "OLDPWD", "HOSTNAME", "LOGNAME",
-    # Editor/display
-    "EDITOR", "VISUAL", "PAGER", "DISPLAY", "COLORTERM",
-    # Development (non-secret)
-    "VIRTUAL_ENV", "CONDA_DEFAULT_ENV", "CONDA_PREFIX",
-    "NVM_DIR", "GOPATH", "CARGO_HOME", "RUSTUP_HOME",
-    "PYTHONPATH", "NODE_PATH", "GEM_HOME",
-    # XDG
-    "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
-})
+ENV_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        # System info
+        "PATH",
+        "HOME",
+        "USER",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "LC_ALL",
+        "PWD",
+        "OLDPWD",
+        "HOSTNAME",
+        "LOGNAME",
+        # Editor/display
+        "EDITOR",
+        "VISUAL",
+        "PAGER",
+        "DISPLAY",
+        "COLORTERM",
+        # Development (non-secret)
+        "VIRTUAL_ENV",
+        "CONDA_DEFAULT_ENV",
+        "CONDA_PREFIX",
+        "NVM_DIR",
+        "GOPATH",
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+        "PYTHONPATH",
+        "NODE_PATH",
+        "GEM_HOME",
+        # XDG
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+    }
+)
 
 # Patterns that indicate secrets - NEVER expose these
 ENV_BLOCKLIST_PATTERNS: tuple[str, ...] = (
-    "*_KEY", "*_SECRET", "*_TOKEN", "*_PASSWORD", "*_CREDENTIAL*",
-    "*_API_KEY", "*API_KEY*", "AWS_*", "GITHUB_*", "OPENAI_*",
-    "ANTHROPIC_*", "AZURE_*", "GCP_*", "GOOGLE_*",
-    "*_PRIVATE_*", "*_AUTH*", "*DATABASE_URL*", "*CONNECTION_STRING*",
+    "*_KEY",
+    "*_SECRET",
+    "*_TOKEN",
+    "*_PASSWORD",
+    "*_CREDENTIAL*",
+    "*_API_KEY",
+    "*API_KEY*",
+    "AWS_*",
+    "GITHUB_*",
+    "OPENAI_*",
+    "ANTHROPIC_*",
+    "AZURE_*",
+    "GCP_*",
+    "GOOGLE_*",
+    "*_PRIVATE_*",
+    "*_AUTH*",
+    "*DATABASE_URL*",
+    "*CONNECTION_STRING*",
 )
 
 
@@ -869,10 +907,7 @@ def get_tools_for_trust_level(trust_level: str) -> tuple[Tool, ...]:
     level = ToolTrust.from_string(trust_level)
     allowed_names = TRUST_LEVEL_TOOLS.get(level, frozenset())
 
-    return tuple(
-        tool for name, tool in ALL_BUILTIN_TOOLS.items()
-        if name in allowed_names
-    )
+    return tuple(tool for name, tool in ALL_BUILTIN_TOOLS.items() if name in allowed_names)
 
 
 def get_all_tools() -> dict[str, Tool]:

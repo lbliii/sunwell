@@ -46,8 +46,13 @@ def reason() -> None:
 @reason.command(name="decide")
 @click.argument("decision_type")
 @click.option("--context", "-c", required=True, help="JSON context for the decision")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
 @click.option("--model", "-m", default=None, help="Override model selection")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--force", is_flag=True, help="Force LLM reasoning (skip cache)")
@@ -263,11 +268,13 @@ def test(signal_type: str, file: str, content: str) -> None:
     Example:
         sunwell reason test -s fixme_comment -f billing.py -c "validate payment amounts"
     """
-    context = json.dumps({
-        "signal_type": signal_type,
-        "file_path": file,
-        "content": content,
-    })
+    context = json.dumps(
+        {
+            "signal_type": signal_type,
+            "file_path": file,
+            "content": content,
+        }
+    )
 
     asyncio.run(_decide("severity_assessment", json.loads(context), None, False, False))
 

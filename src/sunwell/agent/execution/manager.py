@@ -16,14 +16,14 @@ from typing import TYPE_CHECKING, Any
 
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.agent.events.schemas import EventEmitter
-from sunwell.agent.execution.context import BacklogContext
-from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
 from sunwell.agent.execution.backlog_stub import (
     BacklogManager,
     Goal,
     GoalResult,
     GoalScope,
 )
+from sunwell.agent.execution.context import BacklogContext
+from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
 from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.planning.naaru.persistence import hash_goal
 
@@ -135,10 +135,13 @@ class ExecutionManager:
                 error=f"Goal {gid} already being executed",
             )
 
-        self._emit(EventType.BACKLOG_GOAL_STARTED, {
-            "goal_id": gid,
-            "title": goal_obj.title,
-        })
+        self._emit(
+            EventType.BACKLOG_GOAL_STARTED,
+            {
+                "goal_id": gid,
+                "title": goal_obj.title,
+            },
+        )
 
         try:
             # 3. Build backlog context for planner
@@ -165,10 +168,13 @@ class ExecutionManager:
 
             graph = await self._discover_graph(planner, goal, plan_context, backlog_context)
 
-            self._emit(EventType.PLAN_WINNER, {
-                "tasks": len(graph),
-                "artifact_count": len(graph),
-            })
+            self._emit(
+                EventType.PLAN_WINNER,
+                {
+                    "tasks": len(graph),
+                    "artifact_count": len(graph),
+                },
+            )
 
             # 5. Execute with IncrementalExecutor
             result = await self._execute_incremental(
@@ -213,22 +219,28 @@ class ExecutionManager:
                         duration_seconds=duration_s,
                     ),
                 )
-                self._emit(EventType.BACKLOG_GOAL_COMPLETED, {
-                    "goal_id": gid,
-                    "artifacts": list(result.completed.keys()),
-                    "skipped": list(result.skipped.keys()),
-                    "failed": list(result.failed.keys()),
-                    "partial": len(result.failed) > 0,
-                    "learnings_count": learnings_count,
-                })
+                self._emit(
+                    EventType.BACKLOG_GOAL_COMPLETED,
+                    {
+                        "goal_id": gid,
+                        "artifacts": list(result.completed.keys()),
+                        "skipped": list(result.skipped.keys()),
+                        "failed": list(result.failed.keys()),
+                        "partial": len(result.failed) > 0,
+                        "learnings_count": learnings_count,
+                    },
+                )
             else:
                 # Total failure - no artifacts created or cached
                 error_msg = f"All {len(result.failed)} artifacts failed"
                 await self.backlog.mark_failed(gid, error_msg)
-                self._emit(EventType.BACKLOG_GOAL_FAILED, {
-                    "goal_id": gid,
-                    "error": error_msg,
-                })
+                self._emit(
+                    EventType.BACKLOG_GOAL_FAILED,
+                    {
+                        "goal_id": gid,
+                        "error": error_msg,
+                    },
+                )
                 exec_result = ExecutionResult(
                     success=False,
                     goal_id=gid,
@@ -238,21 +250,27 @@ class ExecutionManager:
                     duration_ms=result.duration_ms,
                 )
 
-            self._emit(EventType.COMPLETE, {
-                "tasks_completed": len(result.completed) + len(result.skipped),
-                "tasks_failed": len(result.failed),
-                "duration_s": duration_s,
-                "learnings_count": learnings_count,
-            })
+            self._emit(
+                EventType.COMPLETE,
+                {
+                    "tasks_completed": len(result.completed) + len(result.skipped),
+                    "tasks_failed": len(result.failed),
+                    "duration_s": duration_s,
+                    "learnings_count": learnings_count,
+                },
+            )
 
             return exec_result
 
         except Exception as e:
             await self.backlog.mark_failed(gid, str(e))
-            self._emit(EventType.BACKLOG_GOAL_FAILED, {
-                "goal_id": gid,
-                "error": str(e),
-            })
+            self._emit(
+                EventType.BACKLOG_GOAL_FAILED,
+                {
+                    "goal_id": gid,
+                    "error": str(e),
+                },
+            )
             self._emit(EventType.ERROR, {"message": str(e)})
             raise
         finally:
@@ -286,7 +304,9 @@ class ExecutionManager:
 
             # Extract goal titles for context
             goals = data.get("goals", [])
-            previous_goals = tuple(g.get("title", "") for g in goals if g.get("status") == "complete")
+            previous_goals = tuple(
+                g.get("title", "") for g in goals if g.get("status") == "complete"
+            )
 
             # Extract artifact IDs
             artifacts = data.get("recentArtifacts", [])
@@ -340,10 +360,13 @@ class ExecutionManager:
             scope=GoalScope(max_files=50, max_lines_changed=5000),
         )
         await self.backlog.add_external_goal(new_goal)
-        self._emit(EventType.BACKLOG_GOAL_ADDED, {
-            "goal_id": gid,
-            "title": new_goal.title,
-        })
+        self._emit(
+            EventType.BACKLOG_GOAL_ADDED,
+            {
+                "goal_id": gid,
+                "title": new_goal.title,
+            },
+        )
         return new_goal
 
     async def _discover_graph(
@@ -393,9 +416,12 @@ class ExecutionManager:
         plan = executor.plan_execution(force_rerun=force_artifacts)
 
         if plan.to_skip and not force:
-            self._emit(EventType.LOG, {
-                "message": f"📊 Incremental: {len(plan.to_skip)} cached, {len(plan.to_execute)} to execute",
-            })
+            self._emit(
+                EventType.LOG,
+                {
+                    "message": f"📊 Incremental: {len(plan.to_skip)} cached, {len(plan.to_execute)} to execute",
+                },
+            )
 
             if not plan.to_execute:
                 # Everything cached - return early
@@ -414,7 +440,9 @@ class ExecutionManager:
         return await executor.execute(
             create_fn=create_artifact,
             force_rerun=force_artifacts,
-            on_progress=lambda msg: self._emit(EventType.LOG, {"message": msg}) if verbose else None,
+            on_progress=lambda msg: self._emit(EventType.LOG, {"message": msg})
+            if verbose
+            else None,
         )
 
     async def _create_artifact(
@@ -426,10 +454,13 @@ class ExecutionManager:
         """Create a single artifact."""
         from sunwell.models import ToolCall
 
-        self._emit(EventType.TASK_START, {
-            "task_id": spec.id,
-            "description": spec.description,
-        })
+        self._emit(
+            EventType.TASK_START,
+            {
+                "task_id": spec.id,
+                "description": spec.description,
+            },
+        )
 
         start_time = datetime.now()
 
@@ -447,26 +478,35 @@ class ExecutionManager:
                 result = await tool_executor.execute(write_call)
 
                 if not result.success:
-                    self._emit(EventType.TASK_FAILED, {
-                        "task_id": spec.id,
-                        "error": result.output,
-                    })
+                    self._emit(
+                        EventType.TASK_FAILED,
+                        {
+                            "task_id": spec.id,
+                            "error": result.output,
+                        },
+                    )
                     raise RuntimeError(f"Failed to write {spec.produces_file}: {result.output}")
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            self._emit(EventType.TASK_COMPLETE, {
-                "task_id": spec.id,
-                "duration_ms": duration_ms,
-                "file": spec.produces_file,
-            })
+            self._emit(
+                EventType.TASK_COMPLETE,
+                {
+                    "task_id": spec.id,
+                    "duration_ms": duration_ms,
+                    "file": spec.produces_file,
+                },
+            )
 
             return content or ""
 
         except Exception as e:
-            self._emit(EventType.TASK_FAILED, {
-                "task_id": spec.id,
-                "error": str(e),
-            })
+            self._emit(
+                EventType.TASK_FAILED,
+                {
+                    "task_id": spec.id,
+                    "error": str(e),
+                },
+            )
             raise
 
     async def _extract_learnings(
@@ -512,12 +552,15 @@ class ExecutionManager:
                     }
                     learnings.append(learning)
 
-                    self._emit(EventType.MEMORY_LEARNING, {
-                        "fact": fact,
-                        "category": category,
-                        "confidence": confidence,
-                        "source": artifact_id,
-                    })
+                    self._emit(
+                        EventType.MEMORY_LEARNING,
+                        {
+                            "fact": fact,
+                            "category": category,
+                            "confidence": confidence,
+                            "source": artifact_id,
+                        },
+                    )
             except Exception:
                 continue
 

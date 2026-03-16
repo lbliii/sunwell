@@ -24,7 +24,6 @@ Usage:
     report = TRACER.get_evolution_report()
 """
 
-
 import json
 import threading
 from dataclasses import dataclass, field
@@ -150,7 +149,9 @@ class TurnTracer:
                 turn_id=turn_id,
                 turn_number=self._turn_counter,
                 timestamp=datetime.now(),
-                user_message_preview=user_message[:100] + "..." if len(user_message) > 100 else user_message,
+                user_message_preview=user_message[:100] + "..."
+                if len(user_message) > 100
+                else user_message,
             )
 
     def log_extraction(
@@ -281,14 +282,16 @@ class TurnTracer:
         total_filtered = sum(len(t.filtered_extractions) for t in traces_snapshot)
         digest_count = sum(1 for t in traces_snapshot if t.identity_digested)
 
-        lines.extend([
-            f"Extractions: {total_extractions} accepted, {total_filtered} filtered",
-            f"Identity digests: {digest_count}",
-            "",
-            "───────────────────────────────────────────────────",
-            "                  TURN-BY-TURN                     ",
-            "───────────────────────────────────────────────────",
-        ])
+        lines.extend(
+            [
+                f"Extractions: {total_extractions} accepted, {total_filtered} filtered",
+                f"Identity digests: {digest_count}",
+                "",
+                "───────────────────────────────────────────────────",
+                "                  TURN-BY-TURN                     ",
+                "───────────────────────────────────────────────────",
+            ]
+        )
 
         for trace in traces_snapshot:
             lines.append(f"\n╭─ Turn {trace.turn_number} [{trace.turn_id[:8]}...]")
@@ -298,7 +301,9 @@ class TurnTracer:
                 lines.append("│  📝 Extracted:")
                 for e in trace.extractions:
                     cat_label = f" [{e.category}]" if e.category else ""
-                    lines.append(f"│     • {e.extraction_type}{cat_label}: {e.content} ({e.confidence:.0%})")
+                    lines.append(
+                        f"│     • {e.extraction_type}{cat_label}: {e.content} ({e.confidence:.0%})"
+                    )
 
             if trace.filtered_extractions:
                 lines.append("│  🚫 Filtered (echoes):")
@@ -310,8 +315,12 @@ class TurnTracer:
                 after = trace.identity_after
                 delta = after.confidence - before.confidence
                 delta_str = f"+{delta:.0%}" if delta > 0 else f"{delta:.0%}"
-                lines.append(f"│  🧠 Identity: {before.confidence:.0%} → {after.confidence:.0%} ({delta_str})")
-                lines.append(f"│     Observations: {before.observation_count} → {after.observation_count}")
+                lines.append(
+                    f"│  🧠 Identity: {before.confidence:.0%} → {after.confidence:.0%} ({delta_str})"
+                )
+                lines.append(
+                    f"│     Observations: {before.observation_count} → {after.observation_count}"
+                )
 
             if trace.identity_digested:
                 lines.append("│  ⚡ Identity digested this turn")
@@ -325,12 +334,14 @@ class TurnTracer:
                 confidence_history.append((t.turn_number, t.identity_after.confidence))
 
         if confidence_history:
-            lines.extend([
-                "",
-                "───────────────────────────────────────────────────",
-                "             CONFIDENCE EVOLUTION                  ",
-                "───────────────────────────────────────────────────",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "───────────────────────────────────────────────────",
+                    "             CONFIDENCE EVOLUTION                  ",
+                    "───────────────────────────────────────────────────",
+                ]
+            )
 
             # Simple ASCII sparkline
             if len(confidence_history) >= 2:

@@ -40,7 +40,9 @@ class ContextBuilder:
         # Detect project
         ptype, framework = ProjectDetector.detect_project_type(self._cwd)
         key_files = ProjectDetector.find_key_files(self._cwd)
-        entry_points = ProjectDetector.find_entry_points(self._cwd, ptype) if ptype != "unknown" else []
+        entry_points = (
+            ProjectDetector.find_entry_points(self._cwd, ptype) if ptype != "unknown" else []
+        )
         tree = ProjectDetector.build_directory_tree(self._cwd)
 
         context = {
@@ -190,7 +192,9 @@ class ContextBuilder:
             lines.append("")
             lines.append("### Linked Sources (RFC-103)")
             for link in workspace_data.get("links", []):
-                lines.append(f"- {Path(link['path']).name}: {link['language']} ({link['relationship']})")
+                lines.append(
+                    f"- {Path(link['path']).name}: {link['language']} ({link['relationship']})"
+                )
 
             symbols = workspace_data.get("symbols", [])
             if symbols:

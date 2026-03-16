@@ -11,9 +11,9 @@ from sunwell.knowledge.project.signals import ProjectSignals, format_dir_tree, f
 from sunwell.models import GenerateOptions, ModelProtocol, sanitize_llm_content
 
 # Pre-compiled regex for JSON extraction
-_JSON_OBJECT_PATTERN = re.compile(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', re.DOTALL)
+_JSON_OBJECT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
-GOAL_INFERENCE_PROMPT = '''Analyze this project and suggest 3-5 reasonable goals.
+GOAL_INFERENCE_PROMPT = """Analyze this project and suggest 3-5 reasonable goals.
 
 ## Project Context
 - Name: {project_name}
@@ -49,10 +49,10 @@ Guidelines:
 4. For data projects: consider analysis steps, visualization needs
 5. If unclear, suggest generic appropriate goals (e.g., "Review existing code")
 
-Analyze:'''
+Analyze:"""
 
 
-PROJECT_CLASSIFICATION_PROMPT = '''Analyze this project and classify its primary type.
+PROJECT_CLASSIFICATION_PROMPT = """Analyze this project and classify its primary type.
 
 ## Project Signals
 - Path: {path}
@@ -85,7 +85,7 @@ Consider:
 2. What would the user most likely want to do when opening this?
 3. Look at the README for intent signals.
 
-Analyze:'''
+Analyze:"""
 
 
 def describe_state(signals: ProjectSignals) -> str:
@@ -154,7 +154,7 @@ def _parse_goals_response(response: str, project_name: str) -> tuple[InferredGoa
         for g in data.get("goals", []):
             goals.append(
                 InferredGoal(
-                    id=g.get("id", f"goal-{len(goals)+1}"),
+                    id=g.get("id", f"goal-{len(goals) + 1}"),
                     title=sanitize_llm_content(g["title"]) or "",
                     description=sanitize_llm_content(g.get("description", "")) or "",
                     priority=g.get("priority", "medium"),
@@ -197,9 +197,7 @@ async def classify_with_llm(
     prompt = PROJECT_CLASSIFICATION_PROMPT.format(
         path=signals.path.name,
         readme_excerpt=signals.readme_content[:500] if signals.readme_content else "No README",
-        top_level_files=", ".join(
-            f.name for f in signals.path.iterdir() if f.is_file()
-        )[:200],
+        top_level_files=", ".join(f.name for f in signals.path.iterdir() if f.is_file())[:200],
         dir_tree=format_dir_tree(signals.path, max_depth=2),
         recent_commits=format_recent_commits(signals.git_status, limit=5),
     )

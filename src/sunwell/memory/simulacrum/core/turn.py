@@ -10,7 +10,6 @@ RFC-122: Extended with template and heuristic learning categories
 for compound learning and knowledge retrieval.
 """
 
-
 import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -272,13 +271,13 @@ class Learning:
     """How confident we are in this learning (0-1)."""
 
     category: Literal[
-        "fact",        # "Uses FastAPI"
+        "fact",  # "Uses FastAPI"
         "preference",  # "Prefers pytest"
         "constraint",  # "Tests required"
-        "pattern",     # "Uses factory pattern"
-        "dead_end",    # "Sync DB doesn't work"
-        "template",    # RFC-122: Structural task patterns
-        "heuristic",   # RFC-122: Ordering/strategy hints
+        "pattern",  # "Uses factory pattern"
+        "dead_end",  # "Sync DB doesn't work"
+        "template",  # RFC-122: Structural task patterns
+        "heuristic",  # RFC-122: Ordering/strategy hints
     ]
     """Type of learning."""
 

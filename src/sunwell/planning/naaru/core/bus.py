@@ -4,7 +4,6 @@ Like the brain's corpus callosum, this allows different specialized
 regions to communicate and coordinate.
 """
 
-
 import asyncio
 from collections import deque
 from dataclasses import dataclass, field
@@ -16,13 +15,13 @@ from typing import Any
 class NaaruRegion(Enum):
     """Specialized regions of the Naaru architecture."""
 
-    ANALYSIS = "analysis"      # Reading, pattern detection, introspection
-    SYNTHESIS = "synthesis"    # Proposal generation, solution creation
+    ANALYSIS = "analysis"  # Reading, pattern detection, introspection
+    SYNTHESIS = "synthesis"  # Proposal generation, solution creation
     VALIDATION = "validation"  # Safety checks, testing, quality gates
-    MEMORY = "memory"          # Simulacrum operations, learning
-    EXECUTIVE = "executive"    # Coordination, prioritization
-    ROUTING = "routing"        # RFC-020: Intent-aware routing
-    TOOLS = "tools"            # RFC-032: Tool execution for agent mode
+    MEMORY = "memory"  # Simulacrum operations, learning
+    EXECUTIVE = "executive"  # Coordination, prioritization
+    ROUTING = "routing"  # RFC-020: Intent-aware routing
+    TOOLS = "tools"  # RFC-032: Tool execution for agent mode
 
 
 class MessageType(Enum):
@@ -37,7 +36,7 @@ class MessageType(Enum):
     VALIDATE_REQUEST = "validate_request"
     MEMORIZE_REQUEST = "memorize_request"
     REFINE_REQUEST = "refine_request"  # Resonance: rejected → refine
-    ROUTE_REQUEST = "route_request"    # RFC-020: Intent classification request
+    ROUTE_REQUEST = "route_request"  # RFC-020: Intent classification request
 
     # Responses
     ANALYSIS_COMPLETE = "analysis_complete"
@@ -46,13 +45,13 @@ class MessageType(Enum):
     ROUTE_COMPLETE = "route_complete"  # RFC-020: Routing decision ready
 
     # RFC-032: Tool execution messages
-    TOOL_REQUEST = "tool_request"           # Execute a tool
-    TOOL_RESULT = "tool_result"             # Tool execution result
-    TOOL_BATCH = "tool_batch"               # Execute multiple tools
-    TOOL_BATCH_RESULT = "tool_batch_result" # Batch execution results
-    TASK_READY = "task_ready"               # Task ready for execution
-    TASK_COMPLETE = "task_complete"         # Task completed
-    TASK_FAILED = "task_failed"             # Task execution failed
+    TOOL_REQUEST = "tool_request"  # Execute a tool
+    TOOL_RESULT = "tool_result"  # Tool execution result
+    TOOL_BATCH = "tool_batch"  # Execute multiple tools
+    TOOL_BATCH_RESULT = "tool_batch_result"  # Batch execution results
+    TASK_READY = "task_ready"  # Task ready for execution
+    TASK_COMPLETE = "task_complete"  # Task completed
+    TASK_FAILED = "task_failed"  # Task execution failed
 
     # Control
     ATTENTION_SHIFT = "attention_shift"
@@ -106,7 +105,7 @@ class MessageBus:
 
     async def send(self, message: NaaruMessage) -> None:
         """Send a message to a specific region or broadcast.
-        
+
         Raises:
             asyncio.QueueFull: If target queue is full (backpressure)
         """
@@ -140,8 +139,5 @@ class MessageBus:
         return {
             "total_messages": len(self._message_log),
             "by_type": by_type,
-            "queue_sizes": {
-                region.value: self._queues[region].qsize()
-                for region in NaaruRegion
-            },
+            "queue_sizes": {region.value: self._queues[region].qsize() for region in NaaruRegion},
         }

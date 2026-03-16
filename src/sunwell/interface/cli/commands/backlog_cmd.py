@@ -12,7 +12,6 @@ Provides:
 - sunwell backlog history: View completed goals
 """
 
-
 import asyncio
 import json
 from pathlib import Path
@@ -79,10 +78,7 @@ async def _execute_goal_with_guardrails(
 
         # Record checkpoint with guardrails if provided
         if guardrails and result.success:
-            changes = [
-                FileChange(path=Path(p))
-                for p in result.artifacts_created
-            ]
+            changes = [FileChange(path=Path(p)) for p in result.artifacts_created]
             await guardrails.checkpoint_goal(goal, changes)
 
         return result
@@ -195,18 +191,21 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
 @backlog.command("run")
 @click.argument("goal_id")
 @click.option(
-    "--provider", "-p",
+    "--provider",
+    "-p",
     type=click.Choice(["openai", "anthropic", "ollama"]),
     default=None,
     help="Model provider (default: from config)",
 )
 @click.option(
-    "--model", "-m",
+    "--model",
+    "-m",
     default=None,
     help="Override model selection",
 )
 @click.option(
-    "--time", "-t",
+    "--time",
+    "-t",
     default=300,
     help="Max execution time in seconds (default: 300)",
 )
@@ -222,7 +221,8 @@ async def _show_backlog(json_output: bool, mermaid: bool) -> None:
     help="Plan only, don't execute",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output",
 )
@@ -258,9 +258,9 @@ def run_goal(
 
     Use 'sunwell backlog show' to see available goal IDs.
     """
-    asyncio.run(_run_backlog_goal(
-        goal_id, provider, model, time, trust, dry_run, verbose, json_output
-    ))
+    asyncio.run(
+        _run_backlog_goal(goal_id, provider, model, time, trust, dry_run, verbose, json_output)
+    )
 
 
 async def _run_backlog_goal(
@@ -299,11 +299,16 @@ async def _run_backlog_goal(
     if goal is None:
         if json_output:
             import json as json_module
-            print(json_module.dumps({
-                "type": "error",
-                "data": {"message": f"Goal not found: {goal_id}"},
-                "timestamp": __import__("time").time(),
-            }))
+
+            print(
+                json_module.dumps(
+                    {
+                        "type": "error",
+                        "data": {"message": f"Goal not found: {goal_id}"},
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+            )
         else:
             console.print(f"[red]❌ Goal not found: {goal_id}[/red]")
             console.print("\nAvailable goals:")
@@ -315,11 +320,16 @@ async def _run_backlog_goal(
     if goal_id in manager.backlog.backlog.completed:
         if json_output:
             import json as json_module
-            print(json_module.dumps({
-                "type": "error",
-                "data": {"message": f"Goal already completed: {goal_id}"},
-                "timestamp": __import__("time").time(),
-            }))
+
+            print(
+                json_module.dumps(
+                    {
+                        "type": "error",
+                        "data": {"message": f"Goal already completed: {goal_id}"},
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+            )
         else:
             console.print(f"[holy.gold]△ Goal already completed: {goal_id}[/holy.gold]")
         return
@@ -329,11 +339,16 @@ async def _run_backlog_goal(
         reason = manager.backlog.backlog.blocked[goal_id]
         if json_output:
             import json as json_module
-            print(json_module.dumps({
-                "type": "error",
-                "data": {"message": f"Goal is blocked: {reason}"},
-                "timestamp": __import__("time").time(),
-            }))
+
+            print(
+                json_module.dumps(
+                    {
+                        "type": "error",
+                        "data": {"message": f"Goal is blocked: {reason}"},
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+            )
         else:
             console.print(f"[void.purple]✗ Goal is blocked: {reason}[/void.purple]")
         return
@@ -343,11 +358,16 @@ async def _run_backlog_goal(
         if dep_id not in manager.backlog.backlog.completed:
             if json_output:
                 import json as json_module
-                print(json_module.dumps({
-                    "type": "error",
-                    "data": {"message": f"Dependency not met: {dep_id}"},
-                    "timestamp": __import__("time").time(),
-                }))
+
+                print(
+                    json_module.dumps(
+                        {
+                            "type": "error",
+                            "data": {"message": f"Dependency not met: {dep_id}"},
+                            "timestamp": __import__("time").time(),
+                        }
+                    )
+                )
             else:
                 console.print(f"[holy.gold]◇ Dependency not met: {dep_id}[/holy.gold]")
             return
@@ -379,11 +399,16 @@ async def _run_backlog_goal(
     except Exception as e:
         if json_output:
             import json as json_module
-            print(json_module.dumps({
-                "type": "error",
-                "data": {"message": f"Failed to load model: {e}"},
-                "timestamp": __import__("time").time(),
-            }))
+
+            print(
+                json_module.dumps(
+                    {
+                        "type": "error",
+                        "data": {"message": f"Failed to load model: {e}"},
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+            )
         else:
             console.print(f"[void.purple]✗ Failed to load model: {e}[/void.purple]")
         return
@@ -426,19 +451,30 @@ async def _run_backlog_goal(
     except Exception as e:
         if json_output:
             import json as json_module
-            print(json_module.dumps({
-                "type": "error",
-                "data": {"message": str(e)},
-                "timestamp": __import__("time").time(),
-            }))
+
+            print(
+                json_module.dumps(
+                    {
+                        "type": "error",
+                        "data": {"message": str(e)},
+                        "timestamp": __import__("time").time(),
+                    }
+                )
+            )
         else:
             console.print(f"[void.purple]✗ Execution failed: {e}[/void.purple]")
 
 
 @backlog.command()
 @click.option("--approve", help="Comma-separated goal IDs to pre-approve")
-@click.option("--workers", "-n", "num_workers", type=int, default=None,
-              help="Number of parallel workers (RFC-051)")
+@click.option(
+    "--workers",
+    "-n",
+    "num_workers",
+    type=int,
+    default=None,
+    help="Number of parallel workers (RFC-051)",
+)
 @click.option("--auto", is_flag=True, help="Auto-detect optimal worker count")
 @click.option("--dry-run", is_flag=True, help="Show what would happen")
 @click.pass_context
@@ -484,13 +520,15 @@ async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None
     help="Trust level for guardrails (default: guarded)",
 )
 @click.option(
-    "--provider", "-p",
+    "--provider",
+    "-p",
     type=click.Choice(["openai", "anthropic", "ollama"]),
     default=None,
     help="Model provider (default: from config)",
 )
 @click.option(
-    "--model", "-m",
+    "--model",
+    "-m",
     default=None,
     help="Override model selection",
 )
@@ -499,7 +537,8 @@ async def _execute_parallel(num_workers: int, auto: bool, dry_run: bool) -> None
 @click.option("--max-goals", type=int, default=None, help="Override max goals per session")
 @click.option("--dry-run", is_flag=True, help="Show what would be done without executing")
 @click.option(
-    "--yes", "-y",
+    "--yes",
+    "-y",
     is_flag=True,
     help="Auto-approve all escalations (use with caution)",
 )
@@ -533,9 +572,11 @@ def autonomous(
         sunwell backlog autonomous --dry-run          # Preview without executing
         sunwell backlog autonomous --yes              # Auto-approve all (dangerous)
     """
-    asyncio.run(_run_autonomous(
-        trust, provider, model, max_files, max_lines, max_goals, dry_run, yes, verbose
-    ))
+    asyncio.run(
+        _run_autonomous(
+            trust, provider, model, max_files, max_lines, max_goals, dry_run, yes, verbose
+        )
+    )
 
 
 async def _run_autonomous(
@@ -603,7 +644,9 @@ async def _run_autonomous(
 
     # If --yes flag, configure auto-response
     if yes:
-        console.print("\n[yellow]⚠ Warning: --yes flag set. All escalations will be auto-approved.[/yellow]")
+        console.print(
+            "\n[yellow]⚠ Warning: --yes flag set. All escalations will be auto-approved.[/yellow]"
+        )
         guardrails.escalation_handler.auto_response = "approve"
 
     # Show configuration
@@ -671,7 +714,9 @@ async def _run_autonomous(
     try:
         synthesis_model = resolve_model(provider, model)
         if verbose:
-            provider_name = provider or (app_config.model.default_provider if app_config else "ollama")
+            provider_name = provider or (
+                app_config.model.default_provider if app_config else "ollama"
+            )
             model_name = model or (app_config.model.default_model if app_config else "llama3.1:8b")
             console.print(f"[dim]Using model: {provider_name}:{model_name}[/dim]")
     except Exception as e:
@@ -793,7 +838,9 @@ async def _run_autonomous(
     remaining = len(goals) - completed - skipped - failed
 
     console.print("\n[sunwell.heading]◆ Session Complete[/sunwell.heading]")
-    console.print(f"   Goals: {completed} completed, {failed} failed, {skipped} skipped, {remaining} remaining")
+    console.print(
+        f"   Goals: {completed} completed, {failed} failed, {skipped} skipped, {remaining} remaining"
+    )
     console.print(f"   Artifacts: {artifacts_created} created")
     console.print(f"   Duration: {stats['duration_minutes']:.1f} minutes")
     console.print(f"\n   To rollback: sunwell guardrails rollback {session.tag}")

@@ -12,7 +12,6 @@ Gives models explicit agency over memory operations:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 from typing import TYPE_CHECKING
 
 from sunwell.models import Tool
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
 
 MEMORY_TOOLS: dict[str, Tool] = {
     # === Search & Recall ===
-
     "search_memory": Tool(
         name="search_memory",
         description=(
@@ -57,7 +55,6 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-
     "recall_user_info": Tool(
         name="recall_user_info",
         description=(
@@ -69,7 +66,6 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "properties": {},
         },
     ),
-
     "find_related": Tool(
         name="find_related",
         description=(
@@ -93,7 +89,6 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["topic"],
         },
     ),
-
     "find_contradictions": Tool(
         name="find_contradictions",
         description=(
@@ -111,9 +106,7 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["statement"],
         },
     ),
-
     # === Store & Track ===
-
     "add_learning": Tool(
         name="add_learning",
         description=(
@@ -142,7 +135,6 @@ MEMORY_TOOLS: dict[str, Tool] = {
             "required": ["fact", "category"],
         },
     ),
-
     "mark_dead_end": Tool(
         name="mark_dead_end",
         description=(
@@ -268,10 +260,7 @@ class MemoryToolHandler:
 
     async def _recall_user_info(self) -> str:
         """Recall all user_info category learnings."""
-        user_learnings = [
-            l for l in self.dag.get_active_learnings()
-            if l.category == "user_info"
-        ]
+        user_learnings = [l for l in self.dag.get_active_learnings() if l.category == "user_info"]
 
         if not user_learnings:
             return "No user information stored."
@@ -310,9 +299,7 @@ class MemoryToolHandler:
         if not self.store:
             # Fall back to dead ends in DAG
             dead_end_turns = [
-                self.dag.turns[tid]
-                for tid in self.dag.dead_ends
-                if tid in self.dag.turns
+                self.dag.turns[tid] for tid in self.dag.dead_ends if tid in self.dag.turns
             ]
             if dead_end_turns:
                 return "Dead ends (may conflict):\n" + "\n".join(

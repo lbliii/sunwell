@@ -1,5 +1,8 @@
 """Server-Sent Events (SSE) infrastructure for real-time updates.
 
+Deprecated: No callers; create_run_event_stream was used by removed system/stream
+and events/run endpoints. Kept for future run-specific SSE (POST→fragment pattern).
+
 Replaces WebSocket connections with SSE for simpler architecture:
 - Automatic reconnection (browser built-in)
 - Event replay via Last-Event-ID header
@@ -79,7 +82,7 @@ async def create_run_event_stream(
             return await create_run_event_stream(run_id, last_event_id=last_id)
     """
 
-    async def event_generator() -> AsyncGenerator[str, None]:
+    async def event_generator() -> AsyncGenerator[str]:
         """Generate SSE-formatted events."""
         start_seq = 0
         if last_event_id:

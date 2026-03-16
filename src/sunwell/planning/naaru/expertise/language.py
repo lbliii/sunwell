@@ -357,9 +357,7 @@ class LanguageClassifier:
         # Both have results - combine
         if goal_result.language == project_result.language:
             # Agreement boosts confidence
-            combined_confidence = min(
-                goal_result.confidence + project_result.confidence * 0.5, 1.0
-            )
+            combined_confidence = min(goal_result.confidence + project_result.confidence * 0.5, 1.0)
             combined_signals = goal_result.signals + project_result.signals
             return LanguageClassification(
                 language=goal_result.language,

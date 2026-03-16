@@ -40,31 +40,31 @@ from rich.theme import Theme
 
 # Holy Spectrum — Light, positive, active states
 HOLY_LIGHT = {
-    "radiant": "#ffd700",      # Active, thinking, primary
-    "gold": "#c9a227",         # Progress, standard accent
-    "gold_light": "#ffe566",   # Sparkle, highlight
-    "gold_dim": "#8a7235",     # Muted, disabled
-    "warm": "#fff4d4",         # Warm background
-    "success": "#22c55e",      # Complete, pass
+    "radiant": "#ffd700",  # Active, thinking, primary
+    "gold": "#c9a227",  # Progress, standard accent
+    "gold_light": "#ffe566",  # Sparkle, highlight
+    "gold_dim": "#8a7235",  # Muted, disabled
+    "warm": "#fff4d4",  # Warm background
+    "success": "#22c55e",  # Complete, pass
 }
 
 # Void Spectrum — Shadow, danger, unknown states
 VOID_SHADOW = {
-    "void": "#1e1b4b",         # Deep unknown
-    "purple": "#7c3aed",       # Error, violation
-    "indigo": "#4f46e5",       # Warning, caution
-    "deep": "#2e1065",         # Critical, fatal
-    "shadow": "#3730a3",       # Muted danger
+    "void": "#1e1b4b",  # Deep unknown
+    "purple": "#7c3aed",  # Error, violation
+    "indigo": "#4f46e5",  # Warning, caution
+    "deep": "#2e1065",  # Critical, fatal
+    "shadow": "#3730a3",  # Muted danger
 }
 
 # Neutral — The canvas
 NEUTRAL = {
-    "obsidian": "#0d0d0d",     # Background
-    "surface": "#1a1a1a",      # Cards
-    "elevated": "#262626",     # Hover
-    "text": "#e5e5e5",         # Primary text
-    "muted": "#a8a8a8",        # Secondary text
-    "dim": "#525252",          # Tertiary
+    "obsidian": "#0d0d0d",  # Background
+    "surface": "#1a1a1a",  # Cards
+    "elevated": "#262626",  # Hover
+    "text": "#e5e5e5",  # Primary text
+    "muted": "#a8a8a8",  # Secondary text
+    "dim": "#525252",  # Tertiary
 }
 
 
@@ -72,60 +72,55 @@ NEUTRAL = {
 # RICH THEME (RFC-131)
 # =============================================================================
 
-SUNWELL_THEME = Theme({
-    # ═══════════════════════════════════════════════════════════════
-    # HOLY SPECTRUM — Light, positive, active states
-    # ═══════════════════════════════════════════════════════════════
-    "holy.radiant": "bold bright_yellow",         # ✦ Active, magical moments
-    "holy.gold": "yellow",                        # Standard UI accent
-    "holy.gold.dim": "dim yellow",                # Muted, disabled
-    "holy.success": "bold green",                 # ✓ Completion (green-gold)
-
-    # ═══════════════════════════════════════════════════════════════
-    # VOID SPECTRUM — Shadow, danger, unknown states
-    # ═══════════════════════════════════════════════════════════════
-    "void.purple": "bold magenta",                # ✗ Error, violation
-    "void.indigo": "bright_magenta",              # △ Warning, caution
-    "void.deep": "bold red",                      # ⊗ Critical, fatal
-    "void.shadow": "dim magenta",                 # Muted danger
-    "void": "dim blue",                           # Unknown, waiting
-
-    # ═══════════════════════════════════════════════════════════════
-    # NEUTRAL — The canvas
-    # ═══════════════════════════════════════════════════════════════
-    "neutral.text": "white",                      # Primary text
-    "neutral.muted": "dim white",                 # Secondary text
-    "neutral.dim": "dim",                         # Tertiary, hints
-
-    # ═══════════════════════════════════════════════════════════════
-    # SEMANTIC ALIASES (map to spectrum)
-    # ═══════════════════════════════════════════════════════════════
-    "sunwell.success": "bold green",              # Light triumphs
-    "sunwell.warning": "bright_magenta",          # Shadow creeping in
-    "sunwell.error": "bold magenta",              # Void corruption
-    "sunwell.critical": "bold red",               # Full void
-
-    # Phase indicators
-    "sunwell.phase": "bold yellow",               # Phase headers
-    "sunwell.phase.active": "bold bright_yellow", # Current phase
-    "sunwell.phase.complete": "dim green",        # Done phases
-
-    # Progress
-    "sunwell.progress.bar": "yellow",
-    "sunwell.progress.complete": "bright_yellow",
-    "sunwell.progress.remaining": "dim white",
-
-    # Text hierarchy
-    "sunwell.heading": "bold white",
-    "sunwell.body": "white",
-    "sunwell.muted": "dim white",
-    "sunwell.highlight": "bold bright_yellow",
-
-    # Aliases for common usage
-    "sunwell.radiant": "bold bright_yellow",
-    "sunwell.gold": "yellow",
-    "sunwell.gold.dim": "dim yellow",
-})
+SUNWELL_THEME = Theme(
+    {
+        # ═══════════════════════════════════════════════════════════════
+        # HOLY SPECTRUM — Light, positive, active states
+        # ═══════════════════════════════════════════════════════════════
+        "holy.radiant": "bold bright_yellow",  # ✦ Active, magical moments
+        "holy.gold": "yellow",  # Standard UI accent
+        "holy.gold.dim": "dim yellow",  # Muted, disabled
+        "holy.success": "bold green",  # ✓ Completion (green-gold)
+        # ═══════════════════════════════════════════════════════════════
+        # VOID SPECTRUM — Shadow, danger, unknown states
+        # ═══════════════════════════════════════════════════════════════
+        "void.purple": "bold magenta",  # ✗ Error, violation
+        "void.indigo": "bright_magenta",  # △ Warning, caution
+        "void.deep": "bold red",  # ⊗ Critical, fatal
+        "void.shadow": "dim magenta",  # Muted danger
+        "void": "dim blue",  # Unknown, waiting
+        # ═══════════════════════════════════════════════════════════════
+        # NEUTRAL — The canvas
+        # ═══════════════════════════════════════════════════════════════
+        "neutral.text": "white",  # Primary text
+        "neutral.muted": "dim white",  # Secondary text
+        "neutral.dim": "dim",  # Tertiary, hints
+        # ═══════════════════════════════════════════════════════════════
+        # SEMANTIC ALIASES (map to spectrum)
+        # ═══════════════════════════════════════════════════════════════
+        "sunwell.success": "bold green",  # Light triumphs
+        "sunwell.warning": "bright_magenta",  # Shadow creeping in
+        "sunwell.error": "bold magenta",  # Void corruption
+        "sunwell.critical": "bold red",  # Full void
+        # Phase indicators
+        "sunwell.phase": "bold yellow",  # Phase headers
+        "sunwell.phase.active": "bold bright_yellow",  # Current phase
+        "sunwell.phase.complete": "dim green",  # Done phases
+        # Progress
+        "sunwell.progress.bar": "yellow",
+        "sunwell.progress.complete": "bright_yellow",
+        "sunwell.progress.remaining": "dim white",
+        # Text hierarchy
+        "sunwell.heading": "bold white",
+        "sunwell.body": "white",
+        "sunwell.muted": "dim white",
+        "sunwell.highlight": "bold bright_yellow",
+        # Aliases for common usage
+        "sunwell.radiant": "bold bright_yellow",
+        "sunwell.gold": "yellow",
+        "sunwell.gold.dim": "dim yellow",
+    }
+)
 
 
 # =============================================================================
@@ -134,11 +129,11 @@ SUNWELL_THEME = Theme({
 
 # Stars & Sparkles
 CHARS_STARS = {
-    "radiant": "✦",      # U+2726 Active/Important
-    "progress": "✧",     # U+2727 Secondary
-    "complete": "★",     # U+2605 Success
-    "cache": "⋆",        # U+22C6 Fast
-    "dim": "·",          # U+00B7 Pending/Debug
+    "radiant": "✦",  # U+2726 Active/Important
+    "progress": "✧",  # U+2727 Secondary
+    "complete": "★",  # U+2605 Success
+    "cache": "⋆",  # U+22C6 Fast
+    "dim": "·",  # U+00B7 Pending/Debug
 }
 
 # Spirals (Uzumaki — for thinking)
@@ -146,67 +141,67 @@ CHARS_SPIRAL = ["◜", "◝", "◞", "◟"]  # Quarter arcs
 
 # Diamonds
 CHARS_DIAMONDS = {
-    "solid": "◆",        # U+25C6 Ready
-    "hollow": "◇",       # U+25C7 Waiting
-    "inset": "◈",        # U+25C8 Paused
+    "solid": "◆",  # U+25C6 Ready
+    "hollow": "◇",  # U+25C7 Waiting
+    "inset": "◈",  # U+25C8 Paused
 }
 
 # Circles
 CHARS_CIRCLES = {
-    "filled": "●",       # U+25CF High
-    "target": "◉",       # U+25C9 Moderate
-    "empty": "○",        # U+25CB Low
-    "dotted": "◌",       # U+25CC Uncertain
-    "double": "◎",       # U+25CE Model
-    "half": "◐",         # U+25D0 Lens
-    "quarter": "◔",      # U+25D4 Timeout
+    "filled": "●",  # U+25CF High
+    "target": "◉",  # U+25C9 Moderate
+    "empty": "○",  # U+25CB Low
+    "dotted": "◌",  # U+25CC Uncertain
+    "double": "◎",  # U+25CE Model
+    "half": "◐",  # U+25D0 Lens
+    "quarter": "◔",  # U+25D4 Timeout
 }
 
 # Checks & Crosses
 CHARS_CHECKS = {
-    "pass": "✓",         # U+2713
-    "fail": "✗",         # U+2717
+    "pass": "✓",  # U+2713
+    "fail": "✗",  # U+2717
 }
 
 # Misc
 CHARS_MISC = {
-    "gear": "⚙",         # U+2699 Fixing
-    "warning": "△",      # U+25B3 Warning/Stub
-    "approval": "⊗",     # U+2297 Approval needed
-    "violation": "⊘",    # U+2298 Violation
-    "refresh": "↻",      # U+21BB Refresh
-    "learning": "≡",     # U+2261 Learning
-    "insight": "※",      # U+203B Insight
-    "decision": "▣",     # U+25A3 Decision
-    "save": "▤",         # U+25A4 Save/Checkpoint
-    "workspace": "▢",    # U+25A2 Workspace
-    "budget": "¤",       # U+00A4 Budget
-    "prompt": "?",       # Question
-    "input": "›",        # U+203A Input marker
+    "gear": "⚙",  # U+2699 Fixing
+    "warning": "△",  # U+25B3 Warning/Stub
+    "approval": "⊗",  # U+2297 Approval needed
+    "violation": "⊘",  # U+2298 Violation
+    "refresh": "↻",  # U+21BB Refresh
+    "learning": "≡",  # U+2261 Learning
+    "insight": "※",  # U+203B Insight
+    "decision": "▣",  # U+25A3 Decision
+    "save": "▤",  # U+25A4 Save/Checkpoint
+    "workspace": "▢",  # U+25A2 Workspace
+    "budget": "¤",  # U+00A4 Budget
+    "prompt": "?",  # Question
+    "input": "›",  # U+203A Input marker
 }
 
 # Progress & Steps
 CHARS_PROGRESS = {
-    "step_done": "◆",    # U+25C6 Completed step
-    "step_current": "◈", # U+25C8 Current step
-    "step_pending": "◇", # U+25C7 Pending step
+    "step_done": "◆",  # U+25C6 Completed step
+    "step_current": "◈",  # U+25C8 Current step
+    "step_pending": "◇",  # U+25C7 Pending step
     "connector": "───",  # Step connector
-    "arrow": "›",        # U+203A Breadcrumb separator
+    "arrow": "›",  # U+203A Breadcrumb separator
 }
 
 # Layout & Structure
 CHARS_LAYOUT = {
-    "quote": "┃",        # U+2503 Quote bar
-    "expand": "▶",       # U+25B6 Collapsed
-    "collapse": "▼",     # U+25BC Expanded
-    "corner_tl": "╭",    # U+256D Top-left rounded
-    "corner_tr": "╮",    # U+256E Top-right rounded
-    "corner_bl": "╰",    # U+2570 Bottom-left rounded
-    "corner_br": "╯",    # U+256F Bottom-right rounded
-    "h_line": "─",       # U+2500 Horizontal line
-    "v_line": "│",       # U+2502 Vertical line
-    "tree_branch": "├─", # Tree branch
-    "tree_last": "└─",   # Tree last branch
+    "quote": "┃",  # U+2503 Quote bar
+    "expand": "▶",  # U+25B6 Collapsed
+    "collapse": "▼",  # U+25BC Expanded
+    "corner_tl": "╭",  # U+256D Top-left rounded
+    "corner_tr": "╮",  # U+256E Top-right rounded
+    "corner_bl": "╰",  # U+2570 Bottom-left rounded
+    "corner_br": "╯",  # U+256F Bottom-right rounded
+    "h_line": "─",  # U+2500 Horizontal line
+    "v_line": "│",  # U+2502 Vertical line
+    "tree_branch": "├─",  # Tree branch
+    "tree_last": "└─",  # Tree last branch
 }
 
 
@@ -217,53 +212,47 @@ CHARS_LAYOUT = {
 
 ICON_MAP = {
     # Status
-    "✅": "★",           # Success/complete
-    "❌": "✗",           # Error/fail
-    "⚠️": "△",           # Warning
-    "⚠": "△",            # Warning (alt)
-
+    "✅": "★",  # Success/complete
+    "❌": "✗",  # Error/fail
+    "⚠️": "△",  # Warning
+    "⚠": "△",  # Warning (alt)
     # Actions
-    "🔥": "✦",           # Hot/active
-    "⚡": "✧",           # Fast/action
-    "✨": "★",           # Complete/sparkle
-    "💡": "✧",           # Idea/tip
-    "🚀": "✦",           # Launch/start
-    "🔧": "⚙",           # Fix/tool
-    "🔍": "◇",           # Search/find
-    "🔬": "◎",           # Analyze
-
+    "🔥": "✦",  # Hot/active
+    "⚡": "✧",  # Fast/action
+    "✨": "★",  # Complete/sparkle
+    "💡": "✧",  # Idea/tip
+    "🚀": "✦",  # Launch/start
+    "🔧": "⚙",  # Fix/tool
+    "🔍": "◇",  # Search/find
+    "🔬": "◎",  # Analyze
     # Information
-    "📁": "▢",           # File/directory
-    "📊": "≡",           # Data/stats
-    "📈": "≡",           # Metrics
-    "🎯": "◇",           # Goal/target
-    "💾": "▤",           # Save/checkpoint
-    "📍": "◆",           # Location/position
-    "📋": "≡",           # List/summary
-
+    "📁": "▢",  # File/directory
+    "📊": "≡",  # Data/stats
+    "📈": "≡",  # Metrics
+    "🎯": "◇",  # Goal/target
+    "💾": "▤",  # Save/checkpoint
+    "📍": "◆",  # Location/position
+    "📋": "≡",  # List/summary
     # Thinking
-    "💭": "◜",           # Thinking
-    "🧠": "◎",           # Model/brain
-    "💬": "›",           # Chat/message
-
+    "💭": "◜",  # Thinking
+    "🧠": "◎",  # Model/brain
+    "💬": "›",  # Chat/message
     # Security
-    "🛡": "⊗",           # Guard/protection
-    "🔒": "⊘",           # Lock/secure
-    "🔓": "◇",           # Unlock
-
+    "🛡": "⊗",  # Guard/protection
+    "🔒": "⊘",  # Lock/secure
+    "🔓": "◇",  # Unlock
     # Process
-    "🔀": "↻",           # Split/branch
-    "↻": "↻",            # Refresh (already unicode)
-    "⏸️": "◈",           # Pause
-    "⏸": "◈",            # Pause (alt)
-    "▶": "◆",            # Play/run
-
+    "🔀": "↻",  # Split/branch
+    "↻": "↻",  # Refresh (already unicode)
+    "⏸️": "◈",  # Pause
+    "⏸": "◈",  # Pause (alt)
+    "▶": "◆",  # Play/run
     # Misc
-    "🧬": "≡",           # Evolution/DNA
-    "⏰": "◔",           # Timeout
-    "🟢": "●",           # Active/on
-    "🔴": "●",           # Error (use color for distinction)
-    "🟡": "◉",           # Warning
+    "🧬": "≡",  # Evolution/DNA
+    "⏰": "◔",  # Timeout
+    "🟢": "●",  # Active/on
+    "🔴": "●",  # Error (use color for distinction)
+    "🟡": "◉",  # Warning
 }
 
 
@@ -278,33 +267,26 @@ STYLE_MAP = {
     "[/red]": "[/void.purple]",
     "[bold red]": "[void.deep]",
     "[/bold red]": "[/void.deep]",
-
     "[green]": "[holy.success]",
     "[/green]": "[/holy.success]",
     "[bold green]": "[holy.success]",
     "[/bold green]": "[/holy.success]",
-
     "[yellow]": "[holy.gold]",
     "[/yellow]": "[/holy.gold]",
     "[bold yellow]": "[holy.radiant]",
     "[/bold yellow]": "[/holy.radiant]",
-
     "[cyan]": "[holy.radiant]",
     "[/cyan]": "[/holy.radiant]",
     "[bold cyan]": "[holy.radiant]",
     "[/bold cyan]": "[/holy.radiant]",
-
     "[blue]": "[holy.gold.dim]",
     "[/blue]": "[/holy.gold.dim]",
-
     "[magenta]": "[void.purple]",
     "[/magenta]": "[/void.purple]",
     "[bold magenta]": "[void.purple]",
     "[/bold magenta]": "[/void.purple]",
-
     "[dim]": "[neutral.dim]",
     "[/dim]": "[/neutral.dim]",
-
     "[bold]": "[sunwell.heading]",
     "[/bold]": "[/sunwell.heading]",
 }
@@ -336,19 +318,14 @@ def holy_print(console: Console, text: str, **kwargs: Any) -> None:
 SPINNERS = {
     # Mote cycle - for progress/activity
     "mote": ["·", "✧", "✦", "✧", "·", " "],
-
     # Spiral (Uzumaki) - for deep thinking/reasoning
     "spiral": ["◜", "◝", "◞", "◟"],
-
     # Radiant pulse - for important operations
     "radiant": ["✦", "★", "✦", "✧"],
-
     # Rising effect - particles ascending
     "rising": ["⋆", "✧", "✦", "✧", "⋆", "·"],
-
     # Diamond pulse - for validation
     "diamond": ["◇", "◈", "◆", "◈"],
-
     # Deep spiral - thinking with depth indicator
     "spiral_deep": ["◜ ·", "◝ ○", "◞ ◎", "◟ ◉"],
 }
@@ -405,6 +382,7 @@ class SpiralSpinner:
 # SPARKLE ANIMATIONS (RFC-131)
 # =============================================================================
 
+
 class Sparkle:
     """Animated sparkle for terminal feedback."""
 
@@ -433,6 +411,7 @@ class Sparkle:
 # RISING MOTES ANIMATION (RFC-131)
 # =============================================================================
 
+
 @dataclass(slots=True)
 class Mote:
     """A single rising particle."""
@@ -459,11 +438,13 @@ class RisingMotes:
 
     def _spawn_mote(self) -> None:
         """Spawn a new mote at the bottom."""
-        self.motes.append(Mote(
-            x=random.randint(0, self.WIDTH - 1),
-            y=self.HEIGHT - 1,
-            char=random.choice(self.CHARS),
-        ))
+        self.motes.append(
+            Mote(
+                x=random.randint(0, self.WIDTH - 1),
+                y=self.HEIGHT - 1,
+                char=random.choice(self.CHARS),
+            )
+        )
 
     def _update(self) -> None:
         """Update mote positions."""
@@ -521,6 +502,7 @@ class RisingMotes:
 # PHASE HEADERS (RFC-131)
 # =============================================================================
 
+
 class PhaseStyle(Enum):
     """Agent execution phases."""
 
@@ -547,6 +529,7 @@ PHASE_HEADERS = {
 # =============================================================================
 # SEMANTIC LEVELS (RFC-131)
 # =============================================================================
+
 
 class Level(Enum):
     """Semantic severity levels for messaging."""
@@ -604,10 +587,10 @@ FILE_OPS = {
 # =============================================================================
 
 CONFIDENCE_LEVELS = {
-    "high": ("●", "green", "High"),      # 90-100%
+    "high": ("●", "green", "High"),  # 90-100%
     "moderate": ("◉", "yellow", "Moderate"),  # 70-89%
-    "low": ("○", "bright_magenta", "Low"),        # 50-69%
-    "uncertain": ("◌", "red", "Uncertain"),   # 0-49%
+    "low": ("○", "bright_magenta", "Low"),  # 50-69%
+    "uncertain": ("◌", "red", "Uncertain"),  # 0-49%
 }
 
 
@@ -627,12 +610,11 @@ def get_confidence_level(score: float) -> tuple[str, str, str]:
 # ACCESSIBILITY (RFC-131)
 # =============================================================================
 
+
 def should_reduce_motion() -> bool:
     """Check if animations should be disabled."""
     # Respect user preference or NO_COLOR standard
-    return bool(
-        os.environ.get("SUNWELL_REDUCED_MOTION") or os.environ.get("NO_COLOR")
-    )
+    return bool(os.environ.get("SUNWELL_REDUCED_MOTION") or os.environ.get("NO_COLOR"))
 
 
 def is_plain_mode() -> bool:
@@ -643,6 +625,7 @@ def is_plain_mode() -> bool:
 # =============================================================================
 # SUNWELL RENDERER CONFIG (RFC-131)
 # =============================================================================
+
 
 @dataclass(frozen=True, slots=True)
 class SunwellRendererConfig:
@@ -682,6 +665,7 @@ class SunwellRendererConfig:
 # CONSOLE FACTORY (RFC-131)
 # =============================================================================
 
+
 def create_sunwell_console() -> Console:
     """Create a Rich console with Sunwell theme."""
     return Console(theme=SUNWELL_THEME)
@@ -710,6 +694,7 @@ def create_sunwell_progress(console: Console | None = None) -> Progress:
 # =============================================================================
 # RENDERING HELPERS (RFC-131)
 # =============================================================================
+
 
 def emit(console: Console, level: Level, message: str) -> None:
     """Emit a message at the given severity level."""
@@ -789,11 +774,11 @@ def render_metrics(console: Console, metrics: dict[str, Any]) -> None:
     console.print("\n  [holy.gold]Metrics[/]")
     console.print(f"    ├─ Duration:    {metrics.get('duration_s', 0):.1f}s")
     console.print(f"    ├─ Tokens:      {metrics.get('total_tokens', 0):,}")
-    if metrics.get('cost'):
+    if metrics.get("cost"):
         console.print(f"    ├─ Cost:        ${metrics['cost']:.4f}")
     else:
         console.print("    ├─ Cost:        $0.0000 (local)")
-    if metrics.get('tokens_per_second'):
+    if metrics.get("tokens_per_second"):
         console.print(f"    └─ Efficiency:  {metrics['tokens_per_second']:.1f} tok/s")
 
 
@@ -860,6 +845,7 @@ def print_banner(console: Console, version: str = "0.3.0", small: bool = False) 
 # COMPLETION DISPLAY (RFC-131)
 # =============================================================================
 
+
 def render_complete(
     console: Console,
     tasks_completed: int,
@@ -919,6 +905,7 @@ def render_error(
 # =============================================================================
 # NEW COMPONENTS (RFC-131 Extended)
 # =============================================================================
+
 
 def render_streaming(
     console: Console,
@@ -1031,9 +1018,13 @@ def render_alert(
 
     for line in lines:
         padded = line.ljust(box_width - 2)
-        console.print(f"[{style}]{CHARS_LAYOUT['v_line']}[/]  {padded}[{style}]{CHARS_LAYOUT['v_line']}[/]")
+        console.print(
+            f"[{style}]{CHARS_LAYOUT['v_line']}[/]  {padded}[{style}]{CHARS_LAYOUT['v_line']}[/]"
+        )
 
-    bottom_line = CHARS_LAYOUT["corner_bl"] + CHARS_LAYOUT["h_line"] * box_width + CHARS_LAYOUT["corner_br"]
+    bottom_line = (
+        CHARS_LAYOUT["corner_bl"] + CHARS_LAYOUT["h_line"] * box_width + CHARS_LAYOUT["corner_br"]
+    )
     console.print(f"[{style}]{bottom_line}[/]")
 
 
@@ -1052,11 +1043,13 @@ def render_quote(
     lines = text.split("\n")
 
     for line in lines:
-        console.print(f"  [holy.gold.dim]{CHARS_LAYOUT['quote']}[/] [neutral.text]\"{line}\"[/]")
+        console.print(f'  [holy.gold.dim]{CHARS_LAYOUT["quote"]}[/] [neutral.text]"{line}"[/]')
 
     if attribution:
         # Right-align attribution
-        console.print(f"  [holy.gold.dim]{CHARS_LAYOUT['quote']}[/] [neutral.dim]— {attribution}[/]")
+        console.print(
+            f"  [holy.gold.dim]{CHARS_LAYOUT['quote']}[/] [neutral.dim]— {attribution}[/]"
+        )
 
 
 def render_separator(
@@ -1223,12 +1216,14 @@ def render_diff(
     """
     import difflib
 
-    diff = list(difflib.unified_diff(
-        old_lines,
-        new_lines,
-        lineterm="",
-        n=context_lines,
-    ))
+    diff = list(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            lineterm="",
+            n=context_lines,
+        )
+    )
 
     for line in diff:
         if line.startswith("+++") or line.startswith("---"):

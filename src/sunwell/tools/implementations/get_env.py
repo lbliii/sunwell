@@ -7,52 +7,54 @@ from sunwell.tools.core.types import ToolTrust
 from sunwell.tools.registry import BaseTool, tool_metadata
 
 # Allowlist of safe environment variables
-ENV_ALLOWLIST: frozenset[str] = frozenset({
-    # System info
-    "HOME",
-    "USER",
-    "SHELL",
-    "TERM",
-    "LANG",
-    "LC_ALL",
-    "TZ",
-    # Path info
-    "PATH",
-    "PWD",
-    "OLDPWD",
-    # Development
-    "EDITOR",
-    "VISUAL",
-    "PAGER",
-    # Python
-    "PYTHONPATH",
-    "VIRTUAL_ENV",
-    "CONDA_PREFIX",
-    # Node
-    "NODE_ENV",
-    "NPM_CONFIG_PREFIX",
-    # Go
-    "GOPATH",
-    "GOROOT",
-    # Rust
-    "CARGO_HOME",
-    "RUSTUP_HOME",
-    # Git
-    "GIT_AUTHOR_NAME",
-    "GIT_AUTHOR_EMAIL",
-    "GIT_COMMITTER_NAME",
-    "GIT_COMMITTER_EMAIL",
-    # Docker
-    "DOCKER_HOST",
-    # CI indicators (read-only)
-    "CI",
-    "GITHUB_ACTIONS",
-    "GITLAB_CI",
-    "CIRCLECI",
-    # Build info
-    "BUILD_NUMBER",
-    "BUILD_ID",
-})
+ENV_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        # System info
+        "HOME",
+        "USER",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "LC_ALL",
+        "TZ",
+        # Path info
+        "PATH",
+        "PWD",
+        "OLDPWD",
+        # Development
+        "EDITOR",
+        "VISUAL",
+        "PAGER",
+        # Python
+        "PYTHONPATH",
+        "VIRTUAL_ENV",
+        "CONDA_PREFIX",
+        # Node
+        "NODE_ENV",
+        "NPM_CONFIG_PREFIX",
+        # Go
+        "GOPATH",
+        "GOROOT",
+        # Rust
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+        # Git
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        # Docker
+        "DOCKER_HOST",
+        # CI indicators (read-only)
+        "CI",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "CIRCLECI",
+        # Build info
+        "BUILD_NUMBER",
+        "BUILD_ID",
+    }
+)
 
 # Patterns for blocked environment variables (may contain secrets)
 ENV_BLOCKLIST_PATTERNS: tuple[str, ...] = (

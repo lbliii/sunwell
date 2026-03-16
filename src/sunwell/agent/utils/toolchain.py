@@ -546,16 +546,18 @@ class StaticAnalysisCascade:
 
         # Step 1: Syntax
         syntax_result = await runner.check_syntax(files)
-        syntax_details = [
-            f"{e.file}:{e.line}: {e.message}" for e in syntax_result.lint_errors
-        ][:5]  # Limit to 5 errors for readability
-        steps.append({
-            "step": "syntax",
-            "passed": syntax_result.passed,
-            "errors": len(syntax_result.lint_errors),
-            "error_details": syntax_details,
-            "duration_ms": syntax_result.duration_ms,
-        })
+        syntax_details = [f"{e.file}:{e.line}: {e.message}" for e in syntax_result.lint_errors][
+            :5
+        ]  # Limit to 5 errors for readability
+        steps.append(
+            {
+                "step": "syntax",
+                "passed": syntax_result.passed,
+                "errors": len(syntax_result.lint_errors),
+                "error_details": syntax_details,
+                "duration_ms": syntax_result.duration_ms,
+            }
+        )
 
         if not syntax_result.passed:
             return False, steps
@@ -565,30 +567,34 @@ class StaticAnalysisCascade:
         lint_details = [
             f"{e.file}:{e.line}: [{e.code}] {e.message}" for e in lint_result.lint_errors
         ][:5]  # Limit to 5 errors for readability
-        steps.append({
-            "step": "lint",
-            "passed": lint_result.passed,
-            "errors": len(lint_result.lint_errors),
-            "error_details": lint_details,
-            "auto_fixed": lint_result.auto_fixed,
-            "duration_ms": lint_result.duration_ms,
-        })
+        steps.append(
+            {
+                "step": "lint",
+                "passed": lint_result.passed,
+                "errors": len(lint_result.lint_errors),
+                "error_details": lint_details,
+                "auto_fixed": lint_result.auto_fixed,
+                "duration_ms": lint_result.duration_ms,
+            }
+        )
 
         if not lint_result.passed:
             return False, steps
 
         # Step 3: Type check
         type_result = await runner.check_types(files)
-        type_details = [
-            f"{e.file}:{e.line}: {e.message}" for e in type_result.type_errors
-        ][:5]  # Limit to 5 errors for readability
-        steps.append({
-            "step": "type",
-            "passed": type_result.passed,
-            "errors": len(type_result.type_errors),
-            "error_details": type_details,
-            "duration_ms": type_result.duration_ms,
-        })
+        type_details = [f"{e.file}:{e.line}: {e.message}" for e in type_result.type_errors][
+            :5
+        ]  # Limit to 5 errors for readability
+        steps.append(
+            {
+                "step": "type",
+                "passed": type_result.passed,
+                "errors": len(type_result.type_errors),
+                "error_details": type_details,
+                "duration_ms": type_result.duration_ms,
+            }
+        )
 
         all_passed = syntax_result.passed and lint_result.passed and type_result.passed
         return all_passed, steps

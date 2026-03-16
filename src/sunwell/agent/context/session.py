@@ -210,16 +210,17 @@ class SessionContext:
         # This catches cases where user accidentally runs from inside .sunwell/
         if cwd.name == ".sunwell":
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
-                "Workspace was .sunwell directory, using parent: %s -> %s",
-                cwd, cwd.parent
+                "Workspace was .sunwell directory, using parent: %s -> %s", cwd, cwd.parent
             )
             cwd = cwd.parent
 
         # Set defaults if options not provided
         if options is None:
             from sunwell.agent.utils.request import RunOptions
+
             options = RunOptions()
 
         # Detect project type and framework
@@ -387,9 +388,7 @@ class SessionContext:
 
         # Entry points
         if self.entry_points:
-            lines.append(
-                f"**Entry points**: {', '.join(f'`{e}`' for e in self.entry_points)}"
-            )
+            lines.append(f"**Entry points**: {', '.join(f'`{e}`' for e in self.entry_points)}")
             lines.append("")
 
         # Directory tree
@@ -455,17 +454,14 @@ class SessionContext:
         )
 
         # Determine status
-        completed_ids = [
-            c.id for c in self.tasks if hasattr(c, "completed") and c.completed
-        ]
+        completed_ids = [c.id for c in self.tasks if hasattr(c, "completed") and c.completed]
         all_done = self.tasks and all(t.id in completed_ids for t in self.tasks)
         status = BriefingStatus.COMPLETE if all_done else BriefingStatus.IN_PROGRESS
 
         # Build execution summary
         completed_count = len([t for t in self.tasks if hasattr(t, "completed") and t.completed])
         next_action = (
-            None if status == BriefingStatus.COMPLETE
-            else "Continue from previous session"
+            None if status == BriefingStatus.COMPLETE else "Continue from previous session"
         )
 
         # Get hazards from reflection phase (if any)
@@ -545,7 +541,7 @@ def _generate_session_id() -> str:
 
 def _detect_python_framework(cwd: Path) -> str | None:
     """Detect Python framework from dependencies, not file names.
-    
+
     Checks pyproject.toml and requirements.txt for actual framework imports.
     """
     framework_deps = {
@@ -576,7 +572,9 @@ def _detect_python_framework(cwd: Path) -> str | None:
                 for framework, dep in framework_deps.items():
                     for line in content.splitlines():
                         line = line.strip()
-                        if line.startswith(dep) and (len(line) == len(dep) or line[len(dep)] in "=<>~["):
+                        if line.startswith(dep) and (
+                            len(line) == len(dep) or line[len(dep)] in "=<>~["
+                        ):
                             return framework
             except OSError:
                 pass
@@ -726,8 +724,18 @@ def _build_directory_tree(cwd: Path, max_depth: int = 3, max_items: int = 50) ->
 
     # Directories to skip
     skip_dirs = {
-        ".git", ".sunwell", "__pycache__", "node_modules", ".venv", "venv",
-        "dist", "build", ".next", ".svelte-kit", "target", ".pytest_cache",
+        ".git",
+        ".sunwell",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".next",
+        ".svelte-kit",
+        "target",
+        ".pytest_cache",
     }
 
     def walk(path: Path, prefix: str, depth: int) -> None:
@@ -773,6 +781,7 @@ def _load_briefing(cwd: Path) -> Briefing | None:
     """Load briefing from previous session."""
     try:
         from sunwell.memory.briefing import Briefing
+
         return Briefing.load(cwd)
     except Exception:
         return None

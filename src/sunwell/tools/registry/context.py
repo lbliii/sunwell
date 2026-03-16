@@ -4,12 +4,7 @@ Provides functions to build tool hints and usage guidance sections
 for injection into agent system prompts.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from sunwell.tools.registry.dynamic import DynamicToolRegistry
+from sunwell.tools.registry.dynamic import DynamicToolRegistry
 
 
 def build_tool_hints(registry: DynamicToolRegistry) -> str:
@@ -101,10 +96,7 @@ def format_tool_summary(registry: DynamicToolRegistry) -> str:
     ]
 
     if active:
-        essential = [
-            name for name in active
-            if registry.tool_classes[name].metadata.essential
-        ]
+        essential = [name for name in active if registry.tool_classes[name].metadata.essential]
         if essential:
             lines.append(f"  Essential: {', '.join(essential)}")
 

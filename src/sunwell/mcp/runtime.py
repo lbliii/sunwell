@@ -5,8 +5,6 @@ Eliminates per-call event loop creation, workspace resolution duplication,
 and repeated subsystem initialization across 25+ MCP tools.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import threading
@@ -99,9 +97,7 @@ class MCPRuntime:
     """
 
     def __init__(self, workspace: str | None = None) -> None:
-        self._workspace = (
-            Path(workspace).expanduser().resolve() if workspace else Path.cwd()
-        )
+        self._workspace = Path(workspace).expanduser().resolve() if workspace else Path.cwd()
         self._loop_thread = _LoopThread()
 
         # Lazy subsystem caches (UNSET = not attempted yet)

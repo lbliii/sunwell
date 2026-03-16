@@ -97,14 +97,10 @@ class ContextEnricher:
         codebase = self._project_context.codebase
 
         # Check hot paths
-        enriched["in_hot_path"] = any(
-            file_path.name in path.nodes for path in codebase.hot_paths
-        )
+        enriched["in_hot_path"] = any(file_path.name in path.nodes for path in codebase.hot_paths)
 
         # Check error-prone
-        enriched["is_error_prone"] = any(
-            loc.file == file_path for loc in codebase.error_prone
-        )
+        enriched["is_error_prone"] = any(loc.file == file_path for loc in codebase.error_prone)
 
         # Get change frequency
         enriched["change_frequency"] = codebase.change_frequency.get(file_path, 0.0)
@@ -115,9 +111,7 @@ class ContextEnricher:
         # Get coupling score (sum of all couplings involving this file's module)
         module_name = str(file_path.with_suffix("")).replace("/", ".")
         coupling_scores = [
-            score
-            for (m1, m2), score in codebase.coupling_scores.items()
-            if module_name in (m1, m2)
+            score for (m1, m2), score in codebase.coupling_scores.items() if module_name in (m1, m2)
         ]
         if coupling_scores:
             enriched["coupling"] = sum(coupling_scores) / len(coupling_scores)
@@ -284,6 +278,7 @@ class ContextEnricher:
                 content = str(context[key])
                 # Look for CamelCase or snake_case words that might be symbols
                 import re
+
                 # CamelCase: UserService, MyClass
                 camel = re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b", content)
                 if camel:

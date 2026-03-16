@@ -47,7 +47,6 @@ from sunwell.agent.events import (
     tool_retry_event,
     tool_start_event,
 )
-from sunwell.agent.reliability.circuit_breaker import CircuitBreaker
 from sunwell.agent.hooks import HookEvent, emit_hook_sync
 from sunwell.agent.loop import (
     delegation as loop_delegation,
@@ -78,6 +77,7 @@ from sunwell.agent.loop.routing import (
     single_shot_generate,
     vortex_generate,
 )
+from sunwell.agent.reliability.circuit_breaker import CircuitBreaker
 from sunwell.agent.validation.introspection import introspect_tool_call
 from sunwell.models import GenerateOptions, GenerateResult, Message, Tool, ToolCall
 
@@ -140,7 +140,7 @@ class AgentLoop:
     """Dynamic tool availability based on turn/trust (RFC-134)."""
 
     # RFC-XXX: Multi-signal tool selector (set during run if enabled)
-    tool_selector: "MultiSignalToolSelector | None" = field(default=None, init=False)
+    tool_selector: MultiSignalToolSelector | None = field(default=None, init=False)
     """DAG-based intelligent tool selection for small model accuracy."""
 
     _task_type: str = field(default="general", init=False)
@@ -175,14 +175,14 @@ class AgentLoop:
     """Whether we've already emitted a budget warning."""
 
     # Trinket composition (initialized in __post_init__)
-    _trinket_composer: "TrinketComposer | None" = field(default=None, init=False)
+    _trinket_composer: TrinketComposer | None = field(default=None, init=False)
     """Trinket composer for modular prompt composition."""
 
     # Optional injections for trinkets (set by caller if available)
-    briefing: "Briefing | None" = None
+    briefing: Briefing | None = None
     """Optional briefing for session orientation."""
 
-    memory_store: "SimulacrumStore | None" = None
+    memory_store: SimulacrumStore | None = None
     """Optional memory store for historical context."""
 
     def __post_init__(self) -> None:
@@ -550,9 +550,9 @@ class AgentLoop:
             if self.progressive_policy:
                 # Track tools available before turn advance
                 tools_before = self.progressive_policy.get_available_tools()
-                
+
                 self.progressive_policy.advance_turn()
-                
+
                 # Check for newly unlocked tools
                 tools_after = self.progressive_policy.get_available_tools()
                 newly_unlocked = tools_after - tools_before
@@ -672,7 +672,10 @@ class AgentLoop:
                     and state.turn % self.config.reflection_interval == 0
                 ):
                     async for event in loop_reflection.run_self_reflection(
-                        state, task_description, self.mirror_handler, self.config.reflection_interval
+                        state,
+                        task_description,
+                        self.mirror_handler,
+                        self.config.reflection_interval,
                     ):
                         yield event
 
@@ -692,7 +695,7 @@ class AgentLoop:
         )
 
         # Reliability detection: Check for hallucinated completion
-        from sunwell.agent.reliability import detect_tool_failure, ToolFailureType
+        from sunwell.agent.reliability import ToolFailureType, detect_tool_failure
 
         reliability_result = detect_tool_failure(
             is_action_context=True,  # In tool loop = action context
@@ -706,8 +709,7 @@ class AgentLoop:
             yield AgentEvent(
                 type=(
                     EventType.RELIABILITY_HALLUCINATION
-                    if reliability_result.failure_type
-                    == ToolFailureType.HALLUCINATED_COMPLETION
+                    if reliability_result.failure_type == ToolFailureType.HALLUCINATED_COMPLETION
                     else EventType.RELIABILITY_WARNING
                 ),
                 data={
@@ -727,11 +729,7 @@ class AgentLoop:
 
         # Run validation gates if enabled and files were written
         validation_passed = True
-        if (
-            self.config.enable_validation_gates
-            and self.validation_stage
-            and state.file_writes
-        ):
+        if self.config.enable_validation_gates and self.validation_stage and state.file_writes:
             async for event in loop_validation.run_validation_gates(
                 state.file_writes, self.validation_stage
             ):
@@ -767,13 +765,13 @@ class AgentLoop:
             if validation_passed and state.file_writes:
                 # Track tools before validation pass
                 tools_before = self.progressive_policy.get_available_tools()
-                
+
                 self.progressive_policy.record_validation_pass()
                 logger.debug(
                     "Progressive policy: validation passed, %d passes total",
                     self.progressive_policy.validation_passes,
                 )
-                
+
                 # Check for newly unlocked tools after validation pass
                 tools_after = self.progressive_policy.get_available_tools()
                 newly_unlocked = tools_after - tools_before
@@ -801,11 +799,7 @@ class AgentLoop:
                 )
 
         # RFC-134: Record tool sequence for learning
-        if (
-            self.config.enable_tool_learning
-            and self.learning_store
-            and state.tool_sequence
-        ):
+        if self.config.enable_tool_learning and self.learning_store and state.tool_sequence:
             from sunwell.agent.learning import classify_task_type
 
             task_type = classify_task_type(task_description)
@@ -860,7 +854,9 @@ class AgentLoop:
         )
 
         # Emit goal lifecycle event (complete or failed)
-        goal_success = final_response is not None and validation_passed and not circuit_breaker_opened
+        goal_success = (
+            final_response is not None and validation_passed and not circuit_breaker_opened
+        )
         if goal_success:
             yield goal_complete_event(
                 turns=state.turn,
@@ -929,12 +925,14 @@ class AgentLoop:
                 state.routing_strategy = strategy
                 state.routing_confidence = confidence
             # Emit routing event
-            emit(signal_route_event(
-                confidence=confidence,
-                strategy=strategy,
-                threshold_vortex=0.6,
-                threshold_interference=0.85,
-            ))
+            emit(
+                signal_route_event(
+                    confidence=confidence,
+                    strategy=strategy,
+                    threshold_vortex=0.6,
+                    threshold_interference=0.85,
+                )
+            )
             return await vortex_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
@@ -951,12 +949,14 @@ class AgentLoop:
                 state.routing_strategy = strategy
                 state.routing_confidence = confidence
             # Emit routing event
-            emit(signal_route_event(
-                confidence=confidence,
-                strategy=strategy,
-                threshold_vortex=0.6,
-                threshold_interference=0.85,
-            ))
+            emit(
+                signal_route_event(
+                    confidence=confidence,
+                    strategy=strategy,
+                    threshold_vortex=0.6,
+                    threshold_interference=0.85,
+                )
+            )
             return await interference_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
@@ -973,12 +973,14 @@ class AgentLoop:
                 state.routing_strategy = strategy
                 state.routing_confidence = confidence
             # Emit routing event
-            emit(signal_route_event(
-                confidence=confidence,
-                strategy=strategy,
-                threshold_vortex=0.6,
-                threshold_interference=0.85,
-            ))
+            emit(
+                signal_route_event(
+                    confidence=confidence,
+                    strategy=strategy,
+                    threshold_vortex=0.6,
+                    threshold_interference=0.85,
+                )
+            )
             return await single_shot_generate(
                 self.model, messages, tools, self.config.tool_choice, options
             )
@@ -1011,15 +1013,19 @@ class AgentLoop:
                         error=f"Blocked: {introspection.block_reason}",
                     )
                     # Append error as tool result for conversation continuity
-                    state.messages.append(Message(
-                        role="assistant",
-                        tool_calls=(tc,),
-                    ))
-                    state.messages.append(Message(
-                        role="tool",
-                        content=f"Error: {introspection.block_reason}",
-                        tool_call_id=tc.id,
-                    ))
+                    state.messages.append(
+                        Message(
+                            role="assistant",
+                            tool_calls=(tc,),
+                        )
+                    )
+                    state.messages.append(
+                        Message(
+                            role="tool",
+                            content=f"Error: {introspection.block_reason}",
+                            tool_call_id=tc.id,
+                        )
+                    )
                     continue
 
                 # Emit and log repairs made
@@ -1105,15 +1111,19 @@ class AgentLoop:
             )
 
             # Append messages for conversation
-            state.messages.append(Message(
-                role="assistant",
-                tool_calls=(tc,),
-            ))
-            state.messages.append(Message(
-                role="tool",
-                content=result.output,
-                tool_call_id=tc.id,
-            ))
+            state.messages.append(
+                Message(
+                    role="assistant",
+                    tool_calls=(tc,),
+                )
+            )
+            state.messages.append(
+                Message(
+                    role="tool",
+                    content=result.output,
+                    tool_call_id=tc.id,
+                )
+            )
 
             # Clear failure count on success
             if result.success and tc.id in state.failure_counts:
@@ -1143,9 +1153,7 @@ class AgentLoop:
                     self.config.max_retries_per_tool,
                     tc.name,
                 )
-                async for event in self._retry_with_escalation(
-                    tc, error_msg, failure_count, state
-                ):
+                async for event in self._retry_with_escalation(tc, error_msg, failure_count, state):
                     yield event
                 return
 
@@ -1165,21 +1173,23 @@ class AgentLoop:
             )
 
             # Append error as tool result
-            state.messages.append(Message(
-                role="assistant",
-                tool_calls=(tc,),
-            ))
-            state.messages.append(Message(
-                role="tool",
-                content=f"Error: {error_msg}",
-                tool_call_id=tc.id,
-            ))
+            state.messages.append(
+                Message(
+                    role="assistant",
+                    tool_calls=(tc,),
+                )
+            )
+            state.messages.append(
+                Message(
+                    role="tool",
+                    content=f"Error: {error_msg}",
+                    tool_call_id=tc.id,
+                )
+            )
 
             # Save recovery state if enabled
             if self.config.enable_recovery and self.recovery_manager:
-                await loop_recovery.save_recovery_state(
-                    tc, error_msg, state, self.recovery_manager
-                )
+                await loop_recovery.save_recovery_state(tc, error_msg, state, self.recovery_manager)
 
             # Reliability: Record failure with circuit breaker
             if self._circuit_breaker:

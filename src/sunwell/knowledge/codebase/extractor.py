@@ -4,7 +4,6 @@ Extract project intelligence from conversation history when Simulacrum
 demotes chunks to warm/cold tiers.
 """
 
-
 import re
 from typing import TYPE_CHECKING
 
@@ -38,9 +37,7 @@ _FAILURE_PATTERNS: tuple[re.Pattern[str], ...] = (
         r"(?:that|this|it)\s+(?:didn't|doesn't)\s+work\s+because\s+([^\n]+)",
         re.IGNORECASE,
     ),
-    re.compile(
-        r"(?:approach|method|solution)\s+failed\s+because\s+([^\n]+)", re.IGNORECASE
-    ),
+    re.compile(r"(?:approach|method|solution)\s+failed\s+because\s+([^\n]+)", re.IGNORECASE),
 )
 
 # Category keywords for decision classification
@@ -127,10 +124,7 @@ class IntelligenceExtractor:
 
         # Fall back to turns if available (HOT tier)
         if chunk.turns:
-            return "\n".join(
-                f"{turn.turn_type.value}: {turn.content}"
-                for turn in chunk.turns
-            )
+            return "\n".join(f"{turn.turn_type.value}: {turn.content}" for turn in chunk.turns)
 
         # WARM tier has CTF-encoded content, but decoding is expensive
         # For intelligence extraction, summary is sufficient
@@ -162,14 +156,16 @@ class IntelligenceExtractor:
             for match in pattern.finditer(content):
                 choice = match.group(1).strip()
                 if len(choice) > 3:  # Filter out very short matches
-                    decisions.append({
-                        "category": self._infer_category(choice),
-                        "question": f"What to use for {choice}?",
-                        "choice": choice,
-                        "rejected": [],
-                        "rationale": "Extracted from conversation",
-                        "context": content[:200],  # First 200 chars for context
-                    })
+                    decisions.append(
+                        {
+                            "category": self._infer_category(choice),
+                            "question": f"What to use for {choice}?",
+                            "choice": choice,
+                            "rejected": [],
+                            "rationale": "Extracted from conversation",
+                            "context": content[:200],  # First 200 chars for context
+                        }
+                    )
 
         # Pattern 2: "X instead of Y because..."
         for match in _INSTEAD_PATTERN.finditer(content):
@@ -177,14 +173,16 @@ class IntelligenceExtractor:
             rejected_option = match.group(2).strip()
             rationale = match.group(3).strip()
 
-            decisions.append({
-                "category": self._infer_category(choice),
-                "question": "Which option to use?",
-                "choice": choice,
-                "rejected": [(rejected_option, rationale)],
-                "rationale": rationale,
-                "context": content[:200],
-            })
+            decisions.append(
+                {
+                    "category": self._infer_category(choice),
+                    "question": "Which option to use?",
+                    "choice": choice,
+                    "rejected": [(rejected_option, rationale)],
+                    "rationale": rationale,
+                    "context": content[:200],
+                }
+            )
 
         return decisions
 
@@ -213,23 +211,27 @@ class IntelligenceExtractor:
         for pattern in _ERROR_PATTERNS:
             for match in pattern.finditer(content):
                 error_msg = match.group(1).strip()
-                failures.append({
-                    "description": "Extracted from conversation",
-                    "error_type": "runtime_error",
-                    "error_message": error_msg,
-                    "context": content[:200],
-                })
+                failures.append(
+                    {
+                        "description": "Extracted from conversation",
+                        "error_type": "runtime_error",
+                        "error_message": error_msg,
+                        "context": content[:200],
+                    }
+                )
 
         # Pattern 2: "That didn't work" or "This approach failed"
         for pattern in _FAILURE_PATTERNS:
             for match in pattern.finditer(content):
                 reason = match.group(1).strip()
-                failures.append({
-                    "description": "Extracted from conversation",
-                    "error_type": "user_rejection",
-                    "error_message": reason,
-                    "context": content[:200],
-                })
+                failures.append(
+                    {
+                        "description": "Extracted from conversation",
+                        "error_type": "user_rejection",
+                        "error_message": reason,
+                        "context": content[:200],
+                    }
+                )
 
         return failures
 

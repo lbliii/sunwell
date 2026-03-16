@@ -17,37 +17,39 @@ from sunwell.domains.research.validators import (
 )
 
 # Keywords for research domain detection
-_RESEARCH_KEYWORDS: frozenset[str] = frozenset({
-    # Actions
-    "research",
-    "find",
-    "learn",
-    "understand",
-    "summarize",
-    "explain",
-    "investigate",
-    "explore",
-    "discover",
-    "analyze",
-    # Objects
-    "information",
-    "sources",
-    "facts",
-    "evidence",
-    "data",
-    "study",
-    "report",
-    "article",
-    "paper",
-    "topic",
-    # Questions
-    "what",
-    "why",
-    "how",
-    "history",
-    "overview",
-    "comparison",
-})
+_RESEARCH_KEYWORDS: frozenset[str] = frozenset(
+    {
+        # Actions
+        "research",
+        "find",
+        "learn",
+        "understand",
+        "summarize",
+        "explain",
+        "investigate",
+        "explore",
+        "discover",
+        "analyze",
+        # Objects
+        "information",
+        "sources",
+        "facts",
+        "evidence",
+        "data",
+        "study",
+        "report",
+        "article",
+        "paper",
+        "topic",
+        # Questions
+        "what",
+        "why",
+        "how",
+        "history",
+        "overview",
+        "comparison",
+    }
+)
 
 
 class ResearchDomain(BaseDomain):
@@ -69,12 +71,24 @@ class ResearchDomain(BaseDomain):
         ]
         self._default_validator_names = frozenset({"sources"})
         self._keywords = _RESEARCH_KEYWORDS
-        self._high_conf_keywords = frozenset({
-            "research", "investigate", "summarize", "sources", "evidence",
-        })
-        self._medium_conf_keywords = frozenset({
-            "find", "learn", "understand", "explain", "analyze",
-        })
+        self._high_conf_keywords = frozenset(
+            {
+                "research",
+                "investigate",
+                "summarize",
+                "sources",
+                "evidence",
+            }
+        )
+        self._medium_conf_keywords = frozenset(
+            {
+                "find",
+                "learn",
+                "understand",
+                "explain",
+                "analyze",
+            }
+        )
 
     def detect_confidence(self, goal: str) -> float:
         """Detect if goal is research-related.

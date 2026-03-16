@@ -8,7 +8,6 @@ This module implements the unified architecture that composes three layers:
 Each layer offers multiple strategies with different cost/quality tradeoffs.
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -90,7 +89,7 @@ OUTPUT (JSON):
             import re
 
             text = result.text.strip()
-            json_match = re.search(r'\{[^}]+\}', text, re.DOTALL)
+            json_match = re.search(r"\{[^}]+\}", text, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
                 return cls(

@@ -3,7 +3,6 @@
 Resolves @ references to actual content with size management.
 """
 
-
 import os
 import subprocess
 from dataclasses import dataclass
@@ -84,7 +83,7 @@ class ContextResolver:
 
         # Apply size limits
         if len(content) > self.max_context:
-            content = content[:self.max_context]
+            content = content[: self.max_context]
             truncated = True
 
         return ResolvedContext(
@@ -180,28 +179,36 @@ class ContextResolver:
         if modifier is None or modifier == "status":
             result = subprocess.run(
                 ["git", "status", "--short"],
-                capture_output=True, text=True, cwd=self.workspace, timeout=10
+                capture_output=True,
+                text=True,
+                cwd=self.workspace,
+                timeout=10,
             )
             return result.stdout.strip() or "Working tree clean"
 
         elif modifier == "staged":
             result = subprocess.run(
                 ["git", "diff", "--cached"],
-                capture_output=True, text=True, cwd=self.workspace, timeout=30
+                capture_output=True,
+                text=True,
+                cwd=self.workspace,
+                timeout=30,
             )
             return result.stdout.strip() or "Nothing staged"
 
         elif modifier == "branch":
             result = subprocess.run(
                 ["git", "branch", "--show-current"],
-                capture_output=True, text=True, cwd=self.workspace, timeout=5
+                capture_output=True,
+                text=True,
+                cwd=self.workspace,
+                timeout=5,
             )
             return result.stdout.strip() or "(detached HEAD)"
 
         elif modifier == "diff":
             result = subprocess.run(
-                ["git", "diff"],
-                capture_output=True, text=True, cwd=self.workspace, timeout=30
+                ["git", "diff"], capture_output=True, text=True, cwd=self.workspace, timeout=30
             )
             return result.stdout.strip() or "No unstaged changes"
 
@@ -211,13 +218,19 @@ class ContextResolver:
                 # Show log of last N commits
                 result = subprocess.run(
                     ["git", "log", modifier, "--oneline"],
-                    capture_output=True, text=True, cwd=self.workspace, timeout=10
+                    capture_output=True,
+                    text=True,
+                    cwd=self.workspace,
+                    timeout=10,
                 )
             else:
                 # Show current commit
                 result = subprocess.run(
                     ["git", "log", "-1", "--format=%H %s"],
-                    capture_output=True, text=True, cwd=self.workspace, timeout=5
+                    capture_output=True,
+                    text=True,
+                    cwd=self.workspace,
+                    timeout=5,
                 )
 
             if result.returncode != 0:
@@ -237,8 +250,7 @@ class ContextResolver:
 
         if not self.ide.selection:
             raise ValueError(
-                "No text selected in IDE. "
-                "Select text in your editor before using @selection."
+                "No text selected in IDE. Select text in your editor before using @selection."
             )
 
         return self.ide.selection
@@ -247,10 +259,7 @@ class ContextResolver:
         """Read clipboard contents."""
         try:
             # Try pbpaste (macOS)
-            result = subprocess.run(
-                ["pbpaste"],
-                capture_output=True, text=True, timeout=5
-            )
+            result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 return result.stdout
         except FileNotFoundError:
@@ -260,7 +269,9 @@ class ContextResolver:
             # Try xclip (Linux)
             result = subprocess.run(
                 ["xclip", "-selection", "clipboard", "-o"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout
@@ -270,17 +281,14 @@ class ContextResolver:
         try:
             # Try xsel (Linux alternative)
             result = subprocess.run(
-                ["xsel", "--clipboard", "--output"],
-                capture_output=True, text=True, timeout=5
+                ["xsel", "--clipboard", "--output"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 return result.stdout
         except FileNotFoundError:
             pass
 
-        raise ValueError(
-            "Could not read clipboard. Install xclip (Linux) or use macOS."
-        )
+        raise ValueError("Could not read clipboard. Install xclip (Linux) or use macOS.")
 
     def _resolve_env(self, name: str | None) -> str:
         """Resolve @env:NAME with security restrictions."""

@@ -13,9 +13,10 @@ Workspace Readiness:
 - Graceful fallback to staging if git unavailable
 """
 
-from sunwell.agent.isolation.worktree import (
-    WorktreeInfo,
-    WorktreeManager,
+from sunwell.agent.isolation.fallback import (
+    FallbackIsolation,
+    StagedFile,
+    StagingBuffer,
 )
 from sunwell.agent.isolation.merge import (
     MergeResult,
@@ -27,17 +28,16 @@ from sunwell.agent.isolation.validators import (
     get_content_validator,
     validate_content,
 )
-from sunwell.agent.isolation.fallback import (
-    FallbackIsolation,
-    StagedFile,
-    StagingBuffer,
-)
 from sunwell.agent.isolation.workspace import (
     WorkspaceIsolationMode,
     WorkspaceReadiness,
     check_workspace_readiness,
     ensure_git_repo,
     get_isolation_recommendation,
+)
+from sunwell.agent.isolation.worktree import (
+    WorktreeInfo,
+    WorktreeManager,
 )
 
 __all__ = [

@@ -11,8 +11,6 @@ This enables brownfield workflows where users can:
 3. Click red nodes to give intent and spawn Execution DAGs
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from collections.abc import Mapping
@@ -20,10 +18,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
-if TYPE_CHECKING:
-    from sunwell.foundation.core.lens import Lens
+from sunwell.foundation.core.lens import Lens
 
 logger = logging.getLogger(__name__)
 
@@ -206,14 +203,13 @@ class Scanner(Protocol):
         """Scan the project and return nodes."""
         ...
 
-    async def extract_edges(
-        self, root: Path, nodes: list[StateDagNode]
-    ) -> list[StateDagEdge]:
+    async def extract_edges(self, root: Path, nodes: list[StateDagNode]) -> list[StateDagEdge]:
         """Extract edges between nodes."""
         ...
 
     async def run_health_probes(
-        self, root: Path,
+        self,
+        root: Path,
         nodes: list[StateDagNode],
         source_contexts: list[Any] | None = None,
     ) -> dict[str, list[HealthProbeResult]]:
@@ -304,9 +300,13 @@ class StateDagBuilder:
             nodes=tuple(enriched_nodes),
             edges=tuple(edges),
             lens_name=lens_name,
-            metadata=MappingProxyType({
-                "source_roots": [str(ctx.root) for ctx in self.source_contexts],
-            }) if self.source_contexts else MappingProxyType({}),
+            metadata=MappingProxyType(
+                {
+                    "source_roots": [str(ctx.root) for ctx in self.source_contexts],
+                }
+            )
+            if self.source_contexts
+            else MappingProxyType({}),
         )
 
     async def _get_scanner(self) -> Scanner:

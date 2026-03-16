@@ -120,7 +120,7 @@ def _clear_current_workspace() -> None:
 
 def _save_current_workspace(workspace_id: str, workspace_path: Path) -> None:
     """Save current workspace state with atomic write and file locking.
-    
+
     Uses tempfile + rename pattern for atomic writes and file locking
     to prevent race conditions. Works on both Unix and Windows.
     """
@@ -219,9 +219,7 @@ class WorkspaceManager:
         # Get registered projects (now includes auto-registered ones)
         registered_projects = self._registry.list_projects()
         # Use canonical paths (resolve symlinks) for deduplication
-        registered_paths: set[Path] = {
-            p.root.resolve().resolve() for p in registered_projects
-        }
+        registered_paths: set[Path] = {p.root.resolve().resolve() for p in registered_projects}
 
         # Scan locations if root not specified
         # NOTE: Do NOT scan ~/Sunwell/projects/ for "discovered" workspaces —
@@ -452,9 +450,7 @@ class WorkspaceManager:
         if isinstance(workspace_id, (str, Path)):
             path_str = str(workspace_id)
             if len(path_str) > MAX_PATH_LENGTH:
-                raise ValueError(
-                    f"Path too long: {len(path_str)} > {MAX_PATH_LENGTH} characters"
-                )
+                raise ValueError(f"Path too long: {len(path_str)} > {MAX_PATH_LENGTH} characters")
 
         # Try as ID first
         project = self._registry.get(workspace_id) if isinstance(workspace_id, str) else None
@@ -473,9 +469,7 @@ class WorkspaceManager:
             # Try to find by path in discovered workspaces
             workspaces = self.discover_workspaces()
             matching = [
-                w
-                for w in workspaces
-                if w.id == workspace_id or str(w.path) == workspace_id
+                w for w in workspaces if w.id == workspace_id or str(w.path) == workspace_id
             ]
             if not matching:
                 raise ValueError(f"Workspace not found: {workspace_id}")
@@ -497,9 +491,7 @@ class WorkspaceManager:
             # Check read permission
             list(workspace_path.iterdir())
         except PermissionError as e:
-            raise PermissionError(
-                f"Permission denied accessing workspace: {workspace_path}"
-            ) from e
+            raise PermissionError(f"Permission denied accessing workspace: {workspace_path}") from e
 
         # Validate workspace
         try:
@@ -558,9 +550,7 @@ class WorkspaceManager:
         # Validate path length
         path_str = str(path)
         if len(path_str) > MAX_PATH_LENGTH:
-            raise ValueError(
-                f"Path too long: {len(path_str)} > {MAX_PATH_LENGTH} characters"
-            )
+            raise ValueError(f"Path too long: {len(path_str)} > {MAX_PATH_LENGTH} characters")
 
         # Resolve to canonical path
         path = path.resolve().resolve()
@@ -580,9 +570,7 @@ class WorkspaceManager:
         try:
             list(path.iterdir())
         except PermissionError as e:
-            raise PermissionError(
-                f"Permission denied accessing workspace: {path}"
-            ) from e
+            raise PermissionError(f"Permission denied accessing workspace: {path}") from e
 
         # Validate workspace
         try:
@@ -644,7 +632,9 @@ class WorkspaceManager:
             # Catch-all for other errors (OSError, etc.)
             return WorkspaceStatus.INVALID
 
-    def _workspace_info_from_project(self, project: Project, is_current: bool = False) -> WorkspaceInfo:
+    def _workspace_info_from_project(
+        self, project: Project, is_current: bool = False
+    ) -> WorkspaceInfo:
         """Create WorkspaceInfo from Project.
 
         Args:
@@ -761,8 +751,7 @@ class WorkspaceManager:
             active_runs = self.has_active_runs(workspace_id)
             if active_runs:
                 raise RuntimeError(
-                    f"Workspace has active runs: {active_runs}. "
-                    "Use force=True to proceed."
+                    f"Workspace has active runs: {active_runs}. Use force=True to proceed."
                 )
 
         # Check if current workspace
@@ -861,8 +850,7 @@ class WorkspaceManager:
             active_runs = self.has_active_runs(workspace_id)
             if active_runs:
                 raise RuntimeError(
-                    f"Workspace has active runs: {active_runs}. "
-                    "Use force=True to proceed."
+                    f"Workspace has active runs: {active_runs}. Use force=True to proceed."
                 )
 
         # Check if current workspace
@@ -950,6 +938,7 @@ class WorkspaceManager:
         if manifest_path.exists():
             try:
                 import tomllib
+
                 with manifest_path.open("rb") as f:
                     manifest_data = tomllib.load(f)
 
@@ -959,6 +948,7 @@ class WorkspaceManager:
                 # Write back (use tomli_w if available, else manual)
                 try:
                     import tomli_w
+
                     manifest_path.write_bytes(tomli_w.dumps(manifest_data))
                 except ImportError:
                     # Fallback: just update the lines we need
@@ -1092,9 +1082,7 @@ class WorkspaceManager:
         orphaned_runs = lifecycle.find_orphaned_runs(registered_ids)
 
         # Find invalid registrations
-        invalid_registrations = lifecycle.find_invalid_registrations(
-            self._registry.projects
-        )
+        invalid_registrations = lifecycle.find_invalid_registrations(self._registry.projects)
 
         cleaned_runs = 0
         cleaned_registrations = 0

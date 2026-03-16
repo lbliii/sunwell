@@ -307,7 +307,9 @@ def excerpt(text: str, length: int = 100) -> str:
 
 ---
 
-## 8. 🎭 View Transitions
+## 8. 🎭 View Transitions (disabled)
+
+> **Note:** View Transitions conflict with HTMX partial swaps. Sunwell uses hybrid routing without them.
 
 ### Pattern from chirp-pad
 ```python

@@ -71,7 +71,9 @@ async def _start_external(no_server: bool, host: str, port: int) -> None:
     # Check for crash recovery
     unprocessed = await processor.recover_from_crash()
     if unprocessed:
-        console.print(f"[yellow]⚠️ Found {len(unprocessed)} unprocessed events from previous session[/yellow]")
+        console.print(
+            f"[yellow]⚠️ Found {len(unprocessed)} unprocessed events from previous session[/yellow]"
+        )
 
     # Display status
     console.print("\n[bold green]🌐 External Integration Started[/bold green]")
@@ -432,4 +434,6 @@ def webhook() -> None:
 
     console.print(table)
 
-    console.print("\n[dim]For local development, use ngrok or similar to expose your local server.[/dim]")
+    console.print(
+        "\n[dim]For local development, use ngrok or similar to expose your local server.[/dim]"
+    )

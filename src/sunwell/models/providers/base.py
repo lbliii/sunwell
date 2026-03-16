@@ -90,9 +90,7 @@ class ListProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_items(
-        self, list_name: str, include_completed: bool = False
-    ) -> list[ListItem]:
+    async def get_items(self, list_name: str, include_completed: bool = False) -> list[ListItem]:
         """Get items in a list."""
         ...
 
@@ -154,9 +152,7 @@ class NotesProvider(ABC):
         ...
 
     @abstractmethod
-    async def create(
-        self, title: str, content: str, tags: list[str] | None = None
-    ) -> Note:
+    async def create(self, title: str, content: str, tags: list[str] | None = None) -> Note:
         """Create a new note."""
         ...
 
@@ -198,16 +194,12 @@ class FilesProvider(ABC):
     """File system provider interface (RFC-078)."""
 
     @abstractmethod
-    async def list_files(
-        self, path: str, recursive: bool = False
-    ) -> list[FileInfo]:
+    async def list_files(self, path: str, recursive: bool = False) -> list[FileInfo]:
         """List files in a directory."""
         ...
 
     @abstractmethod
-    async def search_files(
-        self, query: str, path: str | None = None
-    ) -> list[FileInfo]:
+    async def search_files(self, query: str, path: str | None = None) -> list[FileInfo]:
         """Search files by name pattern."""
         ...
 
@@ -368,9 +360,7 @@ class GitProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_log(
-        self, path: str | None = None, limit: int = 50
-    ) -> list[GitCommit]:
+    async def get_log(self, path: str | None = None, limit: int = 50) -> list[GitCommit]:
         """Get commit history."""
         ...
 
@@ -380,9 +370,7 @@ class GitProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_diff(
-        self, path: str | None = None, ref: str = "HEAD"
-    ) -> str:
+    async def get_diff(self, path: str | None = None, ref: str = "HEAD") -> str:
         """Get diff against a reference (default: HEAD for unstaged changes)."""
         ...
 

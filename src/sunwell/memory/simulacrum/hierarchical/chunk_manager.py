@@ -235,7 +235,11 @@ class ChunkManager:
 
     async def _consolidate_mini_chunk(self) -> str | None:
         """Consolidate micro-chunks into a mini-chunk."""
-        micro_chunks = [c for c in self._chunks.values() if c.chunk_type == ChunkType.MICRO and c.parent_chunk_id is None]
+        micro_chunks = [
+            c
+            for c in self._chunks.values()
+            if c.chunk_type == ChunkType.MICRO and c.parent_chunk_id is None
+        ]
         needed = self.config.mini_chunk_interval // self.config.micro_chunk_size
         if len(micro_chunks) < needed:
             return None
@@ -247,7 +251,9 @@ class ChunkManager:
         key_facts = set()
 
         if self.summarizer:
-            combined_summary = await self.summarizer.summarize_turns([t for c in recent for t in (c.turns or ())])
+            combined_summary = await self.summarizer.summarize_turns(
+                [t for c in recent for t in (c.turns or ())]
+            )
             themes = tuple(await self.summarizer.extract_themes(summaries))
             for c in recent:
                 key_facts.update(c.key_facts)
@@ -277,7 +283,11 @@ class ChunkManager:
 
     async def _consolidate_macro_chunk(self) -> str | None:
         """Consolidate mini-chunks into a macro-chunk."""
-        mini_chunks = [c for c in self._chunks.values() if c.chunk_type == ChunkType.MINI and c.parent_chunk_id is None]
+        mini_chunks = [
+            c
+            for c in self._chunks.values()
+            if c.chunk_type == ChunkType.MINI and c.parent_chunk_id is None
+        ]
         needed = self.config.macro_chunk_interval // self.config.mini_chunk_interval
         if len(mini_chunks) < needed:
             return None
@@ -319,7 +329,9 @@ class ChunkManager:
 
     # === Retrieval ===
 
-    async def get_relevant_chunks(self, query: str, limit: int = 5, include_hot: bool = True) -> list[Chunk]:
+    async def get_relevant_chunks(
+        self, query: str, limit: int = 5, include_hot: bool = True
+    ) -> list[Chunk]:
         """Retrieve relevant chunks using embeddings."""
         if not self.embedder:
             return list(self._chunks.values())[-limit:]
@@ -340,7 +352,9 @@ class ChunkManager:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [c for _, c in scored[:limit]]
 
-    def get_context_window(self, max_tokens: int, query: str | None = None) -> list[Chunk | ChunkSummary]:
+    def get_context_window(
+        self, max_tokens: int, query: str | None = None
+    ) -> list[Chunk | ChunkSummary]:
         """Build context window within token budget (sync version).
 
         Note: For semantic retrieval, use get_context_window_async() instead.
@@ -361,11 +375,17 @@ class ChunkManager:
                 continue
             summary_tokens = int(len(chunk.summary.split()) * 1.3)
             if summary_tokens <= token_budget:
-                context.append(ChunkSummary(
-                    chunk_id=chunk.id, chunk_type=chunk.chunk_type, turn_range=chunk.turn_range,
-                    summary=chunk.summary, themes=chunk.themes, token_count=summary_tokens,
-                    embedding=chunk.embedding,
-                ))
+                context.append(
+                    ChunkSummary(
+                        chunk_id=chunk.id,
+                        chunk_type=chunk.chunk_type,
+                        turn_range=chunk.turn_range,
+                        summary=chunk.summary,
+                        themes=chunk.themes,
+                        token_count=summary_tokens,
+                        embedding=chunk.embedding,
+                    )
+                )
                 token_budget -= summary_tokens
 
         return context
@@ -416,11 +436,17 @@ class ChunkManager:
                 continue
             summary_tokens = int(len(chunk.summary.split()) * 1.3)
             if summary_tokens <= token_budget:
-                context.append(ChunkSummary(
-                    chunk_id=chunk.id, chunk_type=chunk.chunk_type, turn_range=chunk.turn_range,
-                    summary=chunk.summary, themes=chunk.themes, token_count=summary_tokens,
-                    embedding=chunk.embedding,
-                ))
+                context.append(
+                    ChunkSummary(
+                        chunk_id=chunk.id,
+                        chunk_type=chunk.chunk_type,
+                        turn_range=chunk.turn_range,
+                        summary=chunk.summary,
+                        themes=chunk.themes,
+                        token_count=summary_tokens,
+                        embedding=chunk.embedding,
+                    )
+                )
                 seen_ids.add(chunk.id)
                 token_budget -= summary_tokens
 
@@ -431,8 +457,10 @@ class ChunkManager:
     def expand_chunk(self, chunk_id: str) -> Chunk:
         """Expand compressed chunk to full turns."""
         chunk = self._chunks.get(chunk_id)
-        if not chunk: raise KeyError(chunk_id)
-        if chunk.turns is not None: return chunk
+        if not chunk:
+            raise KeyError(chunk_id)
+        if chunk.turns is not None:
+            return chunk
         if chunk.content_ctf:
             return replace(chunk, turns=tuple(CTFDecoder.decode_turns(chunk.content_ctf)))
         if chunk.content_ref:
@@ -500,28 +528,66 @@ class ChunkManager:
 
     def _serialize_chunk(self, chunk: Chunk) -> dict:
         data = {
-            "id": chunk.id, "chunk_type": chunk.chunk_type.value, "turn_range": list(chunk.turn_range),
-            "summary": chunk.summary, "token_count": chunk.token_count, "timestamp_start": chunk.timestamp_start,
-            "timestamp_end": chunk.timestamp_end, "themes": list(chunk.themes), "key_facts": list(chunk.key_facts),
-            "parent_chunk_id": chunk.parent_chunk_id, "child_chunk_ids": list(chunk.child_chunk_ids),
-            "content_ctf": chunk.content_ctf, "content_ref": chunk.content_ref,
+            "id": chunk.id,
+            "chunk_type": chunk.chunk_type.value,
+            "turn_range": list(chunk.turn_range),
+            "summary": chunk.summary,
+            "token_count": chunk.token_count,
+            "timestamp_start": chunk.timestamp_start,
+            "timestamp_end": chunk.timestamp_end,
+            "themes": list(chunk.themes),
+            "key_facts": list(chunk.key_facts),
+            "parent_chunk_id": chunk.parent_chunk_id,
+            "child_chunk_ids": list(chunk.child_chunk_ids),
+            "content_ctf": chunk.content_ctf,
+            "content_ref": chunk.content_ref,
         }
-        if chunk.embedding: data["embedding"] = list(chunk.embedding)
+        if chunk.embedding:
+            data["embedding"] = list(chunk.embedding)
         if chunk.turns:
-            data["turns"] = [{"content": t.content, "turn_type": t.turn_type.value, "timestamp": t.timestamp, "model": t.model} for t in chunk.turns]
+            data["turns"] = [
+                {
+                    "content": t.content,
+                    "turn_type": t.turn_type.value,
+                    "timestamp": t.timestamp,
+                    "model": t.model,
+                }
+                for t in chunk.turns
+            ]
         return data
 
     def _deserialize_chunk(self, data: dict) -> Chunk:
         from sunwell.memory.simulacrum.core.turn import Turn, TurnType
-        turns = tuple(Turn(content=t["content"], turn_type=TurnType(t["turn_type"]), timestamp=t["timestamp"], model=t.get("model")) for t in data.get("turns", [])) if "turns" in data else None
+
+        turns = (
+            tuple(
+                Turn(
+                    content=t["content"],
+                    turn_type=TurnType(t["turn_type"]),
+                    timestamp=t["timestamp"],
+                    model=t.get("model"),
+                )
+                for t in data.get("turns", [])
+            )
+            if "turns" in data
+            else None
+        )
         return Chunk(
-            id=data["id"], chunk_type=ChunkType(data["chunk_type"]), turn_range=tuple(data["turn_range"]),
-            turns=turns, content_ctf=data.get("content_ctf"), content_ref=data.get("content_ref"),
-            summary=data.get("summary", ""), token_count=data.get("token_count", 0),
+            id=data["id"],
+            chunk_type=ChunkType(data["chunk_type"]),
+            turn_range=tuple(data["turn_range"]),
+            turns=turns,
+            content_ctf=data.get("content_ctf"),
+            content_ref=data.get("content_ref"),
+            summary=data.get("summary", ""),
+            token_count=data.get("token_count", 0),
             embedding=tuple(data["embedding"]) if "embedding" in data else None,
-            timestamp_start=data.get("timestamp_start", ""), timestamp_end=data.get("timestamp_end", ""),
-            themes=tuple(data.get("themes", [])), key_facts=tuple(data.get("key_facts", [])),
-            parent_chunk_id=data.get("parent_chunk_id"), child_chunk_ids=tuple(data.get("child_chunk_ids", [])),
+            timestamp_start=data.get("timestamp_start", ""),
+            timestamp_end=data.get("timestamp_end", ""),
+            themes=tuple(data.get("themes", [])),
+            key_facts=tuple(data.get("key_facts", [])),
+            parent_chunk_id=data.get("parent_chunk_id"),
+            child_chunk_ids=tuple(data.get("child_chunk_ids", [])),
         )
 
     @property

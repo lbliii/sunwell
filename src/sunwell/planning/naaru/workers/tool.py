@@ -1,6 +1,5 @@
 """Tool region worker - executes tools on behalf of other regions (RFC-032)."""
 
-
 import asyncio
 import uuid
 from collections import deque
@@ -50,12 +49,14 @@ class ToolRegionWorker(RegionWorker):
                 result = await self.tool_executor.execute(tool_call)
 
                 # Log execution
-                self.execution_log.append({
-                    "request_id": msg.id,
-                    "tool": msg.payload["tool"],
-                    "success": result.success,
-                    "timestamp": datetime.now().isoformat(),
-                })
+                self.execution_log.append(
+                    {
+                        "request_id": msg.id,
+                        "tool": msg.payload["tool"],
+                        "success": result.success,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
                 await self.send_message(
                     MessageType.TOOL_RESULT,
@@ -97,9 +98,11 @@ class ToolRegionWorker(RegionWorker):
                 arguments=spec["arguments"],
             )
             result = await self.tool_executor.execute(tool_call)
-            results.append({
-                "tool": spec["tool"],
-                "success": result.success,
-                "output": result.output,
-            })
+            results.append(
+                {
+                    "tool": spec["tool"],
+                    "success": result.success,
+                    "output": result.output,
+                }
+            )
         return results

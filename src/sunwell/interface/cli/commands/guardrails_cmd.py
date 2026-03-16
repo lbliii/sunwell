@@ -7,7 +7,6 @@ Provides:
 - sunwell guardrails rollback: Rollback session or goal
 """
 
-
 import asyncio
 from pathlib import Path
 
@@ -297,9 +296,7 @@ def classify(ctx, path: str) -> None:
     from sunwell.quality.guardrails import Action, ActionClassifier
 
     classifier = ActionClassifier()
-    result = classifier.classify(
-        Action(action_type="file_write", path=path)
-    )
+    result = classifier.classify(Action(action_type="file_write", path=path))
 
     risk_colors = {
         "safe": "green",

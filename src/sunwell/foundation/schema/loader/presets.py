@@ -61,8 +61,7 @@ def resolve_preset(skill_data: dict, presets: dict[str, dict]) -> dict:
 
     if preset is None:
         raise ValueError(
-            f"Unknown permission preset: '{preset_name}'. "
-            f"Available presets: {list(presets.keys())}"
+            f"Unknown permission preset: '{preset_name}'. Available presets: {list(presets.keys())}"
         )
 
     # Create a copy to avoid mutating original

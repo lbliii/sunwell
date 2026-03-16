@@ -365,10 +365,10 @@ Apply this pattern when the user's goal matches: {pattern.goal}
 {pattern.steps_description}
 
 ## Tools Used
-{', '.join(pattern.tools_used)}
+{", ".join(pattern.tools_used)}
 
 ## Context Keys Identified
-{', '.join(pattern.context_keys) or 'none'}
+{", ".join(pattern.context_keys) or "none"}
 
 ## Success Criteria
 {success_criteria}
@@ -470,13 +470,71 @@ INSTRUCTIONS:
 
         # Filter to meaningful triggers
         stopwords = {
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-            "of", "with", "by", "from", "up", "about", "into", "through", "during",
-            "before", "after", "above", "below", "between", "under", "this", "that",
-            "these", "those", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "must", "shall", "can", "need", "i", "you",
-            "he", "she", "it", "we", "they", "me", "him", "her", "us", "them",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "from",
+            "up",
+            "about",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "this",
+            "that",
+            "these",
+            "those",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "need",
+            "i",
+            "you",
+            "he",
+            "she",
+            "it",
+            "we",
+            "they",
+            "me",
+            "him",
+            "her",
+            "us",
+            "them",
         }
 
         triggers = [w for w in words if len(w) > 3 and w not in stopwords]

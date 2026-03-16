@@ -3,7 +3,6 @@
 Remember what didn't work and why. Prevents repeating the same mistakes.
 """
 
-
 import hashlib
 import json
 import math

@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -68,7 +68,7 @@ class FileState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "FileState":
+    def from_dict(cls, data: dict) -> FileState:
         """Deserialize from dictionary."""
         return cls(
             path=data["path"],
@@ -123,15 +123,14 @@ class CodeSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CodeSnapshot":
+    def from_dict(cls, data: dict) -> CodeSnapshot:
         """Deserialize from dictionary."""
         return cls(
             id=data["id"],
             timestamp=datetime.fromisoformat(data["timestamp"]),
             conversation_turn=data.get("conversation_turn", 0),
             files={
-                path: FileState.from_dict(state)
-                for path, state in data.get("files", {}).items()
+                path: FileState.from_dict(state) for path, state in data.get("files", {}).items()
             },
             git_ref=data.get("git_ref"),
             label=data.get("label"),
@@ -242,9 +241,7 @@ class SnapshotManager:
                         logger.debug("Skipping malformed snapshot: %s", e)
 
                 self._conversation_turn = data.get("conversation_turn", 0)
-                logger.debug(
-                    "Loaded %d snapshots from index", len(self._snapshots)
-                )
+                logger.debug("Loaded %d snapshots from index", len(self._snapshots))
 
             self._loaded = True
 
@@ -263,7 +260,7 @@ class SnapshotManager:
 
     def _generate_snapshot_id(self) -> str:
         """Generate unique snapshot ID."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return f"snap-{now.strftime('%Y%m%d-%H%M%S')}"
 
     def _hash_file(self, path: Path) -> str:
@@ -294,9 +291,7 @@ class SnapshotManager:
                 )
                 if result.returncode == 0:
                     files = [
-                        self.workspace / f.strip()
-                        for f in result.stdout.splitlines()
-                        if f.strip()
+                        self.workspace / f.strip() for f in result.stdout.splitlines() if f.strip()
                     ]
                     return [f for f in files if f.exists() and f.is_file()]
             except Exception as e:
@@ -422,7 +417,7 @@ class SnapshotManager:
 
         snapshot = CodeSnapshot(
             id=snapshot_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             conversation_turn=conversation_turn,
             files=files,
             git_ref=git_ref,
@@ -446,12 +441,10 @@ class SnapshotManager:
 
     def _cleanup_old_snapshots(self) -> None:
         """Remove old snapshots exceeding retention limits."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Sort by timestamp
-        sorted_snaps = sorted(
-            self._snapshots.values(), key=lambda s: s.timestamp, reverse=True
-        )
+        sorted_snaps = sorted(self._snapshots.values(), key=lambda s: s.timestamp, reverse=True)
 
         to_remove: list[str] = []
 
@@ -575,9 +568,7 @@ class SnapshotManager:
         self._ensure_loaded()
 
         with self._lock:
-            snapshots = sorted(
-                self._snapshots.values(), key=lambda s: s.timestamp, reverse=True
-            )
+            snapshots = sorted(self._snapshots.values(), key=lambda s: s.timestamp, reverse=True)
 
         return snapshots[:limit]
 

@@ -10,7 +10,6 @@ Templates capture structural patterns for tasks like:
 - Data pipelines
 """
 
-
 from sunwell.memory.simulacrum.core.turn import Learning, TemplateData, TemplateVariable
 
 # =============================================================================
@@ -61,9 +60,7 @@ CRUD_ENDPOINT_TEMPLATE = Learning(
             "routes/{{entity_lower}}.py",
             "tests/test_{{entity_lower}}.py",
         ),
-        validation_commands=(
-            "pytest tests/test_{{entity_lower}}.py -v",
-        ),
+        validation_commands=("pytest tests/test_{{entity_lower}}.py -v",),
         suggested_order=50,
     ),
 )
@@ -119,9 +116,7 @@ AUTH_TEMPLATE = Learning(
             "models/user.py",
             "tests/test_auth.py",
         ),
-        validation_commands=(
-            "pytest tests/test_auth.py -v",
-        ),
+        validation_commands=("pytest tests/test_auth.py -v",),
         suggested_order=10,  # Auth often needs to be early
     ),
 )
@@ -168,9 +163,7 @@ SERVICE_MODULE_TEMPLATE = Learning(
             "repositories/{{domain_lower}}.py",
             "tests/test_{{domain_lower}}_service.py",
         ),
-        validation_commands=(
-            "pytest tests/test_{{domain_lower}}_service.py -v",
-        ),
+        validation_commands=("pytest tests/test_{{domain_lower}}_service.py -v",),
         suggested_order=40,
     ),
 )
@@ -218,9 +211,7 @@ TEST_SUITE_TEMPLATE = Learning(
             "tests/integration/test_{{module_lower}}_integration.py",
             "tests/fixtures/{{module_lower}}_fixtures.py",
         ),
-        validation_commands=(
-            "pytest tests/ -v --cov={{module_lower}}",
-        ),
+        validation_commands=("pytest tests/ -v --cov={{module_lower}}",),
         suggested_order=90,  # Tests often last
     ),
 )

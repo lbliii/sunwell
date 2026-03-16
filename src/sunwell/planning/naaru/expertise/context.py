@@ -17,7 +17,6 @@ Example:
     >>> prompt = f"{base_prompt}\\n\\n{context.to_prompt_section()}"
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -204,10 +203,10 @@ class ExpertiseContext:
 
         # Combine validators (dedupe by name if available)
         merged_validators = list(self.validators)
-        validator_names = {getattr(v, 'name', str(i)) for i, v in enumerate(self.validators)}
+        validator_names = {getattr(v, "name", str(i)) for i, v in enumerate(self.validators)}
 
         for v in other.validators:
-            v_name = getattr(v, 'name', None)
+            v_name = getattr(v, "name", None)
             if v_name and v_name not in validator_names:
                 merged_validators.append(v)
                 validator_names.add(v_name)

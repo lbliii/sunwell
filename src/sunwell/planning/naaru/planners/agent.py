@@ -7,7 +7,6 @@ for parallel execution.
 RFC-035 adds schema-aware planning for domain-agnostic projects.
 """
 
-
 import json
 import re
 from dataclasses import dataclass, field
@@ -125,7 +124,9 @@ class AgentPlanner:
                 id="fallback",
                 description=goal,
                 mode=TaskMode.GENERATE,
-                tools=frozenset(["write_file"]) if "write_file" in self.available_tools else frozenset(),
+                tools=frozenset(["write_file"])
+                if "write_file" in self.available_tools
+                else frozenset(),
                 target_path=target_path,
                 details={"fallback": True},
             )
@@ -614,15 +615,17 @@ Decompose into {self.max_subtasks} or fewer tasks. Output ONLY valid JSON:"""
                 if phase.maps_to:
                     lines.append(f"  - Maps to parallel_group: {phase.maps_to}")
 
-        lines.extend([
-            "",
-            "### Planning Guidelines (Schema-Aware)",
-            "When decomposing tasks:",
-            "1. Respect artifact dependency order (requires → produces)",
-            "2. Assign parallel_group based on phase mappings",
-            "3. Use is_contract=True for definition tasks, False for content tasks",
-            "4. Map artifact types to their produces patterns",
-        ])
+        lines.extend(
+            [
+                "",
+                "### Planning Guidelines (Schema-Aware)",
+                "When decomposing tasks:",
+                "1. Respect artifact dependency order (requires → produces)",
+                "2. Assign parallel_group based on phase mappings",
+                "3. Use is_contract=True for definition tasks, False for content tasks",
+                "4. Map artifact types to their produces patterns",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -689,7 +692,9 @@ Please ensure your response is ONLY valid JSON with no extra text.
                     id="1",
                     description=goal,
                     mode=TaskMode.GENERATE,
-                    tools=frozenset(["write_file"]) if "write_file" in self.available_tools else frozenset(),
+                    tools=frozenset(["write_file"])
+                    if "write_file" in self.available_tools
+                    else frozenset(),
                     target_path=target_path,
                     details={"fallback": True, "raw_response": response[:500]},
                 )
@@ -759,7 +764,8 @@ Please ensure your response is ONLY valid JSON with no extra text.
             warnings.warn(
                 f"Tasks reference unavailable tools: {'; '.join(invalid_tools)}. "
                 f"Available tools: {', '.join(sorted(self.available_tools))}",
-                UserWarning, stacklevel=2,
+                UserWarning,
+                stacklevel=2,
             )
 
         return tasks

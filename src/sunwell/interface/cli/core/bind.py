@@ -1,6 +1,5 @@
 """Bind command group - Manage bindings (attuned lens configurations)."""
 
-
 import sys
 from pathlib import Path
 
@@ -38,13 +37,19 @@ def bind() -> None:
 @click.option("--lens", "-l", required=True, type=click.Path(exists=True), help="Path to lens file")
 @click.option("--provider", "-p", default=None, help="LLM provider (default: from config)")
 @click.option("--model", "-m", help="Model name (auto-selected based on provider if not specified)")
-@click.option("--tier", type=click.Choice(["0", "1", "2"]), default="1", help="Default execution tier")
+@click.option(
+    "--tier", type=click.Choice(["0", "1", "2"]), default="1", help="Default execution tier"
+)
 @click.option("--no-stream", is_flag=True, help="Disable streaming by default")
 @click.option("--verbose", is_flag=True, help="Enable verbose by default")
 @click.option("--no-workspace", is_flag=True, help="Disable workspace indexing by default")
 @click.option("--tools/--no-tools", default=False, help="Enable tool calling (Agent mode)")
-@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "shell"]),
-              default="workspace", help="Tool trust level")
+@click.option(
+    "--trust",
+    type=click.Choice(["discovery", "read_only", "workspace", "shell"]),
+    default="workspace",
+    help="Tool trust level",
+)
 @click.option("--set-default", is_flag=True, help="Set as default binding")
 def bind_create(
     name: str,
@@ -119,10 +124,12 @@ def bind_create(
     table.add_row("Simulacrum", binding.simulacrum or name)
     table.add_row("Tier", str(binding.tier))
     mode = "Agent" if binding.tools_enabled else "Chat"
-    table.add_row("Mode", f"{mode}" + (f" ({binding.trust_level})" if binding.tools_enabled else ""))
+    table.add_row(
+        "Mode", f"{mode}" + (f" ({binding.trust_level})" if binding.tools_enabled else "")
+    )
     console.print(table)
 
-    console.print(f"\n[dim]Now use: sunwell ask {name} \"your prompt\"[/dim]")
+    console.print(f'\n[dim]Now use: sunwell ask {name} "your prompt"[/dim]')
     if binding.tools_enabled:
         console.print(f"[dim]  Or chat: sunwell chat {name}[/dim]")
 
@@ -211,7 +218,9 @@ def bind_show(name: str) -> None:
     table.add_row("Index workspace", "✓" if binding.index_workspace else "✗")
     table.add_row("", "")
     mode = "Agent" if binding.tools_enabled else "Chat"
-    table.add_row("Mode", f"{mode}" + (f" ({binding.trust_level})" if binding.tools_enabled else ""))
+    table.add_row(
+        "Mode", f"{mode}" + (f" ({binding.trust_level})" if binding.tools_enabled else "")
+    )
     table.add_row("", "")
     table.add_row("Created", binding.created_at[:19])
     table.add_row("Last used", binding.last_used[:19])

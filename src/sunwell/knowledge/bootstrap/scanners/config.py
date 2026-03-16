@@ -3,7 +3,6 @@
 Extract patterns from configuration files: pyproject.toml, CI configs, etc.
 """
 
-
 import re
 from pathlib import Path
 from typing import Literal
@@ -65,6 +64,7 @@ class ConfigScanner:
 
         try:
             import tomllib
+
             content = tomllib.loads(path.read_text())
         except (ImportError, OSError):
             # Fall back to regex parsing
@@ -127,7 +127,7 @@ class ConfigScanner:
             result["python_version"] = match.group(1)
 
         # Line length
-        match = re.search(r'line-length\s*=\s*(\d+)', content)
+        match = re.search(r"line-length\s*=\s*(\d+)", content)
         if match:
             result["line_length"] = int(match.group(1))
 
@@ -159,7 +159,7 @@ class ConfigScanner:
         # Flake8
         if "[flake8]" in content and "linter" not in result:
             result["linter"] = "flake8"
-            match = re.search(r'max-line-length\s*=\s*(\d+)', content)
+            match = re.search(r"max-line-length\s*=\s*(\d+)", content)
             if match:
                 result["line_length"] = int(match.group(1))
 
@@ -180,7 +180,7 @@ class ConfigScanner:
             return result
 
         # Max line length
-        match = re.search(r'max_line_length\s*=\s*(\d+)', content)
+        match = re.search(r"max_line_length\s*=\s*(\d+)", content)
         if match:
             result["line_length"] = int(match.group(1))
 
@@ -199,7 +199,7 @@ class ConfigScanner:
         except OSError:
             return result
 
-        match = re.search(r'line-length\s*=\s*(\d+)', content)
+        match = re.search(r"line-length\s*=\s*(\d+)", content)
         if match:
             result["line_length"] = int(match.group(1))
 
@@ -228,7 +228,9 @@ class ConfigScanner:
 
         return result
 
-    def _parse_ci_configs(self) -> tuple[
+    def _parse_ci_configs(
+        self,
+    ) -> tuple[
         Literal["github", "gitlab", "jenkins", "none"] | None,
         list[str],
     ]:

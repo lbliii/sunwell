@@ -13,13 +13,10 @@ This module handles:
 import asyncio
 import functools
 from collections.abc import Callable, Coroutine
-from typing import Any, ParamSpec, TypeVar
-
-T = TypeVar("T")
-P = ParamSpec("P")
+from typing import Any
 
 
-def run_async(coro: Coroutine[Any, Any, T]) -> T:
+def run_async[T](coro: Coroutine[Any, Any, T]) -> T:
     """Run async code with proper event loop handling.
 
     Handles the common case of running async code from synchronous Click commands.
@@ -49,7 +46,7 @@ def run_async(coro: Coroutine[Any, Any, T]) -> T:
         return asyncio.run(coro)
 
 
-def async_command(
+def async_command[T, **P](
     f: Callable[P, Coroutine[Any, Any, T]],
 ) -> Callable[P, T]:
     """Decorator that wraps async functions for Click commands.
@@ -75,7 +72,7 @@ def async_command(
     return wrapper
 
 
-def async_callback(
+def async_callback[T, **P](
     f: Callable[P, Coroutine[Any, Any, T]],
 ) -> Callable[P, T]:
     """Decorator for async Click callbacks (e.g., result_callback).

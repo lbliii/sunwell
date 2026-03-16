@@ -1,7 +1,5 @@
 """CLI commands for ToC navigation (RFC-124)."""
 
-from __future__ import annotations
-
 import asyncio
 import json
 from pathlib import Path
@@ -46,9 +44,7 @@ def build(force: bool, json_output: bool, depth: int, verbose: bool) -> None:
     asyncio.run(_build_toc(force, json_output, depth, verbose))
 
 
-async def _build_toc(
-    force: bool, json_output: bool, max_depth: int, verbose: bool
-) -> None:
+async def _build_toc(force: bool, json_output: bool, max_depth: int, verbose: bool) -> None:
     """Build ToC with progress reporting."""
     import time
 
@@ -63,12 +59,16 @@ async def _build_toc(
         if existing and not existing.is_stale():
             if json_output:
                 gen_at = existing.generated_at.isoformat() if existing.generated_at else None
-                print(json.dumps({
-                    "status": "cached",
-                    "node_count": existing.node_count,
-                    "file_count": existing.file_count,
-                    "generated_at": gen_at,
-                }))
+                print(
+                    json.dumps(
+                        {
+                            "status": "cached",
+                            "node_count": existing.node_count,
+                            "file_count": existing.file_count,
+                            "generated_at": gen_at,
+                        }
+                    )
+                )
             else:
                 console.print(f"[green]✓[/green] ToC up to date ({existing.node_count} nodes)")
                 console.print("[dim]Use --force to rebuild[/dim]")
@@ -83,13 +83,17 @@ async def _build_toc(
         toc = generator.generate()
         elapsed = time.perf_counter() - start
         toc.save(cache_dir.parent)
-        print(json.dumps({
-            "status": "built",
-            "node_count": toc.node_count,
-            "file_count": toc.file_count,
-            "build_time_ms": int(elapsed * 1000),
-            "estimated_tokens": toc.estimate_tokens(max_depth=2),
-        }))
+        print(
+            json.dumps(
+                {
+                    "status": "built",
+                    "node_count": toc.node_count,
+                    "file_count": toc.file_count,
+                    "build_time_ms": int(elapsed * 1000),
+                    "estimated_tokens": toc.estimate_tokens(max_depth=2),
+                }
+            )
+        )
     elif verbose:
         # Verbose mode with detailed progress
         console.print("[bold]Building ToC...[/bold]\n")
@@ -145,9 +149,7 @@ async def _build_toc(
         # Concept breakdown
         if toc.concept_index:
             console.print("[bold]Concepts Detected[/bold]")
-            for concept, nodes in sorted(
-                toc.concept_index.items(), key=lambda x: -len(x[1])
-            ):
+            for concept, nodes in sorted(toc.concept_index.items(), key=lambda x: -len(x[1])):
                 console.print(f"  {concept}: {len(nodes):,} nodes")
             console.print()
 
@@ -263,13 +265,18 @@ async def _find_code(
     else:
         try:
             from sunwell.models.providers import create_model
+
             model = create_model()
         except Exception as e:
             if json_output:
-                print(json.dumps({
-                    "error": f"Failed to create model: {e}",
-                    "hint": "Use --fallback for keyword-based search",
-                }))
+                print(
+                    json.dumps(
+                        {
+                            "error": f"Failed to create model: {e}",
+                            "hint": "Use --fallback for keyword-based search",
+                        }
+                    )
+                )
             else:
                 console.print(f"[red]✗[/red] Failed to create model: {e}")
                 console.print("[dim]Tip: Use --fallback for keyword-based search[/dim]")
@@ -278,6 +285,7 @@ async def _find_code(
     # For fallback mode, use mock model (navigator uses _fallback_navigate internally)
     if not model:
         from sunwell.models import MockModel
+
         model = MockModel()
 
     navigator = TocNavigator(toc=toc, model=model, workspace_root=cwd)
@@ -295,17 +303,23 @@ async def _find_code(
         )
 
         if json_output:
-            print(json.dumps({
-                "query": query,
-                "mode": "fallback",
-                "results": [{
-                    "path": result_with_content.path,
-                    "reasoning": result_with_content.reasoning,
-                    "confidence": result_with_content.confidence,
-                    "content_length": len(content) if content else 0,
-                    "follow_up": list(result_with_content.follow_up),
-                }],
-            }))
+            print(
+                json.dumps(
+                    {
+                        "query": query,
+                        "mode": "fallback",
+                        "results": [
+                            {
+                                "path": result_with_content.path,
+                                "reasoning": result_with_content.reasoning,
+                                "confidence": result_with_content.confidence,
+                                "content_length": len(content) if content else 0,
+                                "follow_up": list(result_with_content.follow_up),
+                            }
+                        ],
+                    }
+                )
+            )
         else:
             console.print(f"[bold]Results for:[/bold] {query}\n")
             console.print(f"[cyan]1. {result_with_content.path}[/cyan]")
@@ -313,7 +327,8 @@ async def _find_code(
             console.print(f"   Confidence: [yellow]{result_with_content.confidence:.0%}[/yellow]")
             if result_with_content.content:
                 lines = [
-                    ln.strip() for ln in result_with_content.content.split("\n")
+                    ln.strip()
+                    for ln in result_with_content.content.split("\n")
                     if ln.strip() and not ln.strip().startswith("#")
                 ][:3]
                 if lines:
@@ -340,11 +355,15 @@ async def _find_code(
             for r in results_list
         ]
 
-        print(json.dumps({
-            "query": query,
-            "mode": "llm",
-            "results": results,
-        }))
+        print(
+            json.dumps(
+                {
+                    "query": query,
+                    "mode": "llm",
+                    "results": results,
+                }
+            )
+        )
     else:
         with console.status("[bold]Navigating...[/bold]"):
             results = await navigator.iterative_search(query, max_iterations=max_results)
@@ -371,7 +390,8 @@ async def _find_code(
             if result.content:
                 # Show first meaningful lines
                 lines = [
-                    ln.strip() for ln in result.content.split("\n")
+                    ln.strip()
+                    for ln in result.content.split("\n")
                     if ln.strip() and not ln.strip().startswith("#")
                 ][:3]
                 if lines:
@@ -487,20 +507,24 @@ def stats(json_output: bool) -> None:
     tokens_d3 = toc.estimate_tokens(max_depth=3)
 
     if json_output:
-        print(json.dumps({
-            "root_id": toc.root_id,
-            "node_count": toc.node_count,
-            "file_count": toc.file_count,
-            "generated_at": toc.generated_at.isoformat() if toc.generated_at else None,
-            "is_stale": toc.is_stale(),
-            "type_counts": type_counts,
-            "concept_counts": {k: len(v) for k, v in toc.concept_index.items()},
-            "token_estimates": {
-                "depth_1": tokens_d1,
-                "depth_2": tokens_d2,
-                "depth_3": tokens_d3,
-            },
-        }))
+        print(
+            json.dumps(
+                {
+                    "root_id": toc.root_id,
+                    "node_count": toc.node_count,
+                    "file_count": toc.file_count,
+                    "generated_at": toc.generated_at.isoformat() if toc.generated_at else None,
+                    "is_stale": toc.is_stale(),
+                    "type_counts": type_counts,
+                    "concept_counts": {k: len(v) for k, v in toc.concept_index.items()},
+                    "token_estimates": {
+                        "depth_1": tokens_d1,
+                        "depth_2": tokens_d2,
+                        "depth_3": tokens_d3,
+                    },
+                }
+            )
+        )
     else:
         console.print("[bold]ToC Statistics[/bold]\n")
 

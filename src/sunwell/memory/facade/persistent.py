@@ -244,24 +244,18 @@ class PersistentMemory:
         # Query DecisionMemory for constraints
         if self.decisions:
             try:
-                relevant_decisions = await self.decisions.find_relevant_decisions(
-                    goal, top_k=top_k
-                )
+                relevant_decisions = await self.decisions.find_relevant_decisions(goal, top_k=top_k)
                 # Extract constraints from rejected options
                 for decision in relevant_decisions:
                     for rejected in decision.rejected:
-                        constraints.append(
-                            f"{rejected.option}: {rejected.reason}"
-                        )
+                        constraints.append(f"{rejected.option}: {rejected.reason}")
             except Exception as e:
                 logger.warning(f"Failed to query decisions: {e}")
 
         # Query FailureMemory for dead ends
         if self.failures:
             try:
-                similar_failures = await self.failures.check_similar_failures(
-                    goal, top_k=top_k
-                )
+                similar_failures = await self.failures.check_similar_failures(goal, top_k=top_k)
                 dead_ends = [f.description for f in similar_failures]
             except Exception as e:
                 logger.warning(f"Failed to query failures: {e}")
@@ -603,40 +597,42 @@ class PersistentMemory:
                 # Extract goal-level info from learnings
                 for learning in planning_ctx.all_learnings[:limit]:
                     if hasattr(learning, "original_goal"):
-                        similar_goals.append(GoalMemory(
-                            goal=learning.original_goal,
-                            success=learning.success,
-                            hot_files=tuple(getattr(learning, "files_touched", [])),
-                            learnings=tuple(getattr(learning, "related_learnings", [])),
-                            skills_used=tuple(getattr(learning, "skills_used", [])),
-                            lens_used=getattr(learning, "lens_used", None),
-                            success_pattern=getattr(learning, "success_pattern", None),
-                            similarity_score=getattr(learning, "relevance_score", 0.5),
-                        ))
+                        similar_goals.append(
+                            GoalMemory(
+                                goal=learning.original_goal,
+                                success=learning.success,
+                                hot_files=tuple(getattr(learning, "files_touched", [])),
+                                learnings=tuple(getattr(learning, "related_learnings", [])),
+                                skills_used=tuple(getattr(learning, "skills_used", [])),
+                                lens_used=getattr(learning, "lens_used", None),
+                                success_pattern=getattr(learning, "success_pattern", None),
+                                similarity_score=getattr(learning, "relevance_score", 0.5),
+                            )
+                        )
             except Exception as e:
                 logger.warning(f"Failed to find similar goals in simulacrum: {e}")
 
         # Search DecisionMemory for goals with relevant decisions
         if self.decisions and len(similar_goals) < limit:
             try:
-                relevant_decisions = await self.decisions.find_relevant_decisions(
-                    goal, top_k=limit
-                )
+                relevant_decisions = await self.decisions.find_relevant_decisions(goal, top_k=limit)
                 for decision in relevant_decisions:
                     if decision.context and "goal:" in decision.context.lower():
                         # Extract goal from context
                         goal_from_decision = decision.context.split("goal:")[-1].strip()[:100]
                         if goal_from_decision:
-                            similar_goals.append(GoalMemory(
-                                goal=goal_from_decision,
-                                success=True,  # Assume success if decision exists
-                                hot_files=(),
-                                learnings=(),
-                                skills_used=(),
-                                lens_used=None,
-                                success_pattern=f"Decision: {decision.choice}",
-                                similarity_score=0.3,
-                            ))
+                            similar_goals.append(
+                                GoalMemory(
+                                    goal=goal_from_decision,
+                                    success=True,  # Assume success if decision exists
+                                    hot_files=(),
+                                    learnings=(),
+                                    skills_used=(),
+                                    lens_used=None,
+                                    success_pattern=f"Decision: {decision.choice}",
+                                    similarity_score=0.3,
+                                )
+                            )
             except Exception as e:
                 logger.warning(f"Failed to find similar goals in decisions: {e}")
 
@@ -657,16 +653,19 @@ class PersistentMemory:
                     matching = cache.search_facts(keyword, limit=3)
                     for entry in matching:
                         # Create a GoalMemory with just the learning context
-                        similar_goals.append(GoalMemory(
-                            goal=f"Context: {entry.fact[:50]}",
-                            success=True,
-                            hot_files=(entry.source_file,) if entry.source_file else (),
-                            learnings=(entry.fact,),
-                            skills_used=(),
-                            lens_used=None,
-                            success_pattern=None,
-                            similarity_score=entry.confidence * 0.5,  # Lower score for keyword match
-                        ))
+                        similar_goals.append(
+                            GoalMemory(
+                                goal=f"Context: {entry.fact[:50]}",
+                                success=True,
+                                hot_files=(entry.source_file,) if entry.source_file else (),
+                                learnings=(entry.fact,),
+                                skills_used=(),
+                                lens_used=None,
+                                success_pattern=None,
+                                similarity_score=entry.confidence
+                                * 0.5,  # Lower score for keyword match
+                            )
+                        )
         except Exception as e:
             logger.debug("Failed to search learning cache: %s", e)
 
@@ -855,7 +854,10 @@ def _load_team(
         TeamKnowledgeStore or None if not configured/available.
     """
     try:
-        from sunwell.features.team.store import TeamKnowledgeStore, get_workspace_team_dir  # layer-exempt: pre-existing
+        from sunwell.features.team.store import (  # layer-exempt: pre-existing
+            TeamKnowledgeStore,
+            get_workspace_team_dir,
+        )
 
         if workspace_id:
             # Workspace-scoped: check if workspace team dir exists or create it

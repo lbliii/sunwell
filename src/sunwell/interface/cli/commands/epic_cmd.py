@@ -132,9 +132,7 @@ async def _show_status(epic_id: str | None, json_output: bool) -> None:
     # Current milestone
     if progress.current_milestone_id:
         console.print()
-        console.print(
-            f"[holy.radiant]Current:[/] {progress.current_milestone_title}"
-        )
+        console.print(f"[holy.radiant]Current:[/] {progress.current_milestone_title}")
         if progress.current_milestone_tasks_total > 0:
             task_pct = (
                 progress.current_milestone_tasks_completed

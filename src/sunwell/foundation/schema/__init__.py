@@ -11,5 +11,6 @@ def __getattr__(name: str):
     """Lazy import to avoid circular dependency."""
     if name == "LensLoader":
         from sunwell.foundation.schema.loader import LensLoader
+
         return LensLoader
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

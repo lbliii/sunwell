@@ -308,15 +308,17 @@ class SignatureExtractor:
                     # Find the full signature (up to opening brace or newline)
                     sig_line = stripped
                     if "{" in sig_line:
-                        sig_line = sig_line[:sig_line.index("{")] + " { ... }"
+                        sig_line = sig_line[: sig_line.index("{")] + " { ... }"
 
-                    signatures.append(Signature(
-                        name=name or "default",
-                        kind=kind,
-                        signature=sig_line,
-                        file_path=file_path,
-                        line=i + 1,
-                    ))
+                    signatures.append(
+                        Signature(
+                            name=name or "default",
+                            kind=kind,
+                            signature=sig_line,
+                            file_path=file_path,
+                            line=i + 1,
+                        )
+                    )
                     break
 
         return signatures
@@ -355,15 +357,17 @@ class SignatureExtractor:
                     # Find the full signature
                     sig_line = stripped
                     if "{" in sig_line:
-                        sig_line = sig_line[:sig_line.index("{")] + " { ... }"
+                        sig_line = sig_line[: sig_line.index("{")] + " { ... }"
 
-                    signatures.append(Signature(
-                        name=name,
-                        kind=kind,
-                        signature=sig_line,
-                        file_path=file_path,
-                        line=i + 1,
-                    ))
+                    signatures.append(
+                        Signature(
+                            name=name,
+                            kind=kind,
+                            signature=sig_line,
+                            file_path=file_path,
+                            line=i + 1,
+                        )
+                    )
                     break
 
         return signatures
@@ -406,15 +410,17 @@ class SignatureExtractor:
                     # Find the full signature
                     sig_line = stripped
                     if "{" in sig_line:
-                        sig_line = sig_line[:sig_line.index("{")] + " { ... }"
+                        sig_line = sig_line[: sig_line.index("{")] + " { ... }"
 
-                    signatures.append(Signature(
-                        name=name,
-                        kind=kind,
-                        signature=sig_line,
-                        file_path=file_path,
-                        line=i + 1,
-                    ))
+                    signatures.append(
+                        Signature(
+                            name=name,
+                            kind=kind,
+                            signature=sig_line,
+                            file_path=file_path,
+                            line=i + 1,
+                        )
+                    )
                     break
 
         return signatures

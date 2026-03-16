@@ -105,9 +105,7 @@ async def analyze_project(
 
     # 10. Calculate confidence
     confidence = _calculate_confidence(signals, classification_source, classification_confidence)
-    confidence_level = (
-        "high" if confidence >= 0.85 else "medium" if confidence >= 0.65 else "low"
-    )
+    confidence_level = "high" if confidence >= 0.85 else "medium" if confidence >= 0.65 else "low"
 
     analysis = ProjectAnalysis(
         name=path.name,

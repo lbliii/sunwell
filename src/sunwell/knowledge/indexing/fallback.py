@@ -7,22 +7,17 @@ Provides context retrieval that works even without embeddings:
 4. File listing (quality=0.3) - Minimal, just shows structure
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from sunwell.foundation.utils import safe_json_loads
-
-if TYPE_CHECKING:
-    from sunwell.knowledge.codebase.codebase import CodebaseGraph
-    from sunwell.knowledge.indexing.service import IndexingService
-    from sunwell.knowledge.navigation.navigator import TocNavigator
-    from sunwell.models import ModelProtocol
+from sunwell.knowledge.codebase.codebase import CodebaseGraph
+from sunwell.knowledge.indexing.service import IndexingService
+from sunwell.knowledge.navigation.navigator import TocNavigator
+from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +27,24 @@ INTELLIGENCE_DIR = "intelligence"
 NAVIGATION_DIR = "navigation"
 
 # Structural query signals - queries that benefit from ToC navigation
-STRUCTURAL_SIGNALS: frozenset[str] = frozenset({
-    "where is",
-    "where does",
-    "where are",
-    "how does",
-    "how is",
-    "find the",
-    "find where",
-    "locate",
-    "which file",
-    "which module",
-    "what file",
-    "what module",
-    "implemented",
-    "implementation",
-})
+STRUCTURAL_SIGNALS: frozenset[str] = frozenset(
+    {
+        "where is",
+        "where does",
+        "where are",
+        "how does",
+        "how is",
+        "find the",
+        "find where",
+        "locate",
+        "which file",
+        "which module",
+        "what file",
+        "what module",
+        "implemented",
+        "implementation",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,9 +221,7 @@ class SmartContext:
 
         return "\n".join(sections)
 
-    async def _grep_search(
-        self, query: str, max_results: int = 10
-    ) -> list[dict]:
+    async def _grep_search(self, query: str, max_results: int = 10) -> list[dict]:
         """Fall back to grep-based keyword search.
 
         Uses ripgrep (rg) for fast searching.
@@ -327,18 +322,18 @@ class SmartContext:
                 data = safe_json_loads(line)
                 if data.get("type") == "match":
                     match_data = data.get("data", {})
-                    results.append({
-                        "file": match_data.get("path", {}).get("text", ""),
-                        "line": match_data.get("line_number", 0),
-                        "content": match_data.get("lines", {}).get("text", ""),
-                    })
+                    results.append(
+                        {
+                            "file": match_data.get("path", {}).get("text", ""),
+                            "line": match_data.get("line_number", 0),
+                            "content": match_data.get("lines", {}).get("text", ""),
+                        }
+                    )
             except ValueError:
                 continue
         return results
 
-    def _list_relevant_files(
-        self, query: str, max_files: int = 20
-    ) -> list[Path]:
+    def _list_relevant_files(self, query: str, max_files: int = 20) -> list[Path]:
         """List files that might be relevant based on name.
 
         Args:

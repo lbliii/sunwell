@@ -22,7 +22,6 @@ Example schema (fiction):
     ```
 """
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -235,10 +234,7 @@ class ProjectSchema:
             artifact_types[type_name] = cls._parse_artifact_type(type_name, type_data)
 
         # Parse validators
-        validators = tuple(
-            cls._parse_validator(v)
-            for v in data.get("validators", [])
-        )
+        validators = tuple(cls._parse_validator(v) for v in data.get("validators", []))
 
         # Parse planning config
         planning_config = cls._parse_planning_config(data.get("planning", {}))
@@ -279,8 +275,7 @@ class ProjectSchema:
 
         # Parse conditional requirements
         conditional_requirements = tuple(
-            cls._parse_conditional_requirement(cond)
-            for cond in data.get("when", [])
+            cls._parse_conditional_requirement(cond) for cond in data.get("when", [])
         )
 
         return ArtifactType(

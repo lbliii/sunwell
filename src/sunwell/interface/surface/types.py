@@ -37,6 +37,7 @@ class RegistryProtocol(Protocol[_T]):
         """Get items by category."""
         ...
 
+
 # Type aliases for clarity
 PrimitiveSize = Literal["full", "split", "panel", "sidebar", "widget", "floating", "bottom"]
 PrimitiveCategory = Literal["code", "planning", "writing", "data", "universal"]
@@ -98,9 +99,7 @@ class SurfacePrimitive:
     size: PrimitiveSize
     """Size mode: "full", "split", "panel", "sidebar", "widget", "floating", "bottom"."""
 
-    props: MappingProxyType[str, Any] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
+    props: MappingProxyType[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     """Component props (file path, initial state, etc.). Immutable mapping."""
 
 

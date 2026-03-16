@@ -3,10 +3,10 @@
 import json
 from collections import defaultdict
 
-from chirp import App, Page
+from chirp import App
 
 
-def get(app: App) -> Page:
+def get(app: App) -> dict:
     """Render tool inspector page."""
     tools = app._tool_registry.list_tools()
 
@@ -52,14 +52,11 @@ def get(app: App) -> Page:
         "other": "🔹",
     }
 
-    return Page(
-        "tools/page.html",
-        "content",
-        current_page="tools",
-        page_title="Tool Inspector - Sunwell Studio",
-        breadcrumb_label="Tools",
-        total_tools=len(tools),
-        tools_by_category=dict(tools_by_category),
-        categories=list(tools_by_category.keys()),
-        category_icons=category_icons,
-    )
+    return {
+        "page_title": "Tool Inspector - Sunwell Studio",
+        "breadcrumb_label": "Tools",
+        "total_tools": len(tools),
+        "tools_by_category": dict(tools_by_category),
+        "categories": list(tools_by_category.keys()),
+        "category_icons": category_icons,
+    }

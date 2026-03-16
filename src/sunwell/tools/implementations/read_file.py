@@ -51,10 +51,7 @@ class ReadFileTool(BaseTool):
 
         size = path.stat().st_size
         if size > 1_000_000:
-            return (
-                f"File too large ({size:,} bytes). "
-                "Use search_files to find specific content."
-            )
+            return f"File too large ({size:,} bytes). Use search_files to find specific content."
 
         content = path.read_text(encoding="utf-8", errors="replace")
         return f"```\n{content}\n```\n({len(content):,} bytes)"

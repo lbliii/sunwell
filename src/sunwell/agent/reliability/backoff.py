@@ -91,7 +91,7 @@ def compute_backoff(policy: BackoffPolicy, attempt: int) -> int:
     """
     # Calculate base delay
     exponent = max(attempt - 1, 0)
-    base = policy.initial_ms * (policy.factor ** exponent)
+    base = policy.initial_ms * (policy.factor**exponent)
 
     # Add jitter (random portion of base)
     jitter_amount = base * policy.jitter * random.random()
@@ -124,7 +124,7 @@ async def sleep_with_backoff(
             # Wait for abort or timeout
             await asyncio.wait_for(abort_event.wait(), timeout=delay_s)
             return False  # Aborted
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return True  # Normal completion
     else:
         await asyncio.sleep(delay_s)
@@ -147,6 +147,6 @@ def compute_backoff_sequence(policy: BackoffPolicy, max_attempts: int) -> list[i
     for attempt in range(1, max_attempts + 1):
         # Compute without jitter for deterministic preview
         exponent = attempt - 1
-        base = policy.initial_ms * (policy.factor ** exponent)
+        base = policy.initial_ms * (policy.factor**exponent)
         delays.append(min(policy.max_ms, int(base)))
     return delays

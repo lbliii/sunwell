@@ -19,38 +19,40 @@ from sunwell.domains.code.validators import (
 from sunwell.domains.protocol import BaseDomain, DomainType
 
 # Keywords for code domain detection
-_CODE_KEYWORDS: frozenset[str] = frozenset({
-    # Actions
-    "code",
-    "implement",
-    "build",
-    "create",
-    "write",
-    "fix",
-    "debug",
-    "refactor",
-    "test",
-    # Objects
-    "function",
-    "class",
-    "method",
-    "api",
-    "endpoint",
-    "module",
-    "package",
-    "library",
-    # Problems
-    "bug",
-    "error",
-    "exception",
-    "crash",
-    # Languages
-    "python",
-    "javascript",
-    "typescript",
-    "rust",
-    "go",
-})
+_CODE_KEYWORDS: frozenset[str] = frozenset(
+    {
+        # Actions
+        "code",
+        "implement",
+        "build",
+        "create",
+        "write",
+        "fix",
+        "debug",
+        "refactor",
+        "test",
+        # Objects
+        "function",
+        "class",
+        "method",
+        "api",
+        "endpoint",
+        "module",
+        "package",
+        "library",
+        # Problems
+        "bug",
+        "error",
+        "exception",
+        "crash",
+        # Languages
+        "python",
+        "javascript",
+        "typescript",
+        "rust",
+        "go",
+    }
+)
 
 
 class CodeDomain(BaseDomain):

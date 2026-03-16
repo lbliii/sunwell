@@ -57,6 +57,49 @@
         </form>
     {% end %}
 
+    {# Telegram Channel Section #}
+    {% call card(title="Telegram Channel") %}
+        <p class="chirpui-text-muted" style="margin-bottom: var(--chirpui-spacing-lg);">
+            Connect Sunwell to Telegram. Requires <code>sunwell[channels]</code>.
+        </p>
+
+        <form hx-post="/settings/telegram"
+              hx-target="#telegram-status"
+              hx-indicator="#telegram-spinner">
+            <div class="chirpui-stack chirpui-stack--lg">
+                <div class="chirpui-field chirpui-field--checkbox">
+                    <input type="checkbox"
+                           id="telegram_enabled"
+                           name="enabled"
+                           {% if settings.telegram_enabled %}checked{% end %}>
+                    <label class="chirpui-field__label" for="telegram_enabled">Enable Telegram channel</label>
+                </div>
+
+                <div class="chirpui-field">
+                    <label class="chirpui-field__label" for="telegram_token">Bot Token</label>
+                    <input type="password"
+                           id="telegram_token"
+                           name="token"
+                           value=""
+                           placeholder="{% if settings.telegram_token_configured %}•••••••• (leave blank to keep){% else %}123456:ABC-DEF...{% end %}"
+                           class="chirpui-field__input">
+                    <span class="chirpui-field__hint">
+                        From @BotFather. Or set TELEGRAM_BOT_TOKEN env var.
+                    </span>
+                </div>
+
+                <div class="chirpui-form-actions">
+                    <button type="submit" class="chirpui-btn chirpui-btn--primary">
+                        Save Telegram Settings
+                        <span class="htmx-indicator" id="telegram-spinner"></span>
+                    </button>
+                </div>
+
+                <div id="telegram-status"></div>
+            </div>
+        </form>
+    {% end %}
+
     {# API Keys Section #}
     {% call card(title="API Keys") %}
         <p class="chirpui-text-muted" style="margin-bottom: var(--chirpui-spacing-lg);">Configure API keys for external providers</p>

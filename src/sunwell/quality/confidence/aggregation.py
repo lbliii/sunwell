@@ -9,8 +9,6 @@ Confidence Formula:
     confidence = Evidence(40) + Consistency(30) + Recency(15) + Tests(15) = 0-100%
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -21,10 +19,10 @@ from typing import Any
 class ConfidenceLevel(Enum):
     """Confidence band levels with emoji indicators."""
 
-    HIGH = "high"           # 🟢 90-100%
-    MODERATE = "moderate"   # 🟡 70-89%
-    LOW = "low"             # 🟠 50-69%
-    UNCERTAIN = "uncertain" # 🔴 <50%
+    HIGH = "high"  # 🟢 90-100%
+    MODERATE = "moderate"  # 🟡 70-89%
+    LOW = "low"  # 🟠 50-69%
+    UNCERTAIN = "uncertain"  # 🔴 <50%
 
 
 def score_to_band(score: float) -> ConfidenceLevel:
@@ -185,10 +183,10 @@ class ConfidenceFactors:
     def total(self) -> float:
         """Calculate weighted total confidence score."""
         return (
-            self.evidence_score * 0.40 +
-            self.consistency_score * 0.30 +
-            self.recency_score * 0.15 +
-            self.test_score * 0.15
+            self.evidence_score * 0.40
+            + self.consistency_score * 0.30
+            + self.recency_score * 0.15
+            + self.test_score * 0.15
         )
 
 

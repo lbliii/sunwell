@@ -1,6 +1,5 @@
 """Benchmark command for agent CLI."""
 
-
 import asyncio
 from pathlib import Path
 
@@ -14,7 +13,8 @@ console = Console()
 
 @click.command(name="benchmark")
 @click.option(
-    "--tasks-dir", "-d",
+    "--tasks-dir",
+    "-d",
     default="benchmark/tasks/agent",
     help="Directory containing agent benchmark tasks",
 )
@@ -24,12 +24,14 @@ console = Console()
     help="Evaluate planning only (no execution)",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=click.Path(),
     help="Directory to save results",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output",
 )
@@ -127,10 +129,14 @@ async def _benchmark_async(
 
             results_file = output_path / f"agent-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
             with open(results_file, "w") as f:
-                json.dump({
-                    "summary": summary,
-                    "results": [r.to_dict() for r in results],
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "summary": summary,
+                        "results": [r.to_dict() for r in results],
+                    },
+                    f,
+                    indent=2,
+                )
 
             console.print(f"\n[dim]Results saved to: {results_file}[/dim]")
 
@@ -138,6 +144,7 @@ async def _benchmark_async(
         console.print(f"\n[red]Benchmark error: {e}[/red]")
         if verbose:
             import traceback
+
             console.print(traceback.format_exc())
 
 
@@ -205,12 +212,15 @@ async def _extract_learnings_from_result(
 
                 # Emit memory_learning event for real-time updates
                 if emit:
-                    emit("memory_learning", {
-                        "fact": fact,
-                        "category": category,
-                        "confidence": confidence,
-                        "source": artifact_id,
-                    })
+                    emit(
+                        "memory_learning",
+                        {
+                            "fact": fact,
+                            "category": category,
+                            "confidence": confidence,
+                            "source": artifact_id,
+                        },
+                    )
         except Exception:
             # Learning extraction failed for this artifact
             continue

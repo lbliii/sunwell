@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-from sunwell.foundation.utils import safe_yaml_load
 from sunwell.foundation.schema.models.skill import (
     Resource,
     Script,
@@ -13,6 +12,7 @@ from sunwell.foundation.schema.models.skill import (
     Template,
     TrustLevel,
 )
+from sunwell.foundation.utils import safe_yaml_load
 
 
 def parse_skills(
@@ -76,6 +76,7 @@ def load_skill_include(
 
     # Also check the standard skills directory
     from importlib.resources import files
+
     try:
         package_skills = files("sunwell") / "skills" / file_path
         if package_skills.is_file():
@@ -96,8 +97,7 @@ def load_skill_include(
 
     if not skill_file:
         raise ValueError(
-            f"Skill include not found: {include_ref}. "
-            f"Searched: {[str(p) for p in search_paths]}"
+            f"Skill include not found: {include_ref}. Searched: {[str(p) for p in search_paths]}"
         )
 
     # Load and parse the skill file
@@ -105,9 +105,7 @@ def load_skill_include(
 
     # The file should have a 'skills' key
     if "skills" not in skill_data:
-        raise ValueError(
-            f"Skill file {skill_file} must have a 'skills' key"
-        )
+        raise ValueError(f"Skill file {skill_file} must have a 'skills' key")
 
     # Parse skills from the file
     all_skills = []
@@ -120,9 +118,7 @@ def load_skill_include(
         all_skills = [s for s in all_skills if s.name in skill_names]
         missing = skill_names - {s.name for s in all_skills}
         if missing:
-            raise ValueError(
-                f"Skills not found in {skill_file}: {missing}"
-            )
+            raise ValueError(f"Skills not found in {skill_file}: {missing}")
 
     return all_skills
 

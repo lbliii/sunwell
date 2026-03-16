@@ -1,6 +1,5 @@
 """Resume command for agent CLI."""
 
-
 import asyncio
 from pathlib import Path
 from typing import Any
@@ -14,30 +13,35 @@ console = create_sunwell_console()
 
 @click.command()
 @click.option(
-    "--checkpoint", "-c",
+    "--checkpoint",
+    "-c",
     default=None,
     help="Path to checkpoint file",
 )
 @click.option(
-    "--plan-id", "-p",
+    "--plan-id",
+    "-p",
     default=None,
     help="Plan ID to resume (RFC-040)",
 )
 @click.option(
-    "--goal", "-g",
+    "--goal",
+    "-g",
     default=None,
     help="Goal to find checkpoint for (RFC-130)",
 )
 @click.option(
     "--phase",
-    type=click.Choice([
-        "orient_complete",
-        "exploration_complete",
-        "plan_complete",
-        "design_approved",
-        "implementation_complete",
-        "review_complete",
-    ]),
+    type=click.Choice(
+        [
+            "orient_complete",
+            "exploration_complete",
+            "plan_complete",
+            "design_approved",
+            "implementation_complete",
+            "review_complete",
+        ]
+    ),
     default=None,
     help="Resume from specific phase (RFC-130)",
 )
@@ -48,12 +52,14 @@ console = create_sunwell_console()
     help="Model provider (default: from config)",
 )
 @click.option(
-    "--model", "-m",
+    "--model",
+    "-m",
     default=None,
     help="Override model selection",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output",
 )
@@ -436,5 +442,5 @@ async def _resume_artifact_execution(
         console.print(f"\n[void.purple]✗ Error: {e}[/void.purple]")
         if verbose:
             import traceback
-            console.print(traceback.format_exc())
 
+            console.print(traceback.format_exc())

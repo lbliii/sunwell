@@ -14,7 +14,6 @@ Features:
 - Usage guidance: active tool tips for system prompt
 """
 
-
 import asyncio
 import json
 import time
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
     from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
     from sunwell.models import Tool
+    from sunwell.skills.runtime import SkillExecutor
     from sunwell.tools.providers.expertise import ExpertiseToolHandler
     from sunwell.tools.providers.web_search import WebSearchHandler
     from sunwell.tools.registry import DynamicToolRegistry
@@ -104,6 +104,7 @@ class ToolExecutor:
     mirror_handler: MirrorHandler | None = None
     expertise_handler: ExpertiseToolHandler | None = None
     sunwell_handler: SunwellToolHandlers | None = None
+    skill_executor: SkillExecutor | None = None
     policy: ToolPolicy | None = None
     audit_path: Path | None = None
 
@@ -137,7 +138,6 @@ class ToolExecutor:
 
         # Initialize dynamic tool registry
         self._init_registry(workspace)
-
 
     # =========================================================================
     # Dynamic Tool Registry
@@ -214,9 +214,13 @@ class ToolExecutor:
 
     def get_available_tools(self) -> list[str]:
         """Get list of available tool names (active + known)."""
-        if not self._registry:
-            return []
-        return self._registry.list_all_tools()
+        base = list(self._registry.list_all_tools()) if self._registry else []
+        if self.skill_executor:
+            skill_names = self.skill_executor.get_tool_names()
+            for name in skill_names:
+                if name not in base:
+                    base.append(name)
+        return base
 
     def get_tool_definitions(self) -> tuple[Tool, ...]:
         """Get Tool definitions for active tools.
@@ -224,9 +228,15 @@ class ToolExecutor:
         Returns Tool objects with name, description, and JSON Schema parameters.
         Use this when passing tools to model.generate(tools=...).
         """
-        if not self._registry:
-            return ()
-        return self._registry.get_active_schemas()
+        base = tuple(self._registry.get_active_schemas()) if self._registry else ()
+        if self.skill_executor:
+            skill_tools = self.skill_executor.get_tool_definitions()
+            base_names = {t.name for t in base}
+            for t in skill_tools:
+                if t.name not in base_names:
+                    base = (*base, t)
+                    base_names.add(t.name)
+        return base
 
     async def execute(self, tool_call: ToolCall) -> ToolResult:
         """Execute a single tool call.
@@ -429,6 +439,27 @@ class ToolExecutor:
                     output="Web tools not configured. Set web_search_handler on ToolExecutor.",
                 )
 
+        # Route skill tools to skill executor
+        if self.skill_executor and self.skill_executor.is_skill_tool(tool_call.name):
+            try:
+                output = await self.skill_executor.execute(tool_call)
+                elapsed_ms = int((time.monotonic() - start) * 1000)
+                self._log_audit(tool_call, True, elapsed_ms)
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=True,
+                    output=output,
+                    execution_time_ms=elapsed_ms,
+                )
+            except Exception as e:
+                elapsed_ms = int((time.monotonic() - start) * 1000)
+                self._log_audit(tool_call, False, elapsed_ms, str(e))
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output=f"Skill error: {e}",
+                )
+
         # Check rate limits
         if not self._rate_limits.check_tool_call():
             return ToolResult(
@@ -569,9 +600,7 @@ class ToolExecutor:
             Tuple of ToolResult objects in the same order as input
         """
         if parallel:
-            results = await asyncio.gather(*[
-                self.execute(tc) for tc in tool_calls
-            ])
+            results = await asyncio.gather(*[self.execute(tc) for tc in tool_calls])
             return tuple(results)
         else:
             results = []
@@ -626,13 +655,15 @@ class ToolExecutor:
             from sunwell.features.mirror.self import Self
             from sunwell.features.mirror.self.types import ExecutionEvent
 
-            Self.get().analysis.record_execution(ExecutionEvent(
-                tool_name=tool_call.name,
-                success=success,
-                latency_ms=execution_time_ms,
-                error=error,
-                timestamp=entry.timestamp,
-            ))
+            Self.get().analysis.record_execution(
+                ExecutionEvent(
+                    tool_name=tool_call.name,
+                    success=success,
+                    latency_ms=execution_time_ms,
+                    error=error,
+                    timestamp=entry.timestamp,
+                )
+            )
         except Exception:
             # Don't let analysis recording failures break tool execution
             pass

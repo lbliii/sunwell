@@ -42,9 +42,7 @@ class SunwellGit(GitProvider):
             return self.default_repo
         return Path.cwd()
 
-    async def _run_git(
-        self, args: list[str], cwd: Path | None = None
-    ) -> tuple[int, str, str]:
+    async def _run_git(self, args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
         """Run a git command and return (returncode, stdout, stderr)."""
         proc = await asyncio.create_subprocess_exec(
             "git",
@@ -65,9 +63,7 @@ class SunwellGit(GitProvider):
         repo = self._get_repo_path(path)
 
         # Get current branch
-        code, branch_out, _ = await self._run_git(
-            ["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo
-        )
+        code, branch_out, _ = await self._run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo)
         branch = branch_out.strip() if code == 0 else "unknown"
 
         # Get ahead/behind counts
@@ -82,9 +78,7 @@ class SunwellGit(GitProvider):
                 ahead, behind = int(parts[0]), int(parts[1])
 
         # Get file statuses using porcelain format
-        code, status_out, _ = await self._run_git(
-            ["status", "--porcelain=v1"], cwd=repo
-        )
+        code, status_out, _ = await self._run_git(["status", "--porcelain=v1"], cwd=repo)
 
         files: list[GitFileStatus] = []
         if code == 0:
@@ -115,11 +109,13 @@ class SunwellGit(GitProvider):
                     status = "modified"
                     staged = index_status != " "
 
-                files.append(GitFileStatus(
-                    path=file_path,
-                    status=status,
-                    staged=staged,
-                ))
+                files.append(
+                    GitFileStatus(
+                        path=file_path,
+                        status=status,
+                        staged=staged,
+                    )
+                )
 
         return GitStatus(
             branch=branch,
@@ -129,9 +125,7 @@ class SunwellGit(GitProvider):
             is_clean=len(files) == 0,
         )
 
-    async def get_log(
-        self, path: str | None = None, limit: int = 50
-    ) -> list[GitCommit]:
+    async def get_log(self, path: str | None = None, limit: int = 50) -> list[GitCommit]:
         """Get commit history."""
         repo = self._get_repo_path(path)
 
@@ -177,15 +171,17 @@ class SunwellGit(GitProvider):
                         files_changed = int(match.group(1))
                     i += 1
 
-            commits.append(GitCommit(
-                hash=hash_full,
-                short_hash=short_hash,
-                author=author,
-                email=email,
-                date=date,
-                message=message,
-                files_changed=files_changed,
-            ))
+            commits.append(
+                GitCommit(
+                    hash=hash_full,
+                    short_hash=short_hash,
+                    author=author,
+                    email=email,
+                    date=date,
+                    message=message,
+                    files_changed=files_changed,
+                )
+            )
             i += 1
 
         return commits
@@ -208,12 +204,14 @@ class SunwellGit(GitProvider):
                 if len(parts) < 3:
                     continue
                 name, upstream, head = parts[0], parts[1], parts[2]
-                branches.append(GitBranch(
-                    name=name,
-                    is_current=(head == "*"),
-                    is_remote=False,
-                    upstream=upstream if upstream else None,
-                ))
+                branches.append(
+                    GitBranch(
+                        name=name,
+                        is_current=(head == "*"),
+                        is_remote=False,
+                        upstream=upstream if upstream else None,
+                    )
+                )
 
         # Get remote branches
         code, remote_out, _ = await self._run_git(
@@ -225,18 +223,18 @@ class SunwellGit(GitProvider):
             for line in remote_out.splitlines():
                 name = line.strip()
                 if name and "->" not in name:  # Skip HEAD pointers
-                    branches.append(GitBranch(
-                        name=name,
-                        is_current=False,
-                        is_remote=True,
-                        upstream=None,
-                    ))
+                    branches.append(
+                        GitBranch(
+                            name=name,
+                            is_current=False,
+                            is_remote=True,
+                            upstream=None,
+                        )
+                    )
 
         return branches
 
-    async def get_diff(
-        self, path: str | None = None, ref: str = "HEAD"
-    ) -> str:
+    async def get_diff(self, path: str | None = None, ref: str = "HEAD") -> str:
         """Get diff against a reference."""
         repo = self._get_repo_path(path)
 
@@ -245,9 +243,7 @@ class SunwellGit(GitProvider):
             code, diff_out, _ = await self._run_git(["diff"], cwd=repo)
         else:
             # Diff against specific ref
-            code, diff_out, _ = await self._run_git(
-                ["diff", ref], cwd=repo
-            )
+            code, diff_out, _ = await self._run_git(["diff", ref], cwd=repo)
 
         return diff_out if code == 0 else ""
 
@@ -279,15 +275,17 @@ class SunwellGit(GitProvider):
                 except ValueError:
                     date = datetime.now()
 
-                commits.append(GitCommit(
-                    hash=hash_full,
-                    short_hash=short_hash,
-                    author=author,
-                    email=email,
-                    date=date,
-                    message=message,
-                    files_changed=0,
-                ))
+                commits.append(
+                    GitCommit(
+                        hash=hash_full,
+                        short_hash=short_hash,
+                        author=author,
+                        email=email,
+                        date=date,
+                        message=message,
+                        files_changed=0,
+                    )
+                )
 
         # Also search by author if not enough results
         if len(commits) < limit:
@@ -316,15 +314,17 @@ class SunwellGit(GitProvider):
                     except ValueError:
                         date = datetime.now()
 
-                    commits.append(GitCommit(
-                        hash=hash_full,
-                        short_hash=short_hash,
-                        author=author,
-                        email=email,
-                        date=date,
-                        message=message,
-                        files_changed=0,
-                    ))
+                    commits.append(
+                        GitCommit(
+                            hash=hash_full,
+                            short_hash=short_hash,
+                            author=author,
+                            email=email,
+                            date=date,
+                            message=message,
+                            files_changed=0,
+                        )
+                    )
 
         return commits
 
@@ -359,9 +359,7 @@ class SunwellGit(GitProvider):
             branch = branch_out.strip()
 
         # Push to remote
-        code, stdout, stderr = await self._run_git(
-            ["push", remote, branch], cwd=repo
-        )
+        code, stdout, stderr = await self._run_git(["push", remote, branch], cwd=repo)
 
         if code != 0:
             # Check for common errors

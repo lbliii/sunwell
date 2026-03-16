@@ -35,17 +35,23 @@ class StdoutEmitter:
 
         match event_type:
             case EventType.BACKLOG_GOAL_ADDED:
-                self.console.print(f"[dim]📋 Goal added: {data.get('title', data.get('goal_id'))}[/dim]")
+                self.console.print(
+                    f"[dim]📋 Goal added: {data.get('title', data.get('goal_id'))}[/dim]"
+                )
 
             case EventType.BACKLOG_GOAL_STARTED:
-                self.console.print(f"[cyan]🚀 Starting: {data.get('title', data.get('goal_id'))}[/cyan]")
+                self.console.print(
+                    f"[cyan]🚀 Starting: {data.get('title', data.get('goal_id'))}[/cyan]"
+                )
 
             case EventType.BACKLOG_GOAL_COMPLETED:
                 artifacts = data.get("artifacts", [])
                 failed = data.get("failed", [])
                 partial = data.get("partial", False)
                 if partial:
-                    self.console.print(f"[yellow]⚠ Completed (partial): {len(artifacts)} created, {len(failed)} failed[/yellow]")
+                    self.console.print(
+                        f"[yellow]⚠ Completed (partial): {len(artifacts)} created, {len(failed)} failed[/yellow]"
+                    )
                 else:
                     self.console.print(f"[green]✓ Completed: {len(artifacts)} artifacts[/green]")
 
@@ -59,7 +65,9 @@ class StdoutEmitter:
                 self.console.print(f"[dim]Plan ready: {data.get('tasks', 0)} tasks[/dim]")
 
             case EventType.TASK_START:
-                self.console.print(f"  [cyan]→[/cyan] {data.get('description', data.get('task_id'))}")
+                self.console.print(
+                    f"  [cyan]→[/cyan] {data.get('description', data.get('task_id'))}"
+                )
 
             case EventType.TASK_COMPLETE:
                 pass  # Handled silently
@@ -71,7 +79,9 @@ class StdoutEmitter:
                 completed = data.get("tasks_completed", 0)
                 failed = data.get("tasks_failed", 0)
                 duration = data.get("duration_s", 0)
-                self.console.print(f"\n[bold]Completed: {completed} tasks, {failed} failed ({duration:.1f}s)[/bold]")
+                self.console.print(
+                    f"\n[bold]Completed: {completed} tasks, {failed} failed ({duration:.1f}s)[/bold]"
+                )
 
             case EventType.ERROR:
                 self.console.print(f"[red]Error: {data.get('message', '')}[/red]")

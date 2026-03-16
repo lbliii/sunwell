@@ -219,9 +219,7 @@ def analyze(goal: str, json_output: bool) -> None:
         click.echo(f"Confidence: {intent.confidence:.0%}")
         click.echo(f"Arrangement: {intent.suggested_arrangement}")
         click.echo("\nDomain Scores:")
-        for domain, score in sorted(
-            intent.domain_scores.items(), key=lambda x: x[1], reverse=True
-        ):
+        for domain, score in sorted(intent.domain_scores.items(), key=lambda x: x[1], reverse=True):
             bar = "█" * int(score * 20)
             click.echo(f"  {domain:12} {bar} {score:.2f}")
         if intent.triggered_primitives:
@@ -244,9 +242,7 @@ def patterns(project: str | None) -> None:
         return
 
     click.echo("Primitive Success Rates:\n")
-    for prim_id, rate in sorted(
-        memory_patterns.items(), key=lambda x: x[1], reverse=True
-    ):
+    for prim_id, rate in sorted(memory_patterns.items(), key=lambda x: x[1], reverse=True):
         bar = "█" * int(rate * 20)
         click.echo(f"  {prim_id:16} {bar} {rate:.0%}")
 

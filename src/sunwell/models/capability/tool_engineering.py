@@ -40,34 +40,38 @@ MAX_DESCRIPTION_LENGTH = 500
 MIN_PARAM_DESCRIPTION_LENGTH = 10
 
 # Words that indicate vague descriptions
-VAGUE_WORDS = frozenset({
-    "various",
-    "different",
-    "many",
-    "some",
-    "several",
-    "etc",
-    "stuff",
-    "things",
-    "data",
-    "info",
-    "information",
-})
+VAGUE_WORDS = frozenset(
+    {
+        "various",
+        "different",
+        "many",
+        "some",
+        "several",
+        "etc",
+        "stuff",
+        "things",
+        "data",
+        "info",
+        "information",
+    }
+)
 
 # Words that should be avoided in tool descriptions
-MARKETING_WORDS = frozenset({
-    "powerful",
-    "flexible",
-    "easy",
-    "simple",
-    "amazing",
-    "best",
-    "great",
-    "awesome",
-    "robust",
-    "seamless",
-    "intuitive",
-})
+MARKETING_WORDS = frozenset(
+    {
+        "powerful",
+        "flexible",
+        "easy",
+        "simple",
+        "amazing",
+        "best",
+        "great",
+        "awesome",
+        "robust",
+        "seamless",
+        "intuitive",
+    }
+)
 
 
 def audit_tool(tool: Tool) -> ToolQuality:

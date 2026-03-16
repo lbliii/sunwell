@@ -1,6 +1,5 @@
 """Base RegionWorker class for Naaru workers."""
 
-
 import asyncio
 import uuid
 from abc import ABC, abstractmethod

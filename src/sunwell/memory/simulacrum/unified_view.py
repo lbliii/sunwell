@@ -14,7 +14,6 @@ Example:
     >>> print(view.render_panel())
 """
 
-
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -158,7 +157,9 @@ class UnifiedMemoryView:
             lines.append("")
 
         # Stats
-        lines.append(f"[dim]Turns: {self.turns_count} | Global identity: {'✓' if self.global_identity_loaded else '✗'}[/dim]")
+        lines.append(
+            f"[dim]Turns: {self.turns_count} | Global identity: {'✓' if self.global_identity_loaded else '✗'}[/dim]"
+        )
 
         return "\n".join(lines)
 

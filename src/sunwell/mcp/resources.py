@@ -27,17 +27,12 @@ Resource URIs:
 - sunwell://reference/models          - Available models and strengths
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import mcp_json, omit_empty, truncate
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_resources(
@@ -146,16 +141,25 @@ Tools returning large injectable content support `include_context=False`:
             from sunwell.foundation.config import get_config
 
             config = get_config()
-            return mcp_json(omit_empty({
-                "verbose": config.verbose,
-                "debug": config.debug,
-                "model": {
-                    "default": getattr(config.model, "default", None),
-                } if hasattr(config, "model") else None,
-                "embedding": {
-                    "provider": getattr(config.embedding, "provider", None),
-                } if hasattr(config, "embedding") else None,
-            }), "compact")
+            return mcp_json(
+                omit_empty(
+                    {
+                        "verbose": config.verbose,
+                        "debug": config.debug,
+                        "model": {
+                            "default": getattr(config.model, "default", None),
+                        }
+                        if hasattr(config, "model")
+                        else None,
+                        "embedding": {
+                            "provider": getattr(config.embedding, "provider", None),
+                        }
+                        if hasattr(config, "embedding")
+                        else None,
+                    }
+                ),
+                "compact",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
 
@@ -179,6 +183,7 @@ Tools returning large injectable content support `include_context=False`:
             else:
                 try:
                     from sunwell.memory.facade import PersistentMemory
+
                     memory = PersistentMemory.load(ws)
                     status["memory"] = {
                         "learnings": memory.learning_count,
@@ -204,11 +209,15 @@ Tools returning large injectable content support `include_context=False`:
                 from sunwell.memory.briefing import Briefing
 
                 briefing = Briefing.load(ws)
-                status["briefing"] = omit_empty({
-                    "available": briefing is not None,
-                    "status": briefing.status.value if briefing and hasattr(briefing.status, "value") else None,
-                    "mission": truncate(briefing.mission, 120) if briefing else None,
-                })
+                status["briefing"] = omit_empty(
+                    {
+                        "available": briefing is not None,
+                        "status": briefing.status.value
+                        if briefing and hasattr(briefing.status, "value")
+                        else None,
+                        "mission": truncate(briefing.mission, 120) if briefing else None,
+                    }
+                )
             except Exception:
                 status["briefing"] = {"available": False}
 
@@ -237,12 +246,16 @@ Tools returning large injectable content support `include_context=False`:
 
             lenses = []
             for entry in registry.all_entries():
-                lenses.append(omit_empty({
-                    "name": entry.lens.metadata.name,
-                    "domain": entry.lens.metadata.domain,
-                    "layer": entry.layer,
-                    "description": truncate(entry.lens.metadata.description, 120),
-                }))
+                lenses.append(
+                    omit_empty(
+                        {
+                            "name": entry.lens.metadata.name,
+                            "domain": entry.lens.metadata.domain,
+                            "layer": entry.layer,
+                            "description": truncate(entry.lens.metadata.description, 120),
+                        }
+                    )
+                )
 
             return mcp_json({"lenses": lenses, "total": len(lenses)}, "compact")
         except Exception as e:
@@ -290,25 +303,31 @@ Tools returning large injectable content support `include_context=False`:
             summary = registry.summary()
             overrides = []
             for lens_name, winner, overridden in registry.get_overrides():
-                overrides.append({
-                    "lens": lens_name,
-                    "winner_layer": winner.layer,
-                    "overridden_layers": [e.layer for e in overridden],
-                })
+                overrides.append(
+                    {
+                        "lens": lens_name,
+                        "winner_layer": winner.layer,
+                        "overridden_layers": [e.layer for e in overridden],
+                    }
+                )
 
             collisions = {}
             for shortcut, entries in registry.get_collisions().items():
                 collisions[shortcut] = [
-                    {"lens": e.lens.metadata.name, "layer": e.layer}
-                    for e in entries
+                    {"lens": e.lens.metadata.name, "layer": e.layer} for e in entries
                 ]
 
-            return mcp_json(omit_empty({
-                "summary": summary,
-                "shortcuts": dict(registry.shortcuts),
-                "overrides": overrides if overrides else None,
-                "collisions": collisions if collisions else None,
-            }), "full")
+            return mcp_json(
+                omit_empty(
+                    {
+                        "summary": summary,
+                        "shortcuts": dict(registry.shortcuts),
+                        "overrides": overrides if overrides else None,
+                        "collisions": collisions if collisions else None,
+                    }
+                ),
+                "full",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
 
@@ -345,12 +364,18 @@ Tools returning large injectable content support `include_context=False`:
             projects = []
             for ws_entry in reg.list_workspaces():
                 for proj in ws_entry.projects:
-                    projects.append(omit_empty({
-                        "id": proj.id,
-                        "path": str(proj.path),
-                        "role": proj.role.value if hasattr(proj.role, "value") else str(proj.role),
-                        "is_primary": proj.is_primary,
-                    }))
+                    projects.append(
+                        omit_empty(
+                            {
+                                "id": proj.id,
+                                "path": str(proj.path),
+                                "role": proj.role.value
+                                if hasattr(proj.role, "value")
+                                else str(proj.role),
+                                "is_primary": proj.is_primary,
+                            }
+                        )
+                    )
 
             return mcp_json({"projects": projects, "total": len(projects)}, "compact")
         except Exception as e:
@@ -369,7 +394,9 @@ Tools returning large injectable content support `include_context=False`:
             ws = runtime.resolve_workspace() if runtime else Path.cwd()
             briefing = Briefing.load(ws)
             if not briefing:
-                return mcp_json({"status": "no_briefing", "message": "No briefing found."}, "compact")
+                return mcp_json(
+                    {"status": "no_briefing", "message": "No briefing found."}, "compact"
+                )
 
             return briefing.to_prompt()
         except Exception as e:
@@ -386,14 +413,21 @@ Tools returning large injectable content support `include_context=False`:
             if not briefing:
                 return mcp_json({"status": "no_briefing"}, "compact")
 
-            return mcp_json(omit_empty({
-                "mission": truncate(briefing.mission, 120),
-                "status": briefing.status.value if hasattr(briefing.status, "value") else str(briefing.status),
-                "next_action": truncate(briefing.next_action, 120),
-                "hazards": list(briefing.hazards),
-                "suggested_lens": briefing.suggested_lens,
-                "complexity_estimate": briefing.complexity_estimate,
-            }), "compact")
+            return mcp_json(
+                omit_empty(
+                    {
+                        "mission": truncate(briefing.mission, 120),
+                        "status": briefing.status.value
+                        if hasattr(briefing.status, "value")
+                        else str(briefing.status),
+                        "next_action": truncate(briefing.next_action, 120),
+                        "hazards": list(briefing.hazards),
+                        "suggested_lens": briefing.suggested_lens,
+                        "complexity_estimate": briefing.complexity_estimate,
+                    }
+                ),
+                "compact",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
 
@@ -406,26 +440,34 @@ Tools returning large injectable content support `include_context=False`:
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             if not memory.simulacrum:
-                return mcp_json({"learnings": [], "message": "No simulacrum store available."}, "compact")
+                return mcp_json(
+                    {"learnings": [], "message": "No simulacrum store available."}, "compact"
+                )
 
             try:
                 dag = memory.simulacrum.get_dag()
                 all_learnings = dag.get_learnings()
-                return mcp_json({
-                    "learnings": [
-                        omit_empty({
-                            "fact": l.fact if hasattr(l, "fact") else str(l),
-                            "category": getattr(l, "category", None),
-                            "confidence": getattr(l, "confidence", None),
-                            "use_count": getattr(l, "use_count", 0),
-                        })
-                        for l in all_learnings[:50]
-                    ],
-                    "total": len(all_learnings),
-                }, "full")
+                return mcp_json(
+                    {
+                        "learnings": [
+                            omit_empty(
+                                {
+                                    "fact": l.fact if hasattr(l, "fact") else str(l),
+                                    "category": getattr(l, "category", None),
+                                    "confidence": getattr(l, "confidence", None),
+                                    "use_count": getattr(l, "use_count", 0),
+                                }
+                            )
+                            for l in all_learnings[:50]
+                        ],
+                        "total": len(all_learnings),
+                    },
+                    "full",
+                )
             except Exception as e:
                 return mcp_json({"error": str(e), "learnings": []}, "compact")
         except Exception as e:
@@ -440,6 +482,7 @@ Tools returning large injectable content support `include_context=False`:
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             if not memory.simulacrum:
@@ -454,13 +497,16 @@ Tools returning large injectable content support `include_context=False`:
                     key=lambda l: getattr(l, "use_count", 0),
                     reverse=True,
                 )
-                return mcp_json({
-                    "total": len(all_learnings),
-                    "top_5": [
-                        truncate(l.fact if hasattr(l, "fact") else str(l), 120)
-                        for l in sorted_learnings[:5]
-                    ],
-                }, "compact")
+                return mcp_json(
+                    {
+                        "total": len(all_learnings),
+                        "top_5": [
+                            truncate(l.fact if hasattr(l, "fact") else str(l), 120)
+                            for l in sorted_learnings[:5]
+                        ],
+                    },
+                    "compact",
+                )
             except Exception as e:
                 return mcp_json({"error": str(e), "total": 0}, "compact")
         except Exception as e:
@@ -475,16 +521,22 @@ Tools returning large injectable content support `include_context=False`:
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             if not memory.simulacrum:
-                return mcp_json({"dead_ends": [], "message": "No simulacrum store available."}, "compact")
+                return mcp_json(
+                    {"dead_ends": [], "message": "No simulacrum store available."}, "compact"
+                )
 
             dead_ends = memory.simulacrum.get_dead_ends()
-            return mcp_json({
-                "dead_ends": [str(de) for de in dead_ends[:30]],
-                "total": len(dead_ends),
-            }, "compact")
+            return mcp_json(
+                {
+                    "dead_ends": [str(de) for de in dead_ends[:30]],
+                    "total": len(dead_ends),
+                },
+                "compact",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
 
@@ -497,19 +549,24 @@ Tools returning large injectable content support `include_context=False`:
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             if not memory.simulacrum:
-                return mcp_json({"constraints": [], "message": "No simulacrum store available."}, "compact")
+                return mcp_json(
+                    {"constraints": [], "message": "No simulacrum store available."}, "compact"
+                )
 
             try:
                 dag = memory.simulacrum.get_dag()
                 all_learnings = dag.get_learnings()
                 constraints = [
-                    omit_empty({
-                        "fact": l.fact if hasattr(l, "fact") else str(l),
-                        "confidence": getattr(l, "confidence", None),
-                    })
+                    omit_empty(
+                        {
+                            "fact": l.fact if hasattr(l, "fact") else str(l),
+                            "confidence": getattr(l, "confidence", None),
+                        }
+                    )
                     for l in all_learnings
                     if getattr(l, "category", None) == "constraint"
                 ]
@@ -533,6 +590,7 @@ Tools returning large injectable content support `include_context=False`:
             manager = runtime.backlog if runtime else None
             if manager is None:
                 from sunwell.features.backlog.manager import BacklogManager
+
                 manager = BacklogManager(root=ws)
 
             if runtime:
@@ -543,15 +601,19 @@ Tools returning large injectable content support `include_context=False`:
             active = []
             for goal_id, goal in backlog.goals.items():
                 if goal_id not in backlog.completed:
-                    active.append(omit_empty({
-                        "id": goal.id,
-                        "title": goal.title,
-                        "priority": goal.priority,
-                        "category": goal.category,
-                        "goal_type": getattr(goal, "goal_type", "task"),
-                        "in_progress": goal_id == backlog.in_progress,
-                        "blocked": goal_id in backlog.blocked,
-                    }))
+                    active.append(
+                        omit_empty(
+                            {
+                                "id": goal.id,
+                                "title": goal.title,
+                                "priority": goal.priority,
+                                "category": goal.category,
+                                "goal_type": getattr(goal, "goal_type", "task"),
+                                "in_progress": goal_id == backlog.in_progress,
+                                "blocked": goal_id in backlog.blocked,
+                            }
+                        )
+                    )
 
             active.sort(key=lambda g: g.get("priority", 0), reverse=True)
             return mcp_json({"goals": active, "total": len(active)}, "compact")
@@ -567,6 +629,7 @@ Tools returning large injectable content support `include_context=False`:
             manager = runtime.backlog if runtime else None
             if manager is None:
                 from sunwell.features.backlog.manager import BacklogManager
+
                 manager = BacklogManager(root=ws)
 
             if runtime:
@@ -579,13 +642,16 @@ Tools returning large injectable content support `include_context=False`:
             blocked = len(backlog.blocked)
             pending = total - completed - blocked
 
-            return mcp_json({
-                "total": total,
-                "completed": completed,
-                "blocked": blocked,
-                "pending": pending,
-                "in_progress": backlog.in_progress is not None,
-            }, "compact")
+            return mcp_json(
+                {
+                    "total": total,
+                    "completed": completed,
+                    "blocked": blocked,
+                    "pending": pending,
+                    "in_progress": backlog.in_progress is not None,
+                },
+                "compact",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
 
@@ -598,6 +664,7 @@ Tools returning large injectable content support `include_context=False`:
             manager = runtime.backlog if runtime else None
             if manager is None:
                 from sunwell.features.backlog.manager import BacklogManager
+
                 manager = BacklogManager(root=ws)
 
             if runtime:
@@ -609,12 +676,16 @@ Tools returning large injectable content support `include_context=False`:
             for goal_id, reason in backlog.blocked.items():
                 goal = backlog.goals.get(goal_id)
                 if goal:
-                    blocked.append(omit_empty({
-                        "id": goal.id,
-                        "title": goal.title,
-                        "reason": reason,
-                        "requires": list(goal.requires),
-                    }))
+                    blocked.append(
+                        omit_empty(
+                            {
+                                "id": goal.id,
+                                "title": goal.title,
+                                "reason": reason,
+                                "requires": list(goal.requires),
+                            }
+                        )
+                    )
 
             return mcp_json({"blocked_goals": blocked, "total": len(blocked)}, "compact")
         except Exception as e:
@@ -627,115 +698,165 @@ Tools returning large injectable content support `include_context=False`:
     @mcp.resource("sunwell://reference/domains")
     def domains_reference() -> str:
         """Available domains and their capabilities."""
-        return mcp_json({
-            "domains": [
-                {
-                    "name": "code",
-                    "type": "CODE",
-                    "description": "Software development, debugging, refactoring",
-                    "validators": ["syntax", "lint", "type", "test"],
-                    "tools": ["read_file", "write_file", "edit_file", "git_*", "run_command"],
-                    "keywords": ["implement", "refactor", "debug", "api", "function", "class", "test", "bug"],
-                },
-                {
-                    "name": "research",
-                    "type": "RESEARCH",
-                    "description": "Investigation, summarization, evidence gathering",
-                    "validators": ["sources", "coherence"],
-                    "tools": ["web_search", "summarize", "extract_claims"],
-                    "keywords": ["research", "investigate", "summarize", "sources", "evidence", "find"],
-                },
-                {
-                    "name": "writing",
-                    "type": "WRITING",
-                    "description": "Documentation, technical writing, content creation",
-                    "validators": [],
-                    "tools": ["read_file", "write_file", "edit_file"],
-                    "keywords": ["write", "document", "explain", "describe", "readme"],
-                },
-                {
-                    "name": "data",
-                    "type": "DATA",
-                    "description": "Data analysis, processing, transformation",
-                    "validators": [],
-                    "tools": ["read_file", "run_command"],
-                    "keywords": ["data", "analysis", "analytics", "csv", "json", "transform"],
-                },
-                {
-                    "name": "general",
-                    "type": "GENERAL",
-                    "description": "Fallback for unclassified tasks",
-                    "validators": [],
-                    "tools": ["read_file", "write_file"],
-                    "keywords": [],
-                },
-            ],
-        }, "full")
+        return mcp_json(
+            {
+                "domains": [
+                    {
+                        "name": "code",
+                        "type": "CODE",
+                        "description": "Software development, debugging, refactoring",
+                        "validators": ["syntax", "lint", "type", "test"],
+                        "tools": ["read_file", "write_file", "edit_file", "git_*", "run_command"],
+                        "keywords": [
+                            "implement",
+                            "refactor",
+                            "debug",
+                            "api",
+                            "function",
+                            "class",
+                            "test",
+                            "bug",
+                        ],
+                    },
+                    {
+                        "name": "research",
+                        "type": "RESEARCH",
+                        "description": "Investigation, summarization, evidence gathering",
+                        "validators": ["sources", "coherence"],
+                        "tools": ["web_search", "summarize", "extract_claims"],
+                        "keywords": [
+                            "research",
+                            "investigate",
+                            "summarize",
+                            "sources",
+                            "evidence",
+                            "find",
+                        ],
+                    },
+                    {
+                        "name": "writing",
+                        "type": "WRITING",
+                        "description": "Documentation, technical writing, content creation",
+                        "validators": [],
+                        "tools": ["read_file", "write_file", "edit_file"],
+                        "keywords": ["write", "document", "explain", "describe", "readme"],
+                    },
+                    {
+                        "name": "data",
+                        "type": "DATA",
+                        "description": "Data analysis, processing, transformation",
+                        "validators": [],
+                        "tools": ["read_file", "run_command"],
+                        "keywords": ["data", "analysis", "analytics", "csv", "json", "transform"],
+                    },
+                    {
+                        "name": "general",
+                        "type": "GENERAL",
+                        "description": "Fallback for unclassified tasks",
+                        "validators": [],
+                        "tools": ["read_file", "write_file"],
+                        "keywords": [],
+                    },
+                ],
+            },
+            "full",
+        )
 
     @mcp.resource("sunwell://reference/tools")
     def tools_reference() -> str:
         """Available tool catalog with trust levels."""
-        return mcp_json({
-            "tool_categories": {
-                "file_operations": {
-                    "tools": ["read_file", "write_file", "edit_file", "patch_file", "delete_file", "copy_file", "rename_file", "find_files", "search_files", "list_files"],
-                    "trust": "WORKSPACE",
+        return mcp_json(
+            {
+                "tool_categories": {
+                    "file_operations": {
+                        "tools": [
+                            "read_file",
+                            "write_file",
+                            "edit_file",
+                            "patch_file",
+                            "delete_file",
+                            "copy_file",
+                            "rename_file",
+                            "find_files",
+                            "search_files",
+                            "list_files",
+                        ],
+                        "trust": "WORKSPACE",
+                    },
+                    "git_operations": {
+                        "tools": [
+                            "git_status",
+                            "git_add",
+                            "git_commit",
+                            "git_diff",
+                            "git_log",
+                            "git_show",
+                            "git_blame",
+                            "git_branch",
+                            "git_checkout",
+                            "git_merge",
+                        ],
+                        "trust": "WORKSPACE",
+                    },
+                    "shell": {
+                        "tools": ["run_command", "mkdir"],
+                        "trust": "FULL_WRITE",
+                    },
+                    "environment": {
+                        "tools": ["get_env", "list_env"],
+                        "trust": "READ_ONLY",
+                    },
+                    "undo": {
+                        "tools": ["undo_file", "restore_file", "list_backups"],
+                        "trust": "WORKSPACE",
+                    },
+                    "research": {
+                        "tools": ["github_research"],
+                        "trust": "READ_ONLY",
+                    },
                 },
-                "git_operations": {
-                    "tools": ["git_status", "git_add", "git_commit", "git_diff", "git_log", "git_show", "git_blame", "git_branch", "git_checkout", "git_merge"],
-                    "trust": "WORKSPACE",
+                "trust_levels": {
+                    "NONE": "No access",
+                    "READ_ONLY": "Can only read",
+                    "SAFE_WRITE": "Can write with restrictions",
+                    "FULL_WRITE": "Full write access",
                 },
-                "shell": {
-                    "tools": ["run_command", "mkdir"],
-                    "trust": "FULL_WRITE",
-                },
-                "environment": {
-                    "tools": ["get_env", "list_env"],
-                    "trust": "READ_ONLY",
-                },
-                "undo": {
-                    "tools": ["undo_file", "restore_file", "list_backups"],
-                    "trust": "WORKSPACE",
-                },
-                "research": {
-                    "tools": ["github_research"],
-                    "trust": "READ_ONLY",
+                "profiles": {
+                    "MINIMAL": "Essential tools only",
+                    "STANDARD": "Common development tools",
+                    "DEVELOPER": "Full development toolkit",
+                    "FULL": "All tools including shell",
                 },
             },
-            "trust_levels": {
-                "NONE": "No access",
-                "READ_ONLY": "Can only read",
-                "SAFE_WRITE": "Can write with restrictions",
-                "FULL_WRITE": "Full write access",
-            },
-            "profiles": {
-                "MINIMAL": "Essential tools only",
-                "STANDARD": "Common development tools",
-                "DEVELOPER": "Full development toolkit",
-                "FULL": "All tools including shell",
-            },
-        }, "full")
+            "full",
+        )
 
     @mcp.resource("sunwell://reference/validators")
     def validators_reference() -> str:
         """Available validators organized by domain."""
-        return mcp_json({
-            "code": {
-                "syntax": {"description": "Check syntax validity", "blocking": True},
-                "lint": {"description": "Run linting checks", "blocking": False},
-                "type": {"description": "Type checking", "blocking": False},
-                "test": {"description": "Run related tests", "blocking": True},
+        return mcp_json(
+            {
+                "code": {
+                    "syntax": {"description": "Check syntax validity", "blocking": True},
+                    "lint": {"description": "Run linting checks", "blocking": False},
+                    "type": {"description": "Type checking", "blocking": False},
+                    "test": {"description": "Run related tests", "blocking": True},
+                },
+                "research": {
+                    "sources": {
+                        "description": "Check claims are backed by sources",
+                        "blocking": True,
+                    },
+                    "coherence": {"description": "Check argument coherence", "blocking": False},
+                },
+                "lens_provided": {
+                    "deterministic": {"description": "Script-based, reproducible checks"},
+                    "heuristic": {"description": "AI-based judgment calls"},
+                    "schema": {"description": "Lens-provided artifact validation (RFC-035)"},
+                },
             },
-            "research": {
-                "sources": {"description": "Check claims are backed by sources", "blocking": True},
-                "coherence": {"description": "Check argument coherence", "blocking": False},
-            },
-            "lens_provided": {
-                "deterministic": {"description": "Script-based, reproducible checks"},
-                "heuristic": {"description": "AI-based judgment calls"},
-                "schema": {"description": "Lens-provided artifact validation (RFC-035)"},
-            },
-        }, "full")
+            "full",
+        )
 
     @mcp.resource("sunwell://reference/models")
     def models_reference() -> str:
@@ -746,21 +867,34 @@ Tools returning large injectable content support `include_context=False`:
             registry = get_registry()
             registered = registry.list_registered()
 
-            return mcp_json({
-                "registered_models": registered,
-                "default_aliases": DEFAULT_ALIASES,
-                "tiers": {
-                    "smart": {
-                        "description": "High intelligence, higher cost",
-                        "good_for": ["complex reasoning", "architecture", "debugging", "planning"],
-                        "aliases": ["anthropic-smart", "openai-smart", "ollama-smart"],
-                    },
-                    "cheap": {
-                        "description": "Fast and affordable",
-                        "good_for": ["formatting", "simple edits", "classification", "renaming"],
-                        "aliases": ["anthropic-cheap", "openai-cheap", "ollama-cheap"],
+            return mcp_json(
+                {
+                    "registered_models": registered,
+                    "default_aliases": DEFAULT_ALIASES,
+                    "tiers": {
+                        "smart": {
+                            "description": "High intelligence, higher cost",
+                            "good_for": [
+                                "complex reasoning",
+                                "architecture",
+                                "debugging",
+                                "planning",
+                            ],
+                            "aliases": ["anthropic-smart", "openai-smart", "ollama-smart"],
+                        },
+                        "cheap": {
+                            "description": "Fast and affordable",
+                            "good_for": [
+                                "formatting",
+                                "simple edits",
+                                "classification",
+                                "renaming",
+                            ],
+                            "aliases": ["anthropic-cheap", "openai-cheap", "ollama-cheap"],
+                        },
                     },
                 },
-            }, "full")
+                "full",
+            )
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")

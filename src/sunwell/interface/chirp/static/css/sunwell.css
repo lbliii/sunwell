@@ -275,3 +275,81 @@ body {
     background: var(--chirpui-bg);
     color: var(--chirpui-text);
 }
+
+/* Chat — prose, spinner, loading */
+.msg-assistant.prose {
+    line-height: 1.6;
+}
+.msg-assistant.prose pre,
+.msg-assistant.prose code {
+    background: var(--chirpui-code-bg);
+    color: var(--chirpui-code-text);
+    padding: 0.2em 0.4em;
+    border-radius: var(--chirpui-radius, 4px);
+    font-size: 0.9em;
+}
+.msg-assistant.prose pre {
+    padding: var(--chirpui-spacing-md);
+    overflow-x: auto;
+}
+.msg-assistant.prose pre code {
+    padding: 0;
+}
+.msg-assistant.prose ul,
+.msg-assistant.prose ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+.msg-assistant.prose blockquote {
+    border-left: 3px solid var(--chirpui-accent);
+    margin: 0.5em 0;
+    padding-left: 1em;
+    color: var(--chirpui-text-muted);
+}
+
+.chat-spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid var(--chirpui-border);
+    border-top-color: var(--chirpui-accent);
+    border-radius: 50%;
+    animation: chat-spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 0.25em;
+}
+@keyframes chat-spin {
+    to { transform: rotate(360deg); }
+}
+.chat-stream-container .chat-loading { display: block; }
+.chat-stream-container:has(> .chat-stream-token) .chat-loading { display: none; }
+
+/* Token streaming — pre-wrap for typing effect, cursor */
+.chat-stream-container .chat-stream-token {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.chat-stream-container .chat-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--chirpui-accent);
+    animation: chat-cursor-blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 1px;
+}
+@keyframes chat-cursor-blink {
+    50% { opacity: 0; }
+}
+
+/* Tool activity panel — two-column layout, empty state, collapsible */
+.chat-activity-feed .chat-activity-empty { display: block; }
+.chat-activity-feed:has(> .chat-tool-event) .chat-activity-empty { display: none; }
+.chat-activity-panel.chat-activity-collapsed { display: none; }
+@media (max-width: 768px) {
+    .chat-activity-panel { width: 100%; max-width: 280px; }
+}
+
+/* HTMX indicator — hidden until request in flight */
+.htmx-indicator { display: none; }
+.htmx-indicator.htmx-request { display: inline-block; }

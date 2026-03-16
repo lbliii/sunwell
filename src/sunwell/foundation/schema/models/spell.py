@@ -23,7 +23,6 @@ Terminology:
 - Cast: Execute a spell
 """
 
-
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -166,15 +165,12 @@ class Spell:
 
             if good:
                 parts.append(
-                    "## Good Examples\n\n"
-                    + "\n\n".join(f"```\n{e.content}\n```" for e in good)
+                    "## Good Examples\n\n" + "\n\n".join(f"```\n{e.content}\n```" for e in good)
                 )
             if bad:
                 parts.append(
                     "## Avoid These Patterns\n\n"
-                    + "\n\n".join(
-                        f"```\n{e.content}\n```\n*Why:* {e.explanation}" for e in bad
-                    )
+                    + "\n\n".join(f"```\n{e.content}\n```\n*Why:* {e.explanation}" for e in bad)
                 )
 
         return "\n\n---\n\n".join(parts)
@@ -209,9 +205,7 @@ class Spell:
             aliases=self.aliases or base.aliases,
             intent=self.intent if self.intent != "unknown" else base.intent,
             focus=merged_focus,
-            complexity=self.complexity
-            if self.complexity != "moderate"
-            else base.complexity,
+            complexity=self.complexity if self.complexity != "moderate" else base.complexity,
             top_k=self.top_k or base.top_k,
             threshold=self.threshold or base.threshold,
             instructions=merged_instructions,
@@ -221,8 +215,7 @@ class Spell:
             validation=SpellValidation(
                 mode=self.validation.mode,
                 gates=merged_gates,
-                must_contain=self.validation.must_contain
-                or base.validation.must_contain,
+                must_contain=self.validation.must_contain or base.validation.must_contain,
                 must_not_contain=self.validation.must_not_contain
                 or base.validation.must_not_contain,
             ),

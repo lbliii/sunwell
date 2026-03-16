@@ -113,9 +113,7 @@ class EditFileTool(BaseTool):
 
         if count == 0:
             preview = (
-                old_content_arg[:100] + "..."
-                if len(old_content_arg) > 100
-                else old_content_arg
+                old_content_arg[:100] + "..." if len(old_content_arg) > 100 else old_content_arg
             )
             raise ValueError(
                 f"Content not found in {user_path}.\n"

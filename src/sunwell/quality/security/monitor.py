@@ -9,7 +9,6 @@ Deterministic checks ALWAYS run. LLM is optional and runs only if
 deterministic checks pass but paranoid_mode is enabled.
 """
 
-
 import re
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field

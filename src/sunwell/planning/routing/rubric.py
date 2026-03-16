@@ -10,7 +10,7 @@ from typing import Any
 from sunwell.planning.routing.types import ExecutionTier
 
 # Pre-compiled regex for file extension detection
-_RE_FILE_EXTENSION = re.compile(r'\b\w+\.(py|js|ts|md|yaml|json|go|rs|java|c|cpp|h)\b')
+_RE_FILE_EXTENSION = re.compile(r"\b\w+\.(py|js|ts|md|yaml|json|go|rs|java|c|cpp|h)\b")
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,33 +24,57 @@ class ConfidenceRubric:
     base_score: int = 50
 
     # Positive signals (add points)
-    explicit_shortcut: int = 20      # ::command patterns
-    clear_action_verb: int = 15      # review, test, document
-    single_file_target: int = 15     # Explicit file mentioned
-    file_state_match: int = 10       # File exists/doesn't as expected
-    exemplar_match_high: int = 10    # >0.85 similarity to exemplar
-    exemplar_match_mod: int = 5      # >0.7 similarity to exemplar
+    explicit_shortcut: int = 20  # ::command patterns
+    clear_action_verb: int = 15  # review, test, document
+    single_file_target: int = 15  # Explicit file mentioned
+    file_state_match: int = 10  # File exists/doesn't as expected
+    exemplar_match_high: int = 10  # >0.85 similarity to exemplar
+    exemplar_match_mod: int = 5  # >0.7 similarity to exemplar
 
     # Negative signals (subtract points)
-    no_file_context: int = -20       # No file mentioned or focused
-    ambiguous_verb: int = -15        # fix, help, improve
-    multi_file_scope: int = -15      # Multiple files mentioned
-    conflicting_signals: int = -10   # Contradictory hints
-    no_exemplar_match: int = -10     # <0.5 similarity to any exemplar
+    no_file_context: int = -20  # No file mentioned or focused
+    ambiguous_verb: int = -15  # fix, help, improve
+    multi_file_scope: int = -15  # Multiple files mentioned
+    conflicting_signals: int = -10  # Contradictory hints
+    no_exemplar_match: int = -10  # <0.5 similarity to any exemplar
 
     # Action verb sets
-    CLEAR_VERBS: frozenset[str] = frozenset({
-        "review", "audit", "check", "validate",
-        "test", "write", "create", "add",
-        "document", "explain", "describe",
-        "refactor", "extract", "rename",
-        "debug", "trace", "profile",
-    })
+    CLEAR_VERBS: frozenset[str] = frozenset(
+        {
+            "review",
+            "audit",
+            "check",
+            "validate",
+            "test",
+            "write",
+            "create",
+            "add",
+            "document",
+            "explain",
+            "describe",
+            "refactor",
+            "extract",
+            "rename",
+            "debug",
+            "trace",
+            "profile",
+        }
+    )
 
-    AMBIGUOUS_VERBS: frozenset[str] = frozenset({
-        "fix", "help", "improve", "update", "change", "modify",
-        "look", "handle", "deal", "work",
-    })
+    AMBIGUOUS_VERBS: frozenset[str] = frozenset(
+        {
+            "fix",
+            "help",
+            "improve",
+            "update",
+            "change",
+            "modify",
+            "look",
+            "handle",
+            "deal",
+            "work",
+        }
+    )
 
     def calculate(
         self,

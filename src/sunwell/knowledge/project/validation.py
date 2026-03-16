@@ -6,8 +6,6 @@ isolation (see ``state.py``), the old self-repo guard is no longer needed
 externally when appropriate.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 

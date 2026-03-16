@@ -33,18 +33,17 @@ Key features:
 - Token-budgeted context window assembly
 """
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.foundation.types.memory import MemoryRetrievalResult
+from sunwell.memory.core.activity import ActivityTracker
 from sunwell.memory.simulacrum.core.auto_wiring import (
     extract_topology_batch,
     maybe_demote_meso_to_macro,
 )
-from sunwell.memory.core.activity import ActivityTracker
 from sunwell.memory.simulacrum.core.config import StorageConfig
 from sunwell.memory.simulacrum.core.dag import ConversationDAG
 from sunwell.memory.simulacrum.core.episodes import EpisodeManager
@@ -363,6 +362,7 @@ class SimulacrumStore:
                 # Log but don't fail on intelligence extraction errors
                 # These are non-critical and shouldn't block demotion
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.debug(f"Intelligence extraction failed for chunk {chunk.id}: {e}")
 
@@ -526,6 +526,7 @@ class SimulacrumStore:
         # Feed to chunk manager for hierarchical processing (RFC-013)
         if self._chunk_manager:
             import asyncio
+
             try:
                 loop = asyncio.get_running_loop()
                 # In async context, create task
@@ -593,7 +594,6 @@ class SimulacrumStore:
             maybe_demote_meso_to_macro(self._chunk_manager, self.config)
 
         return turn_id
-
 
     def add_user(self, content: str, **kwargs) -> str:
         """Convenience: add user message.
@@ -836,9 +836,7 @@ class SimulacrumStore:
 
         # Get learnings to reflect on
         if category:
-            learnings = [
-                l for l in self._hot_dag.learnings.values() if l.category == category
-            ]
+            learnings = [l for l in self._hot_dag.learnings.values() if l.category == category]
         else:
             learnings = list(self._hot_dag.get_active_learnings())
 
@@ -902,18 +900,12 @@ class SimulacrumStore:
 
         # Get relevant learnings
         if learning_ids:
-            learnings = [
-                l
-                for l in self._hot_dag.learnings.values()
-                if l.id in learning_ids
-            ]
+            learnings = [l for l in self._hot_dag.learnings.values() if l.id in learning_ids]
         else:
             # Auto-select learnings containing topic keywords
             topic_lower = topic.lower()
             learnings = [
-                l
-                for l in self._hot_dag.get_active_learnings()
-                if topic_lower in l.fact.lower()
+                l for l in self._hot_dag.get_active_learnings() if topic_lower in l.fact.lower()
             ]
 
         if not learnings:
@@ -1028,8 +1020,7 @@ class SimulacrumStore:
             goal_lower = goal.lower()
             for topic, model in self._mental_models.items():
                 if topic.lower() in goal_lower or any(
-                    keyword in goal_lower
-                    for keyword in topic.lower().split()
+                    keyword in goal_lower for keyword in topic.lower().split()
                 ):
                     mental_models.append(model)
 
@@ -1272,7 +1263,7 @@ class SimulacrumStore:
                 self._hot_dag.turns.values(),
                 key=lambda t: t.timestamp,
             )
-            to_demote = turns_by_time[:len(turns_by_time) - self.config.hot_max_turns]
+            to_demote = turns_by_time[: len(turns_by_time) - self.config.hot_max_turns]
             for turn in to_demote:
                 self._hot_dag.compressed.add(turn.id)
 
@@ -1465,7 +1456,9 @@ class SimulacrumStore:
         # Tier distribution
         debug_info["tier_distribution"] = {
             "recent": len(self._hot_dag.turns),
-            "compressed": len(list(self.warm_path.glob("*.jsonl"))) if self.warm_path.exists() else 0,
+            "compressed": len(list(self.warm_path.glob("*.jsonl")))
+            if self.warm_path.exists()
+            else 0,
             "archived": len(list(self.cold_path.glob("*"))) if self.cold_path.exists() else 0,
         }
 

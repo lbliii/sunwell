@@ -3,7 +3,6 @@
 Analyze code patterns without execution: naming, types, docstrings.
 """
 
-
 import ast
 import re
 from dataclasses import dataclass
@@ -146,9 +145,12 @@ class CodeScanner:
                     has_type_hints = True
 
                 # Check for docstring
-                if (node.body and isinstance(node.body[0], ast.Expr) and
-                        isinstance(node.body[0].value, ast.Constant) and
-                        isinstance(node.body[0].value.value, str)):
+                if (
+                    node.body
+                    and isinstance(node.body[0], ast.Expr)
+                    and isinstance(node.body[0].value, ast.Constant)
+                    and isinstance(node.body[0].value.value, str)
+                ):
                     docstrings.append(node.body[0].value.value)
 
             # Extract classes
@@ -157,9 +159,12 @@ class CodeScanner:
                 class_names.append(node.name)
 
                 # Check class docstring
-                if (node.body and isinstance(node.body[0], ast.Expr) and
-                        isinstance(node.body[0].value, ast.Constant) and
-                        isinstance(node.body[0].value.value, str)):
+                if (
+                    node.body
+                    and isinstance(node.body[0], ast.Expr)
+                    and isinstance(node.body[0].value, ast.Constant)
+                    and isinstance(node.body[0].value.value, str)
+                ):
                     docstrings.append(node.body[0].value.value)
 
             # Still need to walk for constants and imports (not covered by extraction utilities)
@@ -176,9 +181,11 @@ class CodeScanner:
 
                 # Check for modern type syntax (list[] vs List[])
                 elif isinstance(node, ast.Subscript):
-                    is_builtin = (
-                        isinstance(node.value, ast.Name) and
-                        node.value.id in ("list", "dict", "set", "tuple")
+                    is_builtin = isinstance(node.value, ast.Name) and node.value.id in (
+                        "list",
+                        "dict",
+                        "set",
+                        "tuple",
                     )
                     if is_builtin:
                         uses_modern_types = True
@@ -187,17 +194,19 @@ class CodeScanner:
                 elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
                     uses_modern_types = True
 
-            parsed.append(ParsedFile(
-                path=file_path,
-                function_names=tuple(function_names),
-                class_names=tuple(class_names),
-                constant_names=tuple(constant_names),
-                private_names=tuple(private_names),
-                docstrings=tuple(docstrings),
-                has_type_hints=has_type_hints,
-                uses_modern_types=uses_modern_types,
-                import_lines=tuple(import_lines),
-            ))
+            parsed.append(
+                ParsedFile(
+                    path=file_path,
+                    function_names=tuple(function_names),
+                    class_names=tuple(class_names),
+                    constant_names=tuple(constant_names),
+                    private_names=tuple(private_names),
+                    docstrings=tuple(docstrings),
+                    has_type_hints=has_type_hints,
+                    uses_modern_types=uses_modern_types,
+                    import_lines=tuple(import_lines),
+                )
+            )
 
         return parsed
 

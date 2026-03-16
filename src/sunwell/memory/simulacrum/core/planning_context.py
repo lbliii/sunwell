@@ -69,80 +69,99 @@ class PlanningContext:
         Phase 3: If mental models are available, use them instead of
         individual learnings for token efficiency (~30% savings).
         """
-        from sunwell.planning.naaru.convergence import Slot, SlotSource  # layer-exempt: pre-existing
+        from sunwell.planning.naaru.convergence import (  # layer-exempt: pre-existing
+            Slot,
+            SlotSource,
+        )
 
         slots: list[Slot] = []
 
         # Phase 3: Inject mental models first (if available)
         if self.mental_models:
             for model in self.mental_models:
-                slots.append(Slot(
-                    id=f"mental_model:{model.topic}",
-                    content=model.to_prompt(),
-                    relevance=1.0,  # Mental models are high priority
-                    source=SlotSource.MEMORY_FETCHER,
-                ))
+                slots.append(
+                    Slot(
+                        id=f"mental_model:{model.topic}",
+                        content=model.to_prompt(),
+                        relevance=1.0,  # Mental models are high priority
+                        source=SlotSource.MEMORY_FETCHER,
+                    )
+                )
             # Skip individual learnings if mental models cover them
             # (detected by checking if learnings are in model sources)
             return slots
 
         # Standard individual learning injection
         if self.facts:
-            slots.append(Slot(
-                id="knowledge:facts",
-                content=[f.fact for f in self.facts],
-                relevance=0.9,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:facts",
+                    content=[f.fact for f in self.facts],
+                    relevance=0.9,
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         if self.constraints:
-            slots.append(Slot(
-                id="knowledge:constraints",
-                content=[f"⚠️ I must: {c.fact}" for c in self.constraints],
-                relevance=1.0,  # Constraints are high priority
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:constraints",
+                    content=[f"⚠️ I must: {c.fact}" for c in self.constraints],
+                    relevance=1.0,  # Constraints are high priority
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         if self.dead_ends:
-            slots.append(Slot(
-                id="knowledge:dead_ends",
-                content=[f"❌ I tried: {d.fact}" for d in self.dead_ends],
-                relevance=0.95,  # Dead ends are important to avoid
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:dead_ends",
+                    content=[f"❌ I tried: {d.fact}" for d in self.dead_ends],
+                    relevance=0.95,  # Dead ends are important to avoid
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         if self.templates:
-            slots.append(Slot(
-                id="knowledge:templates",
-                content=self.templates,  # Full Learning objects for template matching
-                relevance=0.85,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:templates",
+                    content=self.templates,  # Full Learning objects for template matching
+                    relevance=0.85,
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         if self.heuristics:
-            slots.append(Slot(
-                id="knowledge:heuristics",
-                content=[f"💡 I've found: {h.fact}" for h in self.heuristics],
-                relevance=0.7,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:heuristics",
+                    content=[f"💡 I've found: {h.fact}" for h in self.heuristics],
+                    relevance=0.7,
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         if self.patterns:
-            slots.append(Slot(
-                id="knowledge:patterns",
-                content=[p.fact for p in self.patterns],
-                relevance=0.8,
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:patterns",
+                    content=[p.fact for p in self.patterns],
+                    relevance=0.8,
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         # RFC-022: Episode-based dead ends from past sessions
         if self.dead_end_summaries:
-            slots.append(Slot(
-                id="knowledge:episode_dead_ends",
-                content=[f"❌ {s}" for s in self.dead_end_summaries],  # Already first-person
-                relevance=0.92,  # High priority to avoid past mistakes
-                source=SlotSource.MEMORY_FETCHER,
-            ))
+            slots.append(
+                Slot(
+                    id="knowledge:episode_dead_ends",
+                    content=[f"❌ {s}" for s in self.dead_end_summaries],  # Already first-person
+                    relevance=0.92,  # High priority to avoid past mistakes
+                    source=SlotSource.MEMORY_FETCHER,
+                )
+            )
 
         return slots
 
@@ -211,10 +230,10 @@ class PlanningContext:
     def all_learnings(self) -> tuple[Learning, ...]:
         """Get all learnings for usage tracking."""
         return (
-            self.facts +
-            self.constraints +
-            self.dead_ends +
-            self.templates +
-            self.heuristics +
-            self.patterns
+            self.facts
+            + self.constraints
+            + self.dead_ends
+            + self.templates
+            + self.heuristics
+            + self.patterns
         )

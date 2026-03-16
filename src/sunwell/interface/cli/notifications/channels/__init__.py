@@ -15,11 +15,11 @@ Usage:
         DesktopChannel,
         SlackChannel,
     )
-    
+
     router = ChannelRouter()
     router.add_channel(DesktopChannel(config), priority=1)
     router.add_channel(SlackChannel(webhook_url), priority=2)
-    
+
     await router.send("Title", "Message", NotificationType.SUCCESS)
 """
 

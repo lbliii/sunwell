@@ -110,9 +110,7 @@ class ProjectEntry:
             project_type=data["project_type"],
             health_score=data.get("health_score"),
             last_scanned=(
-                datetime.fromisoformat(data["last_scanned"])
-                if data.get("last_scanned")
-                else None
+                datetime.fromisoformat(data["last_scanned"]) if data.get("last_scanned") else None
             ),
             is_reference=data.get("is_reference", False),
             tags=tuple(data.get("tags", [])),
@@ -384,7 +382,5 @@ class UserEnvironment:
             roots=[ProjectRoot.from_dict(r) for r in data.get("roots", [])],
             projects=[ProjectEntry.from_dict(p) for p in data.get("projects", [])],
             patterns=[Pattern.from_dict(p) for p in data.get("patterns", [])],
-            reference_projects={
-                k: Path(v) for k, v in data.get("references", {}).items()
-            },
+            reference_projects={k: Path(v) for k, v in data.get("references", {}).items()},
         )

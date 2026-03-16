@@ -14,23 +14,12 @@ backward compatibility. New code should import from sunwell.contracts.
 """
 
 # Serialization protocols
-from sunwell.contracts.serialization import (
-    DictSerializable,
-    Embeddable,
-    Promptable,
-    Saveable,
-    Serializable,
-)
-
-# Model types and protocol
-from sunwell.contracts.model import (
-    GenerateOptions,
-    GenerateResult,
-    Message,
-    ModelProtocol,
-    TokenUsage,
-    Tool,
-    ToolCall,
+# Domain types and protocols
+from sunwell.contracts.domain import (
+    Domain,
+    DomainType,
+    DomainValidator,
+    ValidationResult,
 )
 
 # Event types
@@ -57,12 +46,22 @@ from sunwell.contracts.execution import (
 # Fount protocol
 from sunwell.contracts.fount import FountProtocol
 
-# Domain types and protocols
-from sunwell.contracts.domain import (
-    Domain,
-    DomainType,
-    DomainValidator,
-    ValidationResult,
+# Model types and protocol
+from sunwell.contracts.model import (
+    GenerateOptions,
+    GenerateResult,
+    Message,
+    ModelProtocol,
+    TokenUsage,
+    Tool,
+    ToolCall,
+)
+from sunwell.contracts.serialization import (
+    DictSerializable,
+    Embeddable,
+    Promptable,
+    Saveable,
+    Serializable,
 )
 
 __all__ = [

@@ -3,7 +3,6 @@
 View and manage project intelligence: decisions, failures, patterns, codebase graph.
 """
 
-
 import asyncio
 from pathlib import Path
 
@@ -41,7 +40,9 @@ def status(project_root: str) -> None:
     intel_path = project_path / ".sunwell" / "intelligence"
 
     if not intel_path.exists():
-        console.print("[yellow]No intelligence data found. Run 'sunwell intel scan' to initialize.[/yellow]")
+        console.print(
+            "[yellow]No intelligence data found. Run 'sunwell intel scan' to initialize.[/yellow]"
+        )
         return
 
     # Load intelligence
@@ -63,15 +64,25 @@ def status(project_root: str) -> None:
         patterns = context.patterns
 
         # Build status table
-        table = Table(title="📊 Project Intelligence Status", show_header=True, header_style="bold magenta")
+        table = Table(
+            title="📊 Project Intelligence Status", show_header=True, header_style="bold magenta"
+        )
         table.add_column("Component", style="cyan")
         table.add_column("Count", justify="right", style="green")
         table.add_column("Details", style="yellow")
 
         table.add_row("Decisions", str(decision_count), f"{len(recent_decisions)} recent")
         table.add_row("Failures", str(failure_count), f"{len(recent_failures)} recent")
-        table.add_row("Patterns", "Learned" if patterns.confidence else "None", f"{len(patterns.confidence)} patterns")
-        table.add_row("Codebase Graph", "Loaded" if context.codebase.call_graph else "Not scanned", f"{len(context.codebase.call_graph)} functions")
+        table.add_row(
+            "Patterns",
+            "Learned" if patterns.confidence else "None",
+            f"{len(patterns.confidence)} patterns",
+        )
+        table.add_row(
+            "Codebase Graph",
+            "Loaded" if context.codebase.call_graph else "Not scanned",
+            f"{len(context.codebase.call_graph)} functions",
+        )
 
         console.print(table)
 
@@ -115,7 +126,9 @@ def decisions(project_root: str, category: str | None, query: str | None, limit:
             console.print("[yellow]No decisions found.[/yellow]")
             return
 
-        table = Table(title="📋 Architectural Decisions", show_header=True, header_style="bold magenta")
+        table = Table(
+            title="📋 Architectural Decisions", show_header=True, header_style="bold magenta"
+        )
         table.add_column("Category", style="cyan")
         table.add_column("Question", style="white")
         table.add_column("Choice", style="green")
@@ -125,7 +138,9 @@ def decisions(project_root: str, category: str | None, query: str | None, limit:
             date_str = decision.timestamp.strftime("%Y-%m-%d") if decision.timestamp else "Unknown"
             table.add_row(
                 decision.category,
-                decision.question[:50] + "..." if len(decision.question) > 50 else decision.question,
+                decision.question[:50] + "..."
+                if len(decision.question) > 50
+                else decision.question,
                 decision.choice[:40] + "..." if len(decision.choice) > 40 else decision.choice,
                 date_str,
             )
@@ -136,15 +151,21 @@ def decisions(project_root: str, category: str | None, query: str | None, limit:
         if decisions_list:
             decision = decisions_list[0]
             console.print("\n[bold]Details:[/bold]")
-            console.print(Panel(
-                f"[bold]Question:[/bold] {decision.question}\n"
-                f"[bold]Choice:[/bold] {decision.choice}\n"
-                f"[bold]Rationale:[/bold] {decision.rationale}\n"
-                + (f"[bold]Rejected:[/bold] {', '.join(r.option for r in decision.rejected)}\n" if decision.rejected else "")
-                + f"[bold]Confidence:[/bold] {decision.confidence:.0%}",
-                title=f"Decision: {decision.category}",
-                border_style="blue",
-            ))
+            console.print(
+                Panel(
+                    f"[bold]Question:[/bold] {decision.question}\n"
+                    f"[bold]Choice:[/bold] {decision.choice}\n"
+                    f"[bold]Rationale:[/bold] {decision.rationale}\n"
+                    + (
+                        f"[bold]Rejected:[/bold] {', '.join(r.option for r in decision.rejected)}\n"
+                        if decision.rejected
+                        else ""
+                    )
+                    + f"[bold]Confidence:[/bold] {decision.confidence:.0%}",
+                    title=f"Decision: {decision.category}",
+                    border_style="blue",
+                )
+            )
 
     asyncio.run(_show_decisions())
 
@@ -182,10 +203,16 @@ def failures(project_root: str, query: str | None, limit: int, recent: int | Non
 
         for failure in failures_list:
             date_str = failure.timestamp.strftime("%Y-%m-%d") if failure.timestamp else "Unknown"
-            error_preview = failure.error_message[:40] + "..." if len(failure.error_message) > 40 else failure.error_message
+            error_preview = (
+                failure.error_message[:40] + "..."
+                if len(failure.error_message) > 40
+                else failure.error_message
+            )
             table.add_row(
                 failure.error_type,
-                failure.description[:40] + "..." if len(failure.description) > 40 else failure.description,
+                failure.description[:40] + "..."
+                if len(failure.description) > 40
+                else failure.description,
                 error_preview,
                 date_str,
             )
@@ -216,7 +243,9 @@ def patterns(project_root: str) -> None:
 
         if not patterns.confidence:
             console.print("[yellow]No patterns learned yet.[/yellow]")
-            console.print("[dim]Patterns are learned automatically from your edits and preferences.[/dim]")
+            console.print(
+                "[dim]Patterns are learned automatically from your edits and preferences.[/dim]"
+            )
             return
 
         console.print("[bold]📝 Learned Patterns[/bold]\n")
@@ -231,12 +260,16 @@ def patterns(project_root: str) -> None:
         # Type annotations
         if patterns.type_annotation_level != "public":
             confidence = patterns.confidence.get("type_annotations", 0.0)
-            console.print(f"\n[bold cyan]Type Annotations:[/bold cyan] {patterns.type_annotation_level} ({confidence:.0%} confidence)")
+            console.print(
+                f"\n[bold cyan]Type Annotations:[/bold cyan] {patterns.type_annotation_level} ({confidence:.0%} confidence)"
+            )
 
         # Docstring style
         if patterns.docstring_style != "google":
             confidence = patterns.confidence.get("docstring_style", 0.0)
-            console.print(f"\n[bold cyan]Docstring Style:[/bold cyan] {patterns.docstring_style} ({confidence:.0%} confidence)")
+            console.print(
+                f"\n[bold cyan]Docstring Style:[/bold cyan] {patterns.docstring_style} ({confidence:.0%} confidence)"
+            )
 
         # Communication preferences
         console.print("\n[bold cyan]Communication:[/bold cyan]")

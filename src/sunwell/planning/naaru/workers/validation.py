@@ -1,6 +1,5 @@
 """Validation worker - tiered validation with FunctionGemma → Full LLM cascade."""
 
-
 import asyncio
 import json
 import re
@@ -44,6 +43,7 @@ class ValidationWorker(RegionWorker):
         if self.config.discernment:
             try:
                 from sunwell.planning.naaru.discernment import Discernment
+
                 self._discernment = Discernment()
             except ImportError:
                 pass
@@ -189,7 +189,7 @@ Respond with ONLY JSON:
             elif "```" in response_text:
                 response_text = response_text.split("```")[1].split("```")[0]
 
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
                 judge_result = json.loads(json_match.group())
                 score = float(judge_result.get("score", 0))
@@ -197,7 +197,9 @@ Respond with ONLY JSON:
                 verdict = judge_result.get("verdict", "reject")
 
                 is_valid = score >= self.config.purity_threshold and verdict == "approve"
-                reason = f"Score: {score}/10" + (f" Issues: {', '.join(issues[:2])}" if issues else "")
+                reason = f"Score: {score}/10" + (
+                    f" Issues: {', '.join(issues[:2])}" if issues else ""
+                )
 
                 return is_valid, reason, score, issues
             else:

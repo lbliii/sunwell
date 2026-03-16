@@ -1,8 +1,5 @@
 """Memory-related type definitions - context budgets, retrieval results, etc."""
 
-
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -93,11 +90,11 @@ class MemoryRetrievalResult:
     def total_items(self) -> int:
         """Total items retrieved across all memory types."""
         return (
-            len(self.learnings) +
-            len(self.episodes) +
-            len(self.turns) +
-            len(self.code_chunks) +
-            len(self.heuristics)
+            len(self.learnings)
+            + len(self.episodes)
+            + len(self.turns)
+            + len(self.code_chunks)
+            + len(self.heuristics)
         )
 
     def to_context(self, max_tokens: int = 6000) -> str:
@@ -146,5 +143,3 @@ class MemoryRetrievalResult:
                 parts.append(f"\n```\n{chunk[:500]}\n```")
 
         return "\n".join(parts)
-
-

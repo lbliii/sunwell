@@ -1,6 +1,5 @@
 """Executive worker - coordination, prioritization, attention."""
 
-
 import asyncio
 from collections import deque
 from collections.abc import Callable

@@ -30,7 +30,6 @@ Benefits:
 See: RFC-075 (original), this refactor improves on it.
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 

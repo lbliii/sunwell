@@ -83,8 +83,7 @@ class CLIEscalationUI:
         # Show options
         self.console.print()
         self.console.print(
-            "[bold]Options:[/] "
-            "[a]pprove  [s]kip  [S]kip-all  [v]iew-details  [q]uit"
+            "[bold]Options:[/] [a]pprove  [s]kip  [S]kip-all  [v]iew-details  [q]uit"
         )
 
         while True:
@@ -114,10 +113,12 @@ class CLIEscalationUI:
             return
 
         self.console.print()
-        self.console.print(Panel(
-            self._last_escalation["message"],
-            title="Escalation Details",
-        ))
+        self.console.print(
+            Panel(
+                self._last_escalation["message"],
+                title="Escalation Details",
+            )
+        )
 
         # Show options table
         table = Table(title="Available Actions")

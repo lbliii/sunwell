@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sunwell.agent.context.session import PlannerMode
-from sunwell.agent.coordination.handoff import Handoff, Finding, HandoffUrgency
+from sunwell.agent.coordination.handoff import Finding, Handoff, HandoffUrgency
 from sunwell.agent.core.task_graph import sanitize_code_content
 from sunwell.agent.events import (
     AgentEvent,

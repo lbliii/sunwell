@@ -12,7 +12,6 @@ Use cases:
 - Transfer expertise across machines
 """
 
-
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -90,18 +89,14 @@ class EpisodeSnapshot:
             lens_name=lens.metadata.name,
             lens_version=str(lens.metadata.version),
             lens_domain=lens.metadata.domain,
-
             # Input
             prompt=prompt,
-
             # Retrieved (tuples for frozen dataclass)
             retrieved_heuristics=tuple(result.retrieved_components),
             retrieved_code=tuple(retrieved_code) if retrieved_code else (),
-
             # Execution
             tier=result.tier.name,
             refinement_count=result.refinement_count,
-
             # Validation (tuples for frozen dataclass)
             validation_results=tuple(
                 {
@@ -120,12 +115,10 @@ class EpisodeSnapshot:
                 }
                 for p in result.persona_results
             ),
-
             # Output
             final_content=result.content,
             confidence_score=result.confidence.score,
             confidence_level=result.confidence.level,
-
             # Metadata
             timestamp=datetime.now().isoformat(),
             model=model,
@@ -149,6 +142,7 @@ class EpisodeSnapshot:
         if len(self.final_content) > 10000:
             try:
                 import zstd
+
                 compressed = zstd.compress(self.final_content.encode())
                 data["final_content_compressed"] = compressed.hex()
                 data["final_content"] = "[compressed]"
@@ -168,6 +162,7 @@ class EpisodeSnapshot:
         if data.get("final_content") == "[compressed]" and "final_content_compressed" in data:
             try:
                 import zstd
+
                 compressed = bytes.fromhex(data["final_content_compressed"])
                 data["final_content"] = zstd.decompress(compressed).decode()
             except ImportError:
@@ -197,7 +192,7 @@ Tier: {self.tier}
 Confidence: {self.confidence_score:.0%} ({self.confidence_level})
 Validations: {passed}/{total} passed
 Refinements: {self.refinement_count}
-Heuristics: {', '.join(self.retrieved_heuristics) or 'none'}
+Heuristics: {", ".join(self.retrieved_heuristics) or "none"}
 Code refs: {len(self.retrieved_code)} files"""
 
 

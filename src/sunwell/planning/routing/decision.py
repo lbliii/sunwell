@@ -29,15 +29,15 @@ class RoutingDecision:
 
     intent: Intent
     complexity: Complexity
-    lens: str | None                    # Selected lens (None = no specific lens)
-    tools: tuple[str, ...]              # Predicted tools: file_read, file_write, search, terminal
+    lens: str | None  # Selected lens (None = no specific lens)
+    tools: tuple[str, ...]  # Predicted tools: file_read, file_write, search, terminal
     mood: UserMood
     expertise: UserExpertise
-    confidence: float                   # 0.0-1.0 routing confidence
-    reasoning: str                      # One-sentence explanation
+    confidence: float  # 0.0-1.0 routing confidence
+    reasoning: str  # One-sentence explanation
 
     # Retrieval hints (derived from intent)
-    focus: tuple[str, ...] = ()         # Keywords for retrieval boosting
+    focus: tuple[str, ...] = ()  # Keywords for retrieval boosting
     secondary_lenses: tuple[str, ...] = ()
 
     # RFC-070: Skill suggestions based on trigger matching

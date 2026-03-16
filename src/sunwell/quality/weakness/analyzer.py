@@ -12,7 +12,6 @@ RFC-077 adds LLM-based severity prioritization for context-aware ranking.
 All tools are optional - graceful degradation if missing.
 """
 
-
 import json
 import subprocess
 from dataclasses import dataclass, field
@@ -112,10 +111,12 @@ class WeaknessAnalyzer:
                             file_path=file_path,
                             weakness_type=WeaknessType.HIGH_COMPLEXITY,
                             severity=min(1.0, (complexity - self.complexity_threshold) / 10),
-                            evidence=_freeze_evidence({
-                                "complexity": complexity,
-                                "threshold": self.complexity_threshold,
-                            }),
+                            evidence=_freeze_evidence(
+                                {
+                                    "complexity": complexity,
+                                    "threshold": self.complexity_threshold,
+                                }
+                            ),
                         )
                     )
 
@@ -147,11 +148,13 @@ class WeaknessAnalyzer:
                             file_path=file_path,
                             weakness_type=WeaknessType.STALE_CODE,
                             severity=min(1.0, (months_stale / 12) * (fan_out / 10)),
-                            evidence=_freeze_evidence({
-                                "months_stale": months_stale,
-                                "fan_out": fan_out,
-                                "coverage": coverage,
-                            }),
+                            evidence=_freeze_evidence(
+                                {
+                                    "months_stale": months_stale,
+                                    "fan_out": fan_out,
+                                    "coverage": coverage,
+                                }
+                            ),
                         )
                     )
 
@@ -422,16 +425,12 @@ class SmartWeaknessAnalyzer(WeaknessAnalyzer):
 
         return result
 
-    async def _assess_severity(
-        self, classifier: Any, score: WeaknessScore
-    ) -> str:
+    async def _assess_severity(self, classifier: Any, score: WeaknessScore) -> str:
         """Get LLM severity assessment for a weakness."""
         # Build context from weakness signals
         signals_desc = []
         for signal in score.signals[:3]:  # Top 3 signals
-            signals_desc.append(
-                f"- {signal.weakness_type.value}: severity={signal.severity:.2f}"
-            )
+            signals_desc.append(f"- {signal.weakness_type.value}: severity={signal.severity:.2f}")
 
         context = f"""File: {score.file_path}
 Fan-out (dependencies): {score.fan_out}
@@ -447,9 +446,7 @@ Weakness signals:
             file_path=str(score.file_path),
         )
 
-    async def prioritize_for_goal(
-        self, goal: str, top_n: int = 10
-    ) -> list[WeaknessScore]:
+    async def prioritize_for_goal(self, goal: str, top_n: int = 10) -> list[WeaknessScore]:
         """Prioritize weaknesses based on a specific goal (RFC-077).
 
         Uses LLM to determine which weaknesses are most relevant to a goal.

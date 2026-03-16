@@ -14,7 +14,6 @@ Extended with MCP host configuration:
     sunwell setup claude   # Configure Sunwell as MCP server for Claude Desktop
 """
 
-
 import json
 import sys
 from pathlib import Path
@@ -34,8 +33,12 @@ console = create_sunwell_console()
 @click.argument("path", type=click.Path(), default=".", required=False)
 @click.option("--provider", "-p", default=None, help="LLM provider (default: config/ollama)")
 @click.option("--model", "-m", default=None, help="Model name (auto-selected based on provider)")
-@click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
-              default="workspace", help="Default tool trust level")
+@click.option(
+    "--trust",
+    type=click.Choice(["read_only", "workspace", "shell"]),
+    default="workspace",
+    help="Default tool trust level",
+)
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing configuration")
 @click.option("--minimal", is_flag=True, help="Skip lens bindings (project only)")
 @click.option("--quiet", "-q", is_flag=True, help="Minimal output")
@@ -205,8 +208,13 @@ def setup(
 
             if lens_path:
                 bindings_created = _setup_default_bindings(
-                    manager, lens_path, resolved_provider, resolved_model,
-                    force, quiet, project_path,
+                    manager,
+                    lens_path,
+                    resolved_provider,
+                    resolved_model,
+                    force,
+                    quiet,
+                    project_path,
                 )
                 if bindings_created:
                     actions.append("bindings")
@@ -419,11 +427,7 @@ def _setup_mcp_host(host: str, force: bool, quiet: bool) -> None:
             )
         elif _sys.platform == "win32":
             config_path = (
-                Path.home()
-                / "AppData"
-                / "Roaming"
-                / "Claude"
-                / "claude_desktop_config.json"
+                Path.home() / "AppData" / "Roaming" / "Claude" / "claude_desktop_config.json"
             )
         else:
             # Linux - best guess

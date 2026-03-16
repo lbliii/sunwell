@@ -60,15 +60,15 @@ from sunwell.knowledge.project.signals import (
     ProjectSignals,
     gather_project_signals,
 )
+from sunwell.knowledge.project.state import (
+    resolve_state_dir,
+)
 from sunwell.knowledge.project.types import (
     AgentConfig,
     Project,
     ProjectManifest,
     Serializable,
     WorkspaceType,
-)
-from sunwell.knowledge.project.state import (
-    resolve_state_dir,
 )
 from sunwell.knowledge.project.validation import (
     ProjectValidationError,

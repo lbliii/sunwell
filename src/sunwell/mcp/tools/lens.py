@@ -3,15 +3,11 @@
 Provides sunwell_lens and sunwell_list tools for accessing lenses.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import mcp_json, omit_empty, truncate
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
 
 
 def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
@@ -70,15 +66,17 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                 "compact",
             )
 
-        result: dict = omit_empty({
-            "name": lens.metadata.name,
-            "domain": lens.metadata.domain,
-            "version": str(lens.metadata.version) if lens.metadata.version else "0.1.0",
-            "description": truncate(lens.metadata.description, 200),
-            "heuristics_count": len(lens.heuristics),
-            "skills_count": len(lens.skills),
-            "path": str(lens.source_path) if lens.source_path else None,
-        })
+        result: dict = omit_empty(
+            {
+                "name": lens.metadata.name,
+                "domain": lens.metadata.domain,
+                "version": str(lens.metadata.version) if lens.metadata.version else "0.1.0",
+                "description": truncate(lens.metadata.description, 200),
+                "heuristics_count": len(lens.heuristics),
+                "skills_count": len(lens.skills),
+                "path": str(lens.source_path) if lens.source_path else None,
+            }
+        )
 
         # Include shortcuts if lens has router
         if lens.router and lens.router.shortcuts:
@@ -134,9 +132,7 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                         entry.update(
                             {
                                 "version": (
-                                    str(lens.metadata.version)
-                                    if lens.metadata.version
-                                    else "0.1.0"
+                                    str(lens.metadata.version) if lens.metadata.version else "0.1.0"
                                 ),
                                 "description": truncate(lens.metadata.description, 120),
                                 "heuristics_count": len(lens.heuristics),
@@ -185,9 +181,7 @@ def register_lens_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
                         entry.update(
                             {
                                 "version": (
-                                    str(lens.metadata.version)
-                                    if lens.metadata.version
-                                    else "0.1.0"
+                                    str(lens.metadata.version) if lens.metadata.version else "0.1.0"
                                 ),
                                 "description": truncate(lens.metadata.description, 120),
                                 "heuristics_count": len(lens.heuristics),

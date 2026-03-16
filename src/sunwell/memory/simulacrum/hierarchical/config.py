@@ -1,6 +1,5 @@
 """Configuration for hierarchical chunking and memory management."""
 
-
 from dataclasses import dataclass
 from typing import Literal
 

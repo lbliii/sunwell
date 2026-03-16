@@ -64,12 +64,4 @@
 {% end %}
 
 <div id="modal-container"></div>
-
-{# SSE connection for live updates #}
-<div hx-ext="sse"
-     sse-connect="/system/stream"
-     hx-disinherit="hx-target hx-swap"
-     style="display: none;">
-    <div id="notifications" sse-swap="notification" hx-target="this"></div>
-</div>
 {% end %}

@@ -50,7 +50,7 @@ def extract_json(response: str) -> list[dict] | None:
                     "strategy": "regex_array",
                     "error": str(e),
                     "attempted_content": json_match.group()[:200],
-                }
+                },
             )
 
     # Strategy 2: Look for code block with JSON
@@ -65,7 +65,7 @@ def extract_json(response: str) -> list[dict] | None:
                     "strategy": "code_block",
                     "error": str(e),
                     "attempted_content": code_match.group(1)[:200],
-                }
+                },
             )
 
     # Strategy 3: Try parsing entire response
@@ -76,7 +76,7 @@ def extract_json(response: str) -> list[dict] | None:
         else:
             logger.debug(
                 f"JSON extraction strategy 3 succeeded but result is not a list: {type(data)}",
-                extra={"strategy": "full_response", "result_type": type(data).__name__}
+                extra={"strategy": "full_response", "result_type": type(data).__name__},
             )
     except json.JSONDecodeError as e:
         logger.debug(
@@ -85,7 +85,7 @@ def extract_json(response: str) -> list[dict] | None:
                 "strategy": "full_response",
                 "error": str(e),
                 "response_preview": response[:200],
-            }
+            },
         )
 
     # All strategies exhausted
@@ -96,14 +96,14 @@ def extract_json(response: str) -> list[dict] | None:
             "response_length": len(response),
             "response_preview": response[:500],
             "strategies_tried": ["regex_array", "code_block", "full_response"],
-        }
+        },
     )
     return None
 
 
 def _is_meta_artifact(artifact_id: str, produces_file: str | None) -> bool:
     """Check if artifact is a meta-artifact that shouldn't be created as a project file.
-    
+
     Meta-artifacts are internal state files that the LLM sometimes hallucinates,
     like "key_learnings.md", "personal_reflection.md", "generated_code.py", etc.
     These should either not be created or go to .sunwell/ instead.
@@ -113,9 +113,21 @@ def _is_meta_artifact(artifact_id: str, produces_file: str | None) -> bool:
 
     # Reject generic/meta artifact IDs
     meta_patterns = (
-        "learning", "reflection", "summary", "notes", "thoughts",
-        "generated_code", "output", "result", "response", "answer",
-        "analysis", "findings", "observations", "insights", "takeaways",
+        "learning",
+        "reflection",
+        "summary",
+        "notes",
+        "thoughts",
+        "generated_code",
+        "output",
+        "result",
+        "response",
+        "answer",
+        "analysis",
+        "findings",
+        "observations",
+        "insights",
+        "takeaways",
     )
 
     for pattern in meta_patterns:
@@ -126,8 +138,13 @@ def _is_meta_artifact(artifact_id: str, produces_file: str | None) -> bool:
 
     # Reject files that look like internal state
     meta_files = (
-        "key_learnings", "personal_reflection", "generated_code.py",
-        "learnings.md", "notes.md", "summary.md", "thoughts.md",
+        "key_learnings",
+        "personal_reflection",
+        "generated_code.py",
+        "learnings.md",
+        "notes.md",
+        "summary.md",
+        "thoughts.md",
     )
 
     return any(mf in file_lower for mf in meta_files)
@@ -261,7 +278,7 @@ def parse_artifacts(
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "artifact_data": str(item)[:300],
-                }
+                },
             )
             continue
 

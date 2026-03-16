@@ -3,7 +3,6 @@
 Ties all verification components together.
 """
 
-
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -177,9 +176,7 @@ class DeepVerifier:
             message="Computing final confidence via triangulation",
         )
 
-        result = self.triangulator.triangulate(
-            spec, execution_results, perspectives, tests
-        )
+        result = self.triangulator.triangulate(spec, execution_results, perspectives, tests)
 
         # Add timing
         duration = int((time.monotonic() - start) * 1000)

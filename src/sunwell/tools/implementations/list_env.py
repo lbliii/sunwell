@@ -3,10 +3,10 @@
 import os
 
 from sunwell.tools.core.types import ToolTrust
-from sunwell.tools.registry import BaseTool, tool_metadata
 
 # Import allowlist from get_env
 from sunwell.tools.implementations.get_env import ENV_ALLOWLIST
+from sunwell.tools.registry import BaseTool, tool_metadata
 
 
 @tool_metadata(

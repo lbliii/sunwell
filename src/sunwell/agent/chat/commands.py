@@ -194,8 +194,7 @@ def handle_rewind_command(
         return f"✗ Rewind failed: {result.error}"
 
     return (
-        f"Unknown rewind option: `{arg}`\n\n"
-        "Use `/rewind` to see available snapshots and options."
+        f"Unknown rewind option: `{arg}`\n\nUse `/rewind` to see available snapshots and options."
     )
 
 
@@ -268,10 +267,7 @@ def handle_background_command(
             return f"✓ Cancelled session `{session_id}`"
         return f"✗ Could not cancel `{session_id}` (not found or already complete)"
 
-    return (
-        f"Unknown background option: `{arg}`\n\n"
-        "Use `/background` to see sessions and options."
-    )
+    return f"Unknown background option: `{arg}`\n\nUse `/background` to see sessions and options."
 
 
 def handle_session_command(
@@ -351,13 +347,13 @@ def handle_session_command(
 
         try:
             from pathlib import Path
+
             portable = PortableSession.from_chat_loop(loop)
             save_path = Path(subarg.strip()).expanduser()
             portable.save(save_path)
 
             return (
-                f"✓ Session saved to `{save_path}`\n"
-                f"Messages: {len(portable.conversation_history)}"
+                f"✓ Session saved to `{save_path}`\nMessages: {len(portable.conversation_history)}"
             )
         except Exception as e:
             return f"✗ Save failed: {e}"
@@ -369,8 +365,9 @@ def handle_session_command(
 
         try:
             from pathlib import Path
+
             load_path = Path(subarg.strip()).expanduser()
-            
+
             if not load_path.exists():
                 return f"✗ File not found: `{load_path}`"
 
@@ -385,10 +382,7 @@ def handle_session_command(
         except Exception as e:
             return f"✗ Load failed: {e}"
 
-    return (
-        f"Unknown session command: `{subcmd}`\n\n"
-        "Use `/session` to see available commands."
-    )
+    return f"Unknown session command: `{subcmd}`\n\nUse `/session` to see available commands."
 
 
 def handle_resume_command(

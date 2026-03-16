@@ -76,11 +76,13 @@ def enhance_tools_with_expertise(
         for tool in tools:
             if tool.name in ("write_file", "edit_file"):
                 # Create enhanced copy
-                enhanced.append(Tool(
-                    name=tool.name,
-                    description=tool.description + expertise_suffix,
-                    parameters=tool.parameters,
-                ))
+                enhanced.append(
+                    Tool(
+                        name=tool.name,
+                        description=tool.description + expertise_suffix,
+                        parameters=tool.parameters,
+                    )
+                )
             else:
                 enhanced.append(tool)
 

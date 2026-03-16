@@ -26,8 +26,13 @@ def interface() -> None:
 @click.option("--goal", "-g", required=True, help="User goal to process")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.option("--data-dir", "-d", default=None, help="Data directory path")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
 @click.option("--model", "-m", default=None, help="Model to use for intent analysis")
 @click.option("--history", default=None, help="JSON array of prior conversation messages")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
@@ -172,32 +177,40 @@ def _print_output(output, analysis, verbose: bool) -> None:
 
     if isinstance(output, ActionOutput):
         if output.success:
-            console.print(Panel(
-                f"✓ {output.response}",
-                title="Action Complete",
-                border_style="green",
-            ))
+            console.print(
+                Panel(
+                    f"✓ {output.response}",
+                    title="Action Complete",
+                    border_style="green",
+                )
+            )
         else:
-            console.print(Panel(
-                f"✗ {output.response}",
-                title="Action Failed",
-                border_style="red",
-            ))
+            console.print(
+                Panel(
+                    f"✗ {output.response}",
+                    title="Action Failed",
+                    border_style="red",
+                )
+            )
 
     elif isinstance(output, ViewOutput):
-        console.print(Panel(
-            output.response or "Here's what I found:",
-            title=f"View: {output.view_type.title()}",
-            border_style="blue",
-        ))
+        console.print(
+            Panel(
+                output.response or "Here's what I found:",
+                title=f"View: {output.view_type.title()}",
+                border_style="blue",
+            )
+        )
         _print_view_data(output.view_type, output.data)
 
     elif isinstance(output, WorkspaceOutput):
-        console.print(Panel(
-            output.response or "Workspace ready.",
-            title="Workspace",
-            border_style="magenta",
-        ))
+        console.print(
+            Panel(
+                output.response or "Workspace ready.",
+                title="Workspace",
+                border_style="magenta",
+            )
+        )
         if output.workspace_spec and verbose:
             console.print(f"[dim]Primary: {output.workspace_spec.get('primary')}[/dim]")
             if output.workspace_spec.get("secondary"):
@@ -211,18 +224,22 @@ def _print_output(output, analysis, verbose: bool) -> None:
             emoji = "💜"
         else:
             emoji = "🤝"
-        console.print(Panel(
-            output.response,
-            title=f"{emoji} Response",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                output.response,
+                title=f"{emoji} Response",
+                border_style="cyan",
+            )
+        )
 
     elif isinstance(output, HybridOutput):
-        console.print(Panel(
-            f"✓ {output.action.response}",
-            title="Action",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                f"✓ {output.action.response}",
+                title="Action",
+                border_style="green",
+            )
+        )
         console.print()
         _print_view_data(output.view.view_type, output.view.data)
 
@@ -243,6 +260,7 @@ def _print_view_data(view_type: str, data: dict) -> None:
 
         for event in events[:10]:
             from datetime import datetime
+
             start = datetime.fromisoformat(event["start"])
             table.add_row(
                 start.strftime("%a %b %d"),
@@ -334,20 +352,24 @@ async def _demo(data_dir_str: str | None) -> None:
     from sunwell.models.providers.base import CalendarEvent
 
     now = datetime.now()
-    await providers.calendar.create_event(CalendarEvent(
-        id="",
-        title="Team Meeting",
-        start=now + timedelta(days=1, hours=10),
-        end=now + timedelta(days=1, hours=11),
-        location="Conference Room A",
-    ))
-    await providers.calendar.create_event(CalendarEvent(
-        id="",
-        title="Dinner with Sarah",
-        start=now + timedelta(days=2, hours=19),
-        end=now + timedelta(days=2, hours=21),
-        location="Italian Restaurant",
-    ))
+    await providers.calendar.create_event(
+        CalendarEvent(
+            id="",
+            title="Team Meeting",
+            start=now + timedelta(days=1, hours=10),
+            end=now + timedelta(days=1, hours=11),
+            location="Conference Room A",
+        )
+    )
+    await providers.calendar.create_event(
+        CalendarEvent(
+            id="",
+            title="Dinner with Sarah",
+            start=now + timedelta(days=2, hours=19),
+            end=now + timedelta(days=2, hours=21),
+            location="Italian Restaurant",
+        )
+    )
     console.print("  ✓ Created calendar events")
 
     # Sample notes
@@ -503,11 +525,15 @@ async def _execute_action(
 
     # Output result
     if json_output:
-        click.echo(json.dumps({
-            "success": result.success,
-            "message": result.message,
-            "data": result.data,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "success": result.success,
+                    "message": result.message,
+                    "data": result.data,
+                }
+            )
+        )
     else:
         if result.success:
             console.print(f"[green]✓ {result.message}[/green]")

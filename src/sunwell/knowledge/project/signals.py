@@ -8,24 +8,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # Directories/patterns to ignore when scanning files
-_IGNORE_PATTERNS: frozenset[str] = frozenset({
-    ".git",
-    ".svn",
-    "__pycache__",
-    "node_modules",
-    ".venv",
-    "venv",
-    ".env",
-    ".tox",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    "dist",
-    "build",
-    ".sunwell",
-    "target",  # Rust
-    ".cargo",
-})
+_IGNORE_PATTERNS: frozenset[str] = frozenset(
+    {
+        ".git",
+        ".svn",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        ".env",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".sunwell",
+        "target",  # Rust
+        ".cargo",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,9 +185,12 @@ def gather_project_signals(path: Path) -> ProjectSignals:
         has_data_dir=(path / "data").is_dir(),
         has_csv_files=len(list(path.glob("**/*.csv"))) > 0,
         # Planning signals
-        has_backlog=(path / ".sunwell" / "backlog").exists() or (path / ".sunwell" / "goals").exists(),
+        has_backlog=(path / ".sunwell" / "backlog").exists()
+        or (path / ".sunwell" / "goals").exists(),
         has_roadmap=any(path.glob("**/ROADMAP*")) or any(path.glob("**/roadmap*")),
-        has_rfc_dir=(path / "docs" / "rfcs").is_dir() or (path / "rfcs").is_dir() or (path / "docs" / "rfc").is_dir(),
+        has_rfc_dir=(path / "docs" / "rfcs").is_dir()
+        or (path / "rfcs").is_dir()
+        or (path / "docs" / "rfc").is_dir(),
         # Creative signals
         has_prose=(path / "manuscript").is_dir() or (path / "chapters").is_dir(),
         has_fountain=len(list(path.glob("**/*.fountain"))) > 0,

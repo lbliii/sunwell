@@ -17,7 +17,6 @@ sunwell's async/Python patterns.
 from sunwell.agent.coordination.parallel_executor import (
     ParallelExecutor,
     ParallelGroupResult,
-    TaskResult,
     get_parallel_executor,
     set_task_executor,
 )
@@ -27,6 +26,7 @@ from sunwell.agent.coordination.registry import (
     SubagentRegistry,
     get_registry,
 )
+from sunwell.agent.coordination.types import TaskResult
 
 __all__ = [
     # Registry

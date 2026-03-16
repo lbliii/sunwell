@@ -8,7 +8,6 @@ RFC-050 adds:
 - metadata field for provenance tracking
 """
 
-
 import hashlib
 import json
 import math
@@ -22,12 +21,14 @@ if TYPE_CHECKING:
 
 
 # Pre-computed mutually exclusive choice pairs
-_MUTUALLY_EXCLUSIVE_PAIRS: frozenset[tuple[str, str]] = frozenset([
-    ("sqlite", "postgres"),
-    ("jwt", "oauth"),
-    ("redis", "in-memory"),
-    ("sync", "async"),
-])
+_MUTUALLY_EXCLUSIVE_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    [
+        ("sqlite", "postgres"),
+        ("jwt", "oauth"),
+        ("redis", "in-memory"),
+        ("sync", "async"),
+    ]
+)
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
@@ -40,6 +41,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
         return 0.0
 
     return dot / (mag_a * mag_b)
+
 
 # RFC-050: Decision sources
 DecisionSource = Literal["conversation", "bootstrap"]
@@ -300,8 +302,7 @@ class DecisionMemory:
             pass
 
         rejected_options = tuple(
-            RejectedOption(option=opt, reason=reason)
-            for opt, reason in rejected
+            RejectedOption(option=opt, reason=reason) for opt, reason in rejected
         )
 
         decision = Decision(
@@ -536,9 +537,8 @@ class DecisionMemory:
                     return decision
 
             # If proposed choice differs and they seem mutually exclusive
-            is_alternative = (
-                choice_lower != proposed_lower and
-                self._are_mutually_exclusive(choice_lower, proposed_lower)
+            is_alternative = choice_lower != proposed_lower and self._are_mutually_exclusive(
+                choice_lower, proposed_lower
             )
             if is_alternative:
                 return decision

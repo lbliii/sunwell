@@ -119,6 +119,5 @@ def _format_awareness_patterns(patterns: list[AwarenessPattern]) -> str:
         Formatted string for system prompt, or empty if no significant patterns
     """
     from sunwell.awareness.patterns import format_patterns_for_prompt
+
     return format_patterns_for_prompt(patterns)
-
-

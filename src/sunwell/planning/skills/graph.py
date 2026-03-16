@@ -11,7 +11,6 @@ It provides:
 Follows the same patterns as ArtifactGraph (src/sunwell/naaru/artifacts.py).
 """
 
-
 import hashlib
 import threading
 from collections import deque
@@ -49,17 +48,13 @@ class MissingDependencyError(SkillGraphError):
     def __init__(self, skill_name: str, missing: set[str]) -> None:
         self.skill_name = skill_name
         self.missing = missing
-        super().__init__(
-            f"Skill '{skill_name}' depends on non-existent skills: {missing}"
-        )
+        super().__init__(f"Skill '{skill_name}' depends on non-existent skills: {missing}")
 
 
 class UnsatisfiedRequiresError(SkillGraphError):
     """Raised when a skill's requires aren't satisfied by upstream produces."""
 
-    def __init__(
-        self, skill_name: str, unsatisfied: set[str], available: set[str]
-    ) -> None:
+    def __init__(self, skill_name: str, unsatisfied: set[str], available: set[str]) -> None:
         self.skill_name = skill_name
         self.unsatisfied = unsatisfied
         self.available = available
@@ -217,14 +212,11 @@ class SkillGraph:
         """
         # Calculate in-degree for each node (only count deps that exist in graph)
         in_degree = {
-            name: len(deps & set(self._skills.keys()))
-            for name, deps in self._edges.items()
+            name: len(deps & set(self._skills.keys())) for name, deps in self._edges.items()
         }
 
         # Start with nodes that have no dependencies
-        queue: deque[str] = deque(
-            [name for name, deg in in_degree.items() if deg == 0]
-        )
+        queue: deque[str] = deque([name for name, deg in in_degree.items() if deg == 0])
         order: list[str] = []
 
         while queue:
@@ -293,9 +285,9 @@ class SkillGraph:
             wave = [
                 name
                 for name in pending
-                if (
-                    self._edges.get(name, frozenset()) & set(self._skills.keys())
-                ).issubset(completed)
+                if (self._edges.get(name, frozenset()) & set(self._skills.keys())).issubset(
+                    completed
+                )
             ]
 
             if not wave:
@@ -352,9 +344,7 @@ class SkillGraph:
             hasher.update((skill.instructions or "").encode())
             hasher.update(",".join(sorted(skill.produces)).encode())
             hasher.update(",".join(sorted(skill.requires)).encode())
-            hasher.update(
-                ",".join(sorted(d.source for d in skill.depends_on)).encode()
-            )
+            hasher.update(",".join(sorted(d.source for d in skill.depends_on)).encode())
 
         return hasher.hexdigest()
 
@@ -364,9 +354,7 @@ class SkillGraph:
 
         for name, skill in self._skills.items():
             desc = (
-                skill.description[:30] + "..."
-                if len(skill.description) > 30
-                else skill.description
+                skill.description[:30] + "..." if len(skill.description) > 30 else skill.description
             )
             safe_desc = desc.replace('"', "'")
             lines.append(f'    {name.replace("-", "_")}["{name}: {safe_desc}"]')

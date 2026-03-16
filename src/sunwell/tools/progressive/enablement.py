@@ -91,54 +91,67 @@ PROFILE_REQUIREMENTS: dict[UnlockProfile, dict[str, tuple[int, int]]] = {
 
 
 # Read-only tools available at all turns (safe discovery)
-_READ_ONLY_TOOLS: frozenset[str] = frozenset({
-    "read_file",
-    "list_files",
-    "search_files",
-    "find_files",  # Safe discovery by path pattern
-    "list_backups",  # View available backups (read-only)
-    # Git read-only operations
-    "git_info",
-    "git_status",
-    "git_diff",
-    "git_log",
-    "git_blame",
-    "git_show",
-})
+_READ_ONLY_TOOLS: frozenset[str] = frozenset(
+    {
+        "read_file",
+        "list_files",
+        "search_files",
+        "find_files",  # Safe discovery by path pattern
+        "list_backups",  # View available backups (read-only)
+        # Git read-only operations
+        "git_info",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_blame",
+        "git_show",
+    }
+)
 
 # Edit tools (require turn 2+)
-_EDIT_TOOLS: frozenset[str] = frozenset({
-    "edit_file",
-})
+_EDIT_TOOLS: frozenset[str] = frozenset(
+    {
+        "edit_file",
+    }
+)
 
 # Write tools (require turn 3+ and validation pass)
-_WRITE_TOOLS: frozenset[str] = frozenset({
-    "write_file",
-    "mkdir",
-    "copy_file",  # File management - creates files
-    "patch_file",  # Unified diff application (creates backup)
-    "undo_file",  # Restore from backup (modifies files)
-    "restore_file",  # Restore from specific backup
-    "git_add",
-    "git_restore",
-})
+_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "write_file",
+        "mkdir",
+        "copy_file",  # File management - creates files
+        "patch_file",  # Unified diff application (creates backup)
+        "undo_file",  # Restore from backup (modifies files)
+        "restore_file",  # Restore from specific backup
+        "git_add",
+        "git_restore",
+    }
+)
 
 # File management tools (require turn 4+ and validation pass - potentially destructive)
-_FILE_MANAGEMENT_TOOLS: frozenset[str] = frozenset({
-    "delete_file",
-    "rename_file",
-})
+_FILE_MANAGEMENT_TOOLS: frozenset[str] = frozenset(
+    {
+        "delete_file",
+        "rename_file",
+    }
+)
 
 # Shell/command tools (require turn 5+, 2 validation passes, and SHELL trust)
-_SHELL_TOOLS: frozenset[str] = frozenset({
-    "run_command",
-    "git_commit",
-    "git_branch",
-    "git_checkout",
-    "git_stash",
-    "git_reset",
-    "git_merge",
-})
+_SHELL_TOOLS: frozenset[str] = frozenset(
+    {
+        "run_command",
+        "git_commit",
+        "git_branch",
+        "git_checkout",
+        "git_stash",
+        "git_reset",
+        "git_merge",
+    }
+)
+
+# Skill tools (FULL trust only - require web/memory)
+_SKILL_TOOLS: frozenset[str] = frozenset({"research"})
 
 
 @dataclass(slots=True)
@@ -227,6 +240,9 @@ class ProgressivePolicy:
         if self._check_category_unlocked("shell"):
             if self.base_trust.includes(ToolTrust.SHELL):
                 tools.update(_SHELL_TOOLS)
+
+        if self.base_trust == ToolTrust.FULL:
+            tools.update(_SKILL_TOOLS)
 
         return frozenset(tools)
 
@@ -355,7 +371,7 @@ class ProgressivePolicy:
             "unlock_requirements": self.get_unlock_requirements(),
         }
 
-    def with_profile(self, profile: UnlockProfile) -> "ProgressivePolicy":
+    def with_profile(self, profile: UnlockProfile) -> ProgressivePolicy:
         """Create a new policy with a different unlock profile.
 
         Args:

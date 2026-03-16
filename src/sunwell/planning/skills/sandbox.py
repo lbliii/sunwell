@@ -3,7 +3,6 @@
 Implements the sandbox model from RFC-011 Section 7 (Security).
 """
 
-
 import asyncio
 import tempfile
 from dataclasses import dataclass, field

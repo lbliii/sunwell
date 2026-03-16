@@ -47,7 +47,7 @@ def sanitize_code_content(content: str | None) -> str:
     python_call_pattern = re.compile(
         r'write_file\s*\(\s*["\'][^"\']+["\']\s*,\s*'  # write_file("path",
         r'(?:"""(.*?)"""|\'\'\'(.*?)\'\'\')',  # """content""" or '''content'''
-        re.DOTALL
+        re.DOTALL,
     )
     match = python_call_pattern.search(text)
     if match:
@@ -60,13 +60,13 @@ def sanitize_code_content(content: str | None) -> str:
     python_unclosed = re.compile(
         r'write_file\s*\(\s*["\'][^"\']+["\']\s*,\s*'  # write_file("path",
         r'(?:"""|\'\'\')\s*(.*)$',  # """content (to end)
-        re.DOTALL
+        re.DOTALL,
     )
     match = python_unclosed.search(text)
     if match:
         extracted = match.group(1)
         # Remove trailing """) if present
-        extracted = re.sub(r'["\')]+\s*$', '', extracted)
+        extracted = re.sub(r'["\')]+\s*$', "", extracted)
         if extracted.strip():
             return extracted.strip()
 
@@ -74,9 +74,9 @@ def sanitize_code_content(content: str | None) -> str:
     # Matches: write_file path ```language\ncode\n``` or write_file("path") ```code```
     # Also catches preamble text before tool call
     tool_fence_pattern = re.compile(
-        r'(?:^|\n)write_file\s+\S+\s*'  # write_file path
-        r'```\w*\n?(.*?)```',  # ```language\ncode```
-        re.DOTALL
+        r"(?:^|\n)write_file\s+\S+\s*"  # write_file path
+        r"```\w*\n?(.*?)```",  # ```language\ncode```
+        re.DOTALL,
     )
     match = tool_fence_pattern.search(text)
     if match:
@@ -84,14 +84,14 @@ def sanitize_code_content(content: str | None) -> str:
 
     # Pattern 3: Any markdown fence anywhere (most flexible)
     # This handles preamble text + ```code``` cases
-    fence_pattern = re.compile(r'```\w*\n(.*?)```', re.DOTALL)
+    fence_pattern = re.compile(r"```\w*\n(.*?)```", re.DOTALL)
     match = fence_pattern.search(text)
     if match:
         return match.group(1).strip()
 
     # Pattern 4: Unclosed markdown fence (truncated output)
     # Matches: ```language\ncode (no closing ```)
-    open_fence = re.compile(r'```\w*\n(.*)$', re.DOTALL)
+    open_fence = re.compile(r"```\w*\n(.*)$", re.DOTALL)
     match = open_fence.search(text)
     if match:
         return match.group(1).strip()
@@ -108,22 +108,20 @@ def sanitize_code_content(content: str | None) -> str:
 
     # Pattern 6: Just a tool call with no content (e.g., "write_file path")
     # This indicates the model failed to output actual content
-    if re.match(r'^write_file\s+\S+\s*$', text):
+    if re.match(r"^write_file\s+\S+\s*$", text):
         # Return empty - there's no actual code here
         return ""
 
     # Pattern 7: Remove common preamble patterns at the start
     # e.g., "Okay, I will create...", "I'll write..."
     preamble_patterns = [
-        r'^(?:Okay|Ok|Sure|Alright|I\'ll|I will|Let me|Here\'s|Here is)[^`\n]*\n+',
+        r"^(?:Okay|Ok|Sure|Alright|I\'ll|I will|Let me|Here\'s|Here is)[^`\n]*\n+",
     ]
     for pattern in preamble_patterns:
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
     # No fence found and not a tool call pattern, return cleaned text as-is
     return text.strip()
-
-
 
 
 @dataclass(slots=True)
@@ -240,7 +238,7 @@ class TaskGraph:
 
         # Check for overlaps
         for i, mods_a in enumerate(all_modifies):
-            for mods_b in all_modifies[i + 1:]:
+            for mods_b in all_modifies[i + 1 :]:
                 if mods_a & mods_b:  # Non-empty intersection
                     return False
 

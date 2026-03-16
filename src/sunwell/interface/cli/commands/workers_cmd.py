@@ -9,7 +9,6 @@ Provides:
 - sunwell workers resources: Show resource usage
 """
 
-
 import asyncio
 import json
 from datetime import datetime

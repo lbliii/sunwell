@@ -17,3 +17,9 @@
     {{ message }}
 {% end %}
 {% end %}
+
+{% block telegram_status %}
+{% call alert(variant="success" if success else "error") %}
+    {{ message }}
+{% end %}
+{% end %}

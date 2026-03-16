@@ -51,14 +51,22 @@ class MemoryService:
                         sim = manager.load_simulacrum(sim_meta.name)
                         if sim and hasattr(sim, "planning_context"):
                             for learning in sim.planning_context.all_learnings()[:10]:
-                                memories.append({
-                                    "id": learning.id if hasattr(learning, "id") else f"l-{len(memories)}",
-                                    "content": str(learning.content if hasattr(learning, "content") else learning),
-                                    "type": "learning",
-                                    "confidence": getattr(learning, "confidence", 1.0),
-                                    "timestamp": getattr(learning, "timestamp", 0.0),
-                                    "source": f"simulacrum:{sim_meta.name}",
-                                })
+                                memories.append(
+                                    {
+                                        "id": learning.id
+                                        if hasattr(learning, "id")
+                                        else f"l-{len(memories)}",
+                                        "content": str(
+                                            learning.content
+                                            if hasattr(learning, "content")
+                                            else learning
+                                        ),
+                                        "type": "learning",
+                                        "confidence": getattr(learning, "confidence", 1.0),
+                                        "timestamp": getattr(learning, "timestamp", 0.0),
+                                        "source": f"simulacrum:{sim_meta.name}",
+                                    }
+                                )
 
                         if len(memories) >= limit:
                             break
@@ -70,14 +78,16 @@ class MemoryService:
             try:
                 patterns = self.memory.patterns.list_patterns()
                 for pattern in patterns[: limit - len(memories)]:
-                    memories.append({
-                        "id": f"p-{len(memories)}",
-                        "content": pattern.get("description", str(pattern)),
-                        "type": "pattern",
-                        "confidence": 1.0,
-                        "timestamp": pattern.get("timestamp", 0.0),
-                        "source": "patterns",
-                    })
+                    memories.append(
+                        {
+                            "id": f"p-{len(memories)}",
+                            "content": pattern.get("description", str(pattern)),
+                            "type": "pattern",
+                            "confidence": 1.0,
+                            "timestamp": pattern.get("timestamp", 0.0),
+                            "source": "patterns",
+                        }
+                    )
             except Exception as e:
                 logger.debug("Error loading patterns: %s", e)
 
@@ -86,14 +96,16 @@ class MemoryService:
             try:
                 decisions = self.memory.decisions.list_decisions()
                 for decision in decisions[: limit - len(memories)]:
-                    memories.append({
-                        "id": decision.get("id", f"d-{len(memories)}"),
-                        "content": decision.get("summary", str(decision)),
-                        "type": "decision",
-                        "confidence": 1.0,
-                        "timestamp": decision.get("timestamp", 0.0),
-                        "source": "decisions",
-                    })
+                    memories.append(
+                        {
+                            "id": decision.get("id", f"d-{len(memories)}"),
+                            "content": decision.get("summary", str(decision)),
+                            "type": "decision",
+                            "confidence": 1.0,
+                            "timestamp": decision.get("timestamp", 0.0),
+                            "source": "decisions",
+                        }
+                    )
             except Exception as e:
                 logger.debug("Error loading decisions: %s", e)
 

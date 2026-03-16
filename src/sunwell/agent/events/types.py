@@ -96,9 +96,7 @@ DEFAULT_UI_HINTS: dict[str, EventUIHints] = {
     "security_violation": EventUIHints(
         icon="⊘", severity="error", dismissible=False, animation="shake"
     ),
-    "security_approval_requested": EventUIHints(
-        icon="⊗", severity="warning", dismissible=False
-    ),
+    "security_approval_requested": EventUIHints(icon="⊗", severity="warning", dismissible=False),
     "security_approval_received": EventUIHints(icon="✓", severity="success"),
     "security_scan_complete": EventUIHints(icon="✓", severity="success"),
     "audit_log_entry": EventUIHints(icon="·", severity="info"),

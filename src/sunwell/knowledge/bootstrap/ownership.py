@@ -3,7 +3,6 @@
 Track code ownership derived from git history.
 """
 
-
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -139,8 +138,7 @@ class OwnershipMap:
             # Get secondary owners (contributors with >10% of lines)
             threshold = total_lines * 0.10
             secondary = [
-                a for a in author_lines
-                if a != primary_author and author_lines[a] >= threshold
+                a for a in author_lines if a != primary_author and author_lines[a] >= threshold
             ]
 
             domains[dir_name] = OwnershipDomain(

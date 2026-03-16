@@ -12,7 +12,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 try:
     import yaml
@@ -20,8 +20,6 @@ except ImportError:
     yaml = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 
 def safe_json_loads(data: str) -> dict[str, Any] | list[Any]:
@@ -183,7 +181,7 @@ def safe_yaml_dump(obj: dict[str, Any], path: Path) -> None:
 # =============================================================================
 
 
-def safe_json_load(
+def safe_json_load[T](
     path: Path,
     default: T | None = None,
 ) -> dict[str, Any] | list[Any] | T | None:

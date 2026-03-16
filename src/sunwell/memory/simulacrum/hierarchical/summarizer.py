@@ -4,7 +4,6 @@ RFC-084: Includes HeuristicSummarizer for LLM-free summarization.
 Uses first-person voice for summaries to reduce epistemic distance.
 """
 
-
 import re
 from collections import Counter
 from collections.abc import Sequence
@@ -60,19 +59,109 @@ class HeuristicSummarizer:
     """Minimum characters for a sentence to be considered."""
 
     # Common stopwords to filter out
-    _stopwords: set[str] = field(default_factory=lambda: {
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "must", "shall", "can", "need", "dare",
-        "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by",
-        "from", "as", "into", "through", "during", "before", "after", "above",
-        "below", "between", "under", "again", "further", "then", "once", "here",
-        "there", "when", "where", "why", "how", "all", "each", "few", "more",
-        "most", "other", "some", "such", "no", "nor", "not", "only", "own",
-        "same", "so", "than", "too", "very", "just", "and", "but", "if", "or",
-        "because", "until", "while", "this", "that", "these", "those", "i",
-        "you", "he", "she", "it", "we", "they", "what", "which", "who", "whom",
-    })
+    _stopwords: set[str] = field(
+        default_factory=lambda: {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "need",
+            "dare",
+            "ought",
+            "used",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "and",
+            "but",
+            "if",
+            "or",
+            "because",
+            "until",
+            "while",
+            "this",
+            "that",
+            "these",
+            "those",
+            "i",
+            "you",
+            "he",
+            "she",
+            "it",
+            "we",
+            "they",
+            "what",
+            "which",
+            "who",
+            "whom",
+        }
+    )
 
     async def summarize_turns(self, turns: Sequence[Turn]) -> str:
         """Extract most informative sentences using TF-IDF scoring."""
@@ -150,9 +239,7 @@ class HeuristicSummarizer:
 
         combined = " ".join(summaries)
         words = [
-            w.lower()
-            for w in combined.split()
-            if w.lower() not in self._stopwords and len(w) > 3
+            w.lower() for w in combined.split() if w.lower() not in self._stopwords and len(w) > 3
         ]
 
         if not words:
@@ -226,10 +313,7 @@ class Summarizer:
 
         Uses first-person voice and absolute timestamps.
         """
-        conversation_text = "\n".join(
-            f"{t.turn_type.value}: {t.content[:500]}"
-            for t in turns
-        )
+        conversation_text = "\n".join(f"{t.turn_type.value}: {t.content[:500]}" for t in turns)
 
         today = format_for_summary()
         prompt = f"""Summarize this conversation segment in 2-3 sentences.
@@ -254,7 +338,7 @@ Summary:"""
 
         # Take the first user message as the primary topic/intent
         first_user_msg = user_turns[0].content
-        topic = first_user_msg.split('.')[0][:100]
+        topic = first_user_msg.split(".")[0][:100]
 
         return f"I worked on: {topic}..."
 
@@ -270,10 +354,7 @@ Summary:"""
         if not self.model:
             return []  # Heuristic fact extraction is unreliable
 
-        conversation_text = "\n".join(
-            f"{t.turn_type.value}: {t.content[:300]}"
-            for t in turns
-        )
+        conversation_text = "\n".join(f"{t.turn_type.value}: {t.content[:300]}" for t in turns)
 
         today = format_for_summary()
         prompt = f"""Extract what I (Sunwell) learned from this conversation.
@@ -296,7 +377,7 @@ What I learned:"""
             if cleaned and len(cleaned) > 5:
                 facts.append(cleaned)
 
-        return facts[:10] # Cap at 10 facts per segment
+        return facts[:10]  # Cap at 10 facts per segment
 
     async def extract_themes(self, summaries: Sequence[str]) -> list[str]:
         """Identify main themes across multiple chunk summaries.

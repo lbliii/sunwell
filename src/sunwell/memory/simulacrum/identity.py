@@ -107,9 +107,7 @@ class SessionManifest:
             uri = str(data.get("uri", "sunwell:session/default/unnamed"))
             identity = ResourceIdentity.create(SunwellURI.parse(uri))
         else:
-            identity = ResourceIdentity.from_dict(
-                {k: str(v) for k, v in identity_data.items()}
-            )
+            identity = ResourceIdentity.from_dict({k: str(v) for k, v in identity_data.items()})
 
         return cls(
             identity=identity,
@@ -228,9 +226,7 @@ class SessionIndexManager:
         memory_dir: Base directory for memory storage (~/.sunwell/memory)
     """
 
-    memory_dir: Path = field(
-        default_factory=lambda: Path.home() / ".sunwell" / "memory"
-    )
+    memory_dir: Path = field(default_factory=lambda: Path.home() / ".sunwell" / "memory")
 
     _index: SessionIndex | None = field(default=None, init=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
@@ -297,9 +293,7 @@ class SessionIndexManager:
         index = self.get_index()
         return index.sessions.get(uri)
 
-    def resolve_slug(
-        self, slug: str, project: str = "default"
-    ) -> SessionIndexEntry | None:
+    def resolve_slug(self, slug: str, project: str = "default") -> SessionIndexEntry | None:
         """Resolve a bare slug to an index entry.
 
         Args:
@@ -400,9 +394,7 @@ class SessionIndexManager:
         self._save_index(new_index)
         return new_index
 
-    def _create_entry_from_file(
-        self, meta_file: Path, namespace: str
-    ) -> SessionIndexEntry | None:
+    def _create_entry_from_file(self, meta_file: Path, namespace: str) -> SessionIndexEntry | None:
         """Create an index entry from a session metadata file."""
         try:
             data = json.loads(meta_file.read_text())

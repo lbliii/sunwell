@@ -30,7 +30,6 @@ instructions: |
 ```
 """
 
-
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -358,8 +357,7 @@ class SkillExporter:
             ]
         if skill.templates:
             data["skill"]["templates"] = [
-                {"name": t.name, "content": t.content}
-                for t in skill.templates
+                {"name": t.name, "content": t.content} for t in skill.templates
             ]
         if skill.resources:
             data["skill"]["resources"] = [
@@ -419,11 +417,13 @@ class SkillImporter:
                         ".sh": "bash",
                         ".bash": "bash",
                     }.get(script_file.suffix, "python")
-                    scripts.append({
-                        "name": script_file.name,
-                        "language": lang,
-                        "content": script_file.read_text(),
-                    })
+                    scripts.append(
+                        {
+                            "name": script_file.name,
+                            "language": lang,
+                            "content": script_file.read_text(),
+                        }
+                    )
         if scripts:
             skill_data["scripts"] = scripts
 
@@ -456,7 +456,7 @@ class SkillImporter:
                 frontmatter = yaml.safe_load(frontmatter_match.group(1))
                 if frontmatter:
                     skill_data.update(frontmatter)
-                content = content[frontmatter_match.end():]
+                content = content[frontmatter_match.end() :]
             except yaml.YAMLError:
                 pass
 
@@ -466,6 +466,7 @@ class SkillImporter:
             try:
                 # Parse the list literals
                 import ast
+
                 skill_data["depends_on"] = [
                     {"source": s} for s in ast.literal_eval(dag_match.group(1))
                 ]
@@ -475,7 +476,7 @@ class SkillImporter:
                 pass
 
             # Remove the comment from content
-            content = content[:dag_match.start()] + content[dag_match.end():]
+            content = content[: dag_match.start()] + content[dag_match.end() :]
 
         # Everything else is instructions
         instructions = content.strip()
@@ -572,18 +573,18 @@ class SkillImporter:
         current_section = None
         current_content = []
 
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             # Only split on ## headers (not ### or deeper)
-            if line.startswith('## ') and not line.startswith('### '):
+            if line.startswith("## ") and not line.startswith("### "):
                 if current_section:
-                    sections[current_section] = '\n'.join(current_content).strip()
+                    sections[current_section] = "\n".join(current_content).strip()
                 current_section = line[3:].strip().lower()
                 current_content = []
             elif current_section:
                 current_content.append(line)
 
         if current_section:
-            sections[current_section] = '\n'.join(current_content).strip()
+            sections[current_section] = "\n".join(current_content).strip()
 
         return sections
 
@@ -606,12 +607,14 @@ class SkillImporter:
                 desc_match = _RE_SCRIPT_DESC.search(script_body)
                 description = desc_match.group(1).strip() if desc_match else None
 
-                scripts.append({
-                    "name": script_name,
-                    "language": language,
-                    "content": code,
-                    **({"description": description} if description else {}),
-                })
+                scripts.append(
+                    {
+                        "name": script_name,
+                        "language": language,
+                        "content": code,
+                        **({"description": description} if description else {}),
+                    }
+                )
 
         return scripts
 
@@ -626,10 +629,12 @@ class SkillImporter:
 
             code_match = _RE_CODE_BLOCK_SIMPLE.search(template_body)
             if code_match:
-                templates.append({
-                    "name": template_name,
-                    "content": code_match.group(1),
-                })
+                templates.append(
+                    {
+                        "name": template_name,
+                        "content": code_match.group(1),
+                    }
+                )
 
         return templates
 
@@ -639,17 +644,21 @@ class SkillImporter:
 
         # Parse markdown links: - [Name](url) or - Name: `path`
         for match in _RE_RESOURCE_LINK.finditer(content):
-            resources.append({
-                "name": match.group(1),
-                "url": match.group(2),
-            })
+            resources.append(
+                {
+                    "name": match.group(1),
+                    "url": match.group(2),
+                }
+            )
 
         for match in _RE_RESOURCE_PATH.finditer(content):
             if match.group(1) not in [r["name"] for r in resources]:
-                resources.append({
-                    "name": match.group(1),
-                    "path": match.group(2),
-                })
+                resources.append(
+                    {
+                        "name": match.group(1),
+                        "path": match.group(2),
+                    }
+                )
 
         return resources
 
@@ -705,8 +714,7 @@ class SkillImporter:
                 return self.import_skill_yaml(yaml_path)
 
         raise FileNotFoundError(
-            f"No skill definition found in {folder_path}. "
-            f"Expected SKILL.md or skill.yaml"
+            f"No skill definition found in {folder_path}. Expected SKILL.md or skill.yaml"
         )
 
 
@@ -786,9 +794,7 @@ def validate_skill_folder(
         # Check if skill name follows lens conventions
         skill_name = skill_data.get("name", "")
         if "_" in skill_name:
-            warnings.append(
-                f"Skill name '{skill_name}' uses underscores - prefer hyphens"
-            )
+            warnings.append(f"Skill name '{skill_name}' uses underscores - prefer hyphens")
 
         # Check for required validators
         validate_with = skill_data.get("validate_with", {})

@@ -6,6 +6,7 @@ Extracted to keep Agent class focused on orchestration.
 
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC
 from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any
@@ -126,6 +127,7 @@ Continue ONLY the remaining code. Start exactly where it stopped. Do not repeat 
             if result.text:
                 # Extract just the code from the response
                 from sunwell.agent.core.task_graph import sanitize_code_content
+
                 continuation = sanitize_code_content(result.text)
                 if continuation:
                     content = content + "\n" + continuation
@@ -524,7 +526,7 @@ async def execute_task_with_tools(
     # === BUILD SYSTEM PROMPT ===
     from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc).astimezone()
+    now = datetime.now(UTC).astimezone()
     current_time = now.strftime("%Y-%m-%d %H:%M %Z")
 
     system_prompt = (
@@ -667,9 +669,7 @@ async def execute_task_with_tools(
         expected_path = cwd / task.target_path
 
         # Check if write_file was actually called
-        write_file_called = tracker.was_called("write_file") or tracker.was_called(
-            "edit_file"
-        )
+        write_file_called = tracker.was_called("write_file") or tracker.was_called("edit_file")
 
         if not expected_path.exists() and not write_file_called:
             # Tool wasn't called - check if model output something we can use

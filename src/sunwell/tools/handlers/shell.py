@@ -1,6 +1,5 @@
 """Shell operation handlers."""
 
-
 import logging
 import os
 import subprocess
@@ -31,8 +30,7 @@ def _create_default_sandbox(workspace: Path) -> ScriptSandbox | None:
     """
     if _is_sandbox_disabled():
         logger.warning(
-            "Shell sandbox disabled via %s environment variable. "
-            "Commands will run unsandboxed.",
+            "Shell sandbox disabled via %s environment variable. Commands will run unsandboxed.",
             SANDBOX_DISABLED_ENV,
         )
         return None

@@ -13,7 +13,6 @@ This module captures:
 Then formats it as a "briefing" for the next model to pick up where you left off.
 """
 
-
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -102,12 +101,14 @@ class HandoffState:
         code_refs: list[str] | None = None,
     ) -> None:
         """Record an attempt."""
-        self.attempts.append(Attempt(
-            description=description,
-            outcome=outcome,
-            learning=learning,
-            code_refs=tuple(code_refs) if code_refs else (),
-        ))
+        self.attempts.append(
+            Attempt(
+                description=description,
+                outcome=outcome,
+                learning=learning,
+                code_refs=tuple(code_refs) if code_refs else (),
+            )
+        )
         if learning:
             self.learnings.append(learning)
         self.updated_at = datetime.now().isoformat()
@@ -222,7 +223,9 @@ class HandoffState:
 
         # Call to action
         sections.append("\n---\n")
-        sections.append("**Please continue from here. You have fresh context - what do you see that might have been missed?**\n")
+        sections.append(
+            "**Please continue from here. You have fresh context - what do you see that might have been missed?**\n"
+        )
 
         return "".join(sections)
 
@@ -236,7 +239,9 @@ class HandoffState:
         if self.attempts:
             failed = [a for a in self.attempts if a.outcome == "failed"]
             if failed:
-                parts.append(f"Already tried (didn't work): {', '.join(a.description for a in failed)}")
+                parts.append(
+                    f"Already tried (didn't work): {', '.join(a.description for a in failed)}"
+                )
 
         if self.dead_ends:
             parts.append(f"Dead ends: {', '.join(self.dead_ends)}")

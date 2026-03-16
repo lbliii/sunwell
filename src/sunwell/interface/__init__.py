@@ -14,13 +14,12 @@ Example:
 """
 
 # CLI entry points
+# Chirp UI (primary web interface)
+from sunwell.interface.chirp import create_app
 from sunwell.interface.cli import cli_entrypoint, main
 
 # Generative interface
 from sunwell.interface.generative import IntentPipeline, analyze_with_pipeline
-
-# Chirp UI (primary web interface)
-from sunwell.interface.chirp import create_app
 
 # Surface composition
 from sunwell.interface.surface import SurfaceComposer, compose_surface

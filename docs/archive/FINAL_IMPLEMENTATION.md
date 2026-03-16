@@ -1,5 +1,8 @@
 # ✅ Chirp Interface Implementation Complete
 
+> **Deprecation note (2026-03):** Page-load SSE (`sse-connect` on initial load) causes infinite spinners.
+> Use hybrid routing: polling (`hx-trigger="every Xs"`) or POST→fragment with `sse-connect`. See `docs/chirp-mcp-integration.md`.
+
 **Date:** February 11, 2026
 **Status:** All tasks completed
 

@@ -7,7 +7,6 @@ Usage:
     sunwell verify src/models/user.py --save-tests
 """
 
-
 import asyncio
 from pathlib import Path
 
@@ -31,8 +30,13 @@ console = Console()
 )
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--save-tests", is_flag=True, help="Save generated tests to tests/generated/")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--contract", "-c", help="Explicit contract/specification to verify against")
 @click.option("--quiet", "-q", is_flag=True, help="Only show pass/fail result")
@@ -134,8 +138,7 @@ async def _verify_file(
     if not quiet:
         console.print(
             Panel(
-                f"[bold]Deep Verification[/bold]: {file_path}\n"
-                f"Level: {level.upper()}",
+                f"[bold]Deep Verification[/bold]: {file_path}\nLevel: {level.upper()}",
                 title="RFC-047",
                 border_style="blue",
             )
@@ -210,10 +213,7 @@ def _display_result(result, verbose: bool) -> None:
     # Test results
     if result.test_results:
         tr = result.test_results
-        console.print(
-            f"\nTests: {tr.passed}/{tr.total_tests} passed "
-            f"({tr.pass_rate:.0%})"
-        )
+        console.print(f"\nTests: {tr.passed}/{tr.total_tests} passed ({tr.pass_rate:.0%})")
 
     # Perspective summary
     if result.perspective_results:

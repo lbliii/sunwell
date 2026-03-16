@@ -18,7 +18,12 @@ def post(project_id: str, goal: str = "") -> Fragment | Response:
     from sunwell.interface.cli.helpers.models import create_model
     from sunwell.knowledge import ProjectRegistry
     from sunwell.memory.facade.persistent import PersistentMemory
+    from sunwell.skills import create_default_skill_executor
     from sunwell.tools.execution import ToolExecutor
+    from sunwell.tools.providers.web_search import (
+        WebSearchHandler,
+        create_web_search_provider,
+    )
 
     registry = ProjectRegistry()
     project = registry.get(project_id)
@@ -53,16 +58,31 @@ def post(project_id: str, goal: str = "") -> Fragment | Response:
 
         model = create_model(provider, model_name)
 
-        # Create tool executor
-        tool_executor = ToolExecutor(project=project)
-
         # Load memory
         memory = None
         try:
             memory = PersistentMemory.load(project.root)
         except Exception:
-            # If memory doesn't exist or fails to load, create empty
             memory = PersistentMemory.empty(project.root)
+
+        # Create skill executor (research skill) when web search is available
+        skill_executor = None
+        web_handler = None
+        try:
+            web_provider = create_web_search_provider("auto")
+            web_handler = WebSearchHandler(provider=web_provider)
+            skill_executor = create_default_skill_executor(
+                project.root, web_search_handler=web_handler, memory=memory
+            )
+        except (ValueError, Exception):
+            pass
+
+        # Create tool executor with optional skill executor and web search
+        tool_executor = ToolExecutor(
+            project=project,
+            web_search_handler=web_handler,
+            skill_executor=skill_executor,
+        )
 
         # Create background manager
         manager = BackgroundManager(workspace=project.root)

@@ -21,7 +21,6 @@ Example:
     >>> order = graph.topological_sort()
 """
 
-
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -67,9 +66,7 @@ class MissingDependencyError(ArtifactError):
     def __init__(self, artifact_id: str, missing_ids: set[str]) -> None:
         self.artifact_id = artifact_id
         self.missing_ids = missing_ids
-        super().__init__(
-            f"Artifact '{artifact_id}' requires non-existent artifacts: {missing_ids}"
-        )
+        super().__init__(f"Artifact '{artifact_id}' requires non-existent artifacts: {missing_ids}")
 
 
 class DiscoveryFailedError(ArtifactError):
@@ -357,10 +354,7 @@ class ArtifactGraph:
         Roots are the final convergence points. In a goal-oriented
         graph, the goal artifact is typically the sole root.
         """
-        return [
-            aid for aid in self._artifacts
-            if not self._dependents.get(aid)
-        ]
+        return [aid for aid in self._artifacts if not self._dependents.get(aid)]
 
     def depth(self, artifact_id: str) -> int:
         """Calculate the depth of an artifact (longest path from any leaf).
@@ -555,7 +549,8 @@ class ArtifactGraph:
         while pending:
             # Find all artifacts whose dependencies are satisfied
             ready = [
-                aid for aid in pending
+                aid
+                for aid in pending
                 if all(req in completed for req in self._artifacts[aid].requires)
             ]
 

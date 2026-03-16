@@ -322,21 +322,25 @@ SUNWELL_TOOLS: dict[str, Tool] = {
 }
 
 # Tool names by trust level (for use in types.py)
-SUNWELL_WORKSPACE_TOOLS: frozenset[str] = frozenset({
-    "sunwell_intel_decisions",
-    "sunwell_intel_failures",
-    "sunwell_intel_patterns",
-    "sunwell_search_semantic",
-    "sunwell_lineage_file",
-    "sunwell_lineage_impact",
-    "sunwell_weakness_scan",
-    "sunwell_weakness_preview",
-    "sunwell_workflow_chains",
-    "sunwell_workflow_route",
-})
+SUNWELL_WORKSPACE_TOOLS: frozenset[str] = frozenset(
+    {
+        "sunwell_intel_decisions",
+        "sunwell_intel_failures",
+        "sunwell_intel_patterns",
+        "sunwell_search_semantic",
+        "sunwell_lineage_file",
+        "sunwell_lineage_impact",
+        "sunwell_weakness_scan",
+        "sunwell_weakness_preview",
+        "sunwell_workflow_chains",
+        "sunwell_workflow_route",
+    }
+)
 
-SUNWELL_READ_ONLY_TOOLS: frozenset[str] = frozenset({
-    "sunwell_self_modules",
-    "sunwell_self_search",
-    "sunwell_self_read",
-})
+SUNWELL_READ_ONLY_TOOLS: frozenset[str] = frozenset(
+    {
+        "sunwell_self_modules",
+        "sunwell_self_search",
+        "sunwell_self_read",
+    }
+)

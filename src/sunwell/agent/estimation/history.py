@@ -6,21 +6,18 @@ Uses similarity matching to find relevant historical executions.
 Storage: .sunwell/metrics/execution_history.json
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from statistics import mean, stdev, quantiles
-from typing import TYPE_CHECKING, Any
+from statistics import mean, quantiles, stdev
+from typing import Any
 
-if TYPE_CHECKING:
-    from sunwell.agent.core.task_graph import TaskGraph
-    from sunwell.planning.naaru.planners.metrics import PlanMetrics
-    from sunwell.planning.naaru.types import TaskMode
+from sunwell.agent.core.task_graph import TaskGraph
+from sunwell.planning.naaru.planners.metrics import PlanMetrics
+from sunwell.planning.naaru.types import TaskMode
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +123,7 @@ class PlanProfile:
         other_modes = dict(other.mode_distribution)
         all_modes = set(self_modes.keys()) | set(other_modes.keys())
         if all_modes:
-            overlap = sum(
-                min(self_modes.get(m, 0), other_modes.get(m, 0)) for m in all_modes
-            )
+            overlap = sum(min(self_modes.get(m, 0), other_modes.get(m, 0)) for m in all_modes)
             total = max(sum(self_modes.values()), sum(other_modes.values()))
             scores.append(overlap / total if total > 0 else 0)
         else:
@@ -293,9 +288,7 @@ class ExecutionHistory:
         """Find samples with similar profiles."""
         with self._lock:
             return [
-                s
-                for s in self.samples
-                if s.profile.similarity_score(profile) >= min_similarity
+                s for s in self.samples if s.profile.similarity_score(profile) >= min_similarity
             ]
 
     def save(self, project_path: Path | None = None) -> int:
@@ -355,9 +348,7 @@ class ExecutionHistory:
                 logger.warning("Unknown execution history version: %s", data.get("version"))
                 return history
 
-            history.samples = [
-                HistorySample.from_dict(s) for s in data.get("samples", [])
-            ]
+            history.samples = [HistorySample.from_dict(s) for s in data.get("samples", [])]
 
         except (OSError, json.JSONDecodeError, KeyError) as e:
             logger.warning("Failed to load execution history: %s", e)

@@ -9,7 +9,6 @@ RFC-131: Holy Light CLI aesthetic with branded styling.
 All other commands are progressive disclosure or hidden for Studio.
 """
 
-
 import sys
 from pathlib import Path
 
@@ -59,10 +58,23 @@ def cli_entrypoint() -> None:
 
 
 # Continuation phrases that might indicate user wants to resume a paused goal
-CONTINUATION_PATTERNS = frozenset({
-    "yes", "y", "continue", "proceed", "go", "ok", "sure", "yep", "yeah",
-    "yes continue", "yes proceed", "continue please", "go ahead",
-})
+CONTINUATION_PATTERNS = frozenset(
+    {
+        "yes",
+        "y",
+        "continue",
+        "proceed",
+        "go",
+        "ok",
+        "sure",
+        "yep",
+        "yeah",
+        "yes continue",
+        "yes proceed",
+        "continue please",
+        "go ahead",
+    }
+)
 
 
 # RFC-037, RFC-109: Custom group that supports goal-first and shortcut interfaces
@@ -108,7 +120,7 @@ class GoalFirstGroup(click.Group):
         if skill_idx is not None and len(args) > skill_idx + 2:
             # There's something after "-s shortcut"
             # Check if there are positional args (not options)
-            remaining_args = args[skill_idx + 2:]
+            remaining_args = args[skill_idx + 2 :]
             positional_args = []
             for arg in remaining_args:
                 if arg.startswith("-"):
@@ -133,11 +145,11 @@ class GoalFirstGroup(click.Group):
             and not first_arg.startswith("--")
         ):
             ctx.obj["_goal"] = first_arg
-            
+
             # Check if this looks like a continuation intent
             if first_arg.lower() in CONTINUATION_PATTERNS:
                 ctx.obj["_continuation_intent"] = True
-            
+
             args = args[1:]
 
         return super().parse_args(ctx, args)
@@ -156,8 +168,19 @@ def _show_all_commands(ctx: click.Context) -> None:
     tier_1_2 = {"config", "project", "session", "lens", "setup", "resume"}  # Visible in --help
     tier_3 = {"benchmark", "chat", "demo", "eval", "index", "runtime"}  # Hidden, developer
     tier_4 = {
-        "backlog", "dag", "interface", "naaru", "scan", "security", "self",
-        "skill", "surface", "weakness", "workers", "workflow", "workspace",
+        "backlog",
+        "dag",
+        "interface",
+        "naaru",
+        "scan",
+        "security",
+        "self",
+        "skill",
+        "surface",
+        "weakness",
+        "workers",
+        "workflow",
+        "workspace",
     }  # Internal, Studio only
 
     # Get all commands
@@ -188,32 +211,61 @@ def _show_all_commands(ctx: click.Context) -> None:
 
 
 @click.group(cls=GoalFirstGroup, invoke_without_command=True)
-@click.option("-s", "--skill", "skill_shortcut", shell_complete=complete_shortcut,
-              help="Run skill shortcut (a-2, p, health, etc.)")
-@click.option("-t", "--target", "skill_target", shell_complete=complete_target,
-              help="Target file/directory for skill")
+@click.option(
+    "-s",
+    "--skill",
+    "skill_shortcut",
+    shell_complete=complete_shortcut,
+    help="Run skill shortcut (a-2, p, health, etc.)",
+)
+@click.option(
+    "-t",
+    "--target",
+    "skill_target",
+    shell_complete=complete_target,
+    help="Target file/directory for skill",
+)
 @click.option("-l", "--lens", default="tech-writer", help="Lens to use")
 @click.option("--plan", is_flag=True, help="Show plan without executing")
 @click.option("--open", "open_studio", is_flag=True, help="Open plan in Studio (with --plan)")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
 @click.option("--model", "-m", help="Override model selection")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--time", default=300, help="Max execution time (seconds)")
-@click.option("--trust", type=click.Choice(["read_only", "workspace", "shell"]),
-              default=None, help="Override tool trust level")
-@click.option("--workspace", "-w", type=click.Path(exists=False),
-              help="Project directory (default: auto-detect)")
+@click.option(
+    "--trust",
+    type=click.Choice(["read_only", "workspace", "shell"]),
+    default=None,
+    help="Override tool trust level",
+)
+@click.option(
+    "--workspace",
+    "-w",
+    type=click.Path(exists=False),
+    help="Project directory (default: auto-detect)",
+)
 @click.option("--quiet", "-q", is_flag=True, help="Suppress warnings")
-@click.option("--converge/--no-converge", default=False,
-              help="Enable convergence loops (iterate until lint/types pass)")
-@click.option("--converge-gates", default="lint,type",
-              help="Gates for convergence (comma-separated: lint,type,test)")
-@click.option("--converge-max", default=5, type=int,
-              help="Maximum convergence iterations")
-@click.option("--all-commands", is_flag=True, hidden=True,
-              help="Show all commands including hidden")
+@click.option(
+    "--converge/--no-converge",
+    default=False,
+    help="Enable convergence loops (iterate until lint/types pass)",
+)
+@click.option(
+    "--converge-gates",
+    default="lint,type",
+    help="Gates for convergence (comma-separated: lint,type,test)",
+)
+@click.option("--converge-max", default=5, type=int, help="Maximum convergence iterations")
+@click.option(
+    "--all-commands", is_flag=True, hidden=True, help="Show all commands including hidden"
+)
 @click.option("--debug", is_flag=True, help="Enable debug logging (also: SUNWELL_LOG_LEVEL=DEBUG)")
 @click.version_option(prog_name="sunwell")  # Dynamic version from pyproject.toml
 @click.pass_context
@@ -329,46 +381,47 @@ def main(
     if goal and ctx.invoked_subcommand is None:
         # Check for continuation intent (e.g., "sunwell yes" or "sunwell continue")
         is_continuation = ctx.obj.get("_continuation_intent", False)
-        
+
         if is_continuation:
             # Check for resumable sessions
             from pathlib import Path
 
             from sunwell.planning.naaru.session_store import SessionStore
-            
+
             store = SessionStore()
             resumable = store.get_resumable_sessions()
-            
+
             # Filter to current workspace if possible
             cwd = Path.cwd()
-            workspace_resumable = [
-                s for s in resumable
-                if s.workspace_id == str(cwd)
-            ]
-            
+            workspace_resumable = [s for s in resumable if s.workspace_id == str(cwd)]
+
             # Prefer workspace-specific, fall back to all resumable
             sessions_to_check = workspace_resumable or resumable
-            
+
             if sessions_to_check:
                 # Found resumable session(s), offer to resume
                 latest = sessions_to_check[0]
                 goal_preview = latest.goals[0] if latest.goals else "Unknown goal"
                 if len(goal_preview) > 50:
                     goal_preview = goal_preview[:47] + "..."
-                
+
                 console.print()
                 console.print(f"[holy.gold]◆[/] Found paused goal: [bold]{goal_preview}[/bold]")
                 console.print(f"   Session: {latest.session_id}")
                 console.print()
-                
-                choice = console.input(
-                    "[bold]Resume[/bold] this goal? ([cyan]R[/]esume / [cyan]N[/]ew goal / [cyan]C[/]ancel) "
-                ).strip().lower()
-                
+
+                choice = (
+                    console.input(
+                        "[bold]Resume[/bold] this goal? ([cyan]R[/]esume / [cyan]N[/]ew goal / [cyan]C[/]ancel) "
+                    )
+                    .strip()
+                    .lower()
+                )
+
                 if choice in ("r", "resume", ""):
                     # Resume the session
                     from sunwell.interface.cli.commands import resume_cmd
-                    
+
                     ctx.invoke(
                         resume_cmd.resume,
                         session_id=latest.session_id,
@@ -385,7 +438,7 @@ def main(
                     return
                 # Otherwise fall through to treat as new goal
                 console.print()
-        
+
         from sunwell.interface.cli.commands.goal import run_goal
 
         ctx.invoke(
@@ -487,34 +540,40 @@ main.add_command(chat)
 # Demo command - Prism Principle demonstrations
 from sunwell.interface.cli.commands import demo_cmd
 
-main.add_command(click.Command(
-    name="demo",
-    callback=demo_cmd.demo.callback,
-    params=demo_cmd.demo.params,
-    help=demo_cmd.demo.help,
-    hidden=True,
-))
+main.add_command(
+    click.Command(
+        name="demo",
+        callback=demo_cmd.demo.callback,
+        params=demo_cmd.demo.params,
+        help=demo_cmd.demo.help,
+        hidden=True,
+    )
+)
 
 # Evaluation suite
 from sunwell.interface.cli.commands import eval_cmd
 
-main.add_command(click.Command(
-    name="eval",
-    callback=eval_cmd.eval_cmd.callback,
-    params=eval_cmd.eval_cmd.params,
-    help=eval_cmd.eval_cmd.help,
-    hidden=True,
-))
+main.add_command(
+    click.Command(
+        name="eval",
+        callback=eval_cmd.eval_cmd.callback,
+        params=eval_cmd.eval_cmd.params,
+        help=eval_cmd.eval_cmd.help,
+        hidden=True,
+    )
+)
 
 # Runtime management
 from sunwell.interface.cli.commands import runtime_cmd
 
-main.add_command(click.Command(
-    name="runtime",
-    callback=runtime_cmd.runtime.callback if hasattr(runtime_cmd.runtime, 'callback') else None,
-    help="Runtime management",
-    hidden=True,
-))
+main.add_command(
+    click.Command(
+        name="runtime",
+        callback=runtime_cmd.runtime.callback if hasattr(runtime_cmd.runtime, "callback") else None,
+        help="Runtime management",
+        hidden=True,
+    )
+)
 
 
 # -----------------------------------------------------------------------------

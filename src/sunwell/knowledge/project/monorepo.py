@@ -104,9 +104,7 @@ def detect_sub_projects(path: Path) -> list[SubProject]:
             )
         elif (path / "mkdocs.yml").exists() or (path / "mkdocs.yaml").exists():
             mkdocs_file = (
-                path / "mkdocs.yml"
-                if (path / "mkdocs.yml").exists()
-                else path / "mkdocs.yaml"
+                path / "mkdocs.yml" if (path / "mkdocs.yml").exists() else path / "mkdocs.yaml"
             )
             sub_projects.append(
                 SubProject(

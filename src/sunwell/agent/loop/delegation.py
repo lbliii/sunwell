@@ -49,9 +49,7 @@ async def run_with_delegation(
     if delegation_model is None:
         logger.warning("Delegation requested but no delegation_model set")
         # Fall through to normal execution
-        async for event in loop_instance.run(
-            task_description, tools, system_prompt, context
-        ):
+        async for event in loop_instance.run(task_description, tools, system_prompt, context):
             yield event
         return
 

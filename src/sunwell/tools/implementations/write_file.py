@@ -108,9 +108,7 @@ class WriteFileTool(BaseTool):
         content = arguments.get("content", "")
 
         if not user_path or user_path in (".", "..", "/"):
-            raise ValueError(
-                f"Invalid file path: '{user_path}'. Must specify a filename."
-            )
+            raise ValueError(f"Invalid file path: '{user_path}'. Must specify a filename.")
 
         path = self.resolve_path(user_path)
 

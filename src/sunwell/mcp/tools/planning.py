@@ -4,10 +4,9 @@ Provides tools for intent classification, execution planning,
 and reasoned decision-making.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -15,11 +14,7 @@ from sunwell.mcp.formatting import (
     omit_empty,
     resolve_format,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
@@ -83,21 +78,30 @@ def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> 
                 task_count = len(result.task_graph.tasks)
 
             if fmt == "summary":
-                return mcp_json(omit_empty({
-                    "goal": goal,
-                    "task_count": task_count,
-                    "estimated_seconds": result.estimated_seconds,
-                }), fmt)
+                return mcp_json(
+                    omit_empty(
+                        {
+                            "goal": goal,
+                            "task_count": task_count,
+                            "estimated_seconds": result.estimated_seconds,
+                        }
+                    ),
+                    fmt,
+                )
 
             # Extract task graph info
             tasks = []
             if result.task_graph and hasattr(result.task_graph, "tasks"):
                 for task in result.task_graph.tasks:
-                    entry = omit_empty({
-                        "id": getattr(task, "id", None),
-                        "title": getattr(task, "title", getattr(task, "description", str(task))),
-                        "depends_on": list(getattr(task, "depends_on", ())),
-                    })
+                    entry = omit_empty(
+                        {
+                            "id": getattr(task, "id", None),
+                            "title": getattr(
+                                task, "title", getattr(task, "description", str(task))
+                            ),
+                            "depends_on": list(getattr(task, "depends_on", ())),
+                        }
+                    )
                     if fmt == "full":
                         entry["estimated_seconds"] = getattr(task, "estimated_seconds", None)
                     tasks.append(entry)
@@ -113,15 +117,27 @@ def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> 
                 # Extract metrics
                 metrics = {}
                 if result.metrics:
-                    for field in ("depth", "width", "parallelism_factor", "total_tasks", "critical_path_length"):
+                    for field in (
+                        "depth",
+                        "width",
+                        "parallelism_factor",
+                        "total_tasks",
+                        "critical_path_length",
+                    ):
                         val = getattr(result.metrics, field, None)
                         if val is not None:
                             metrics[field] = val
                 data["metrics"] = metrics
-                data["signals"] = omit_empty({
-                    "intent": getattr(result.signals, "intent", None) if result.signals else None,
-                    "complexity": getattr(result.signals, "complexity", None) if result.signals else None,
-                })
+                data["signals"] = omit_empty(
+                    {
+                        "intent": getattr(result.signals, "intent", None)
+                        if result.signals
+                        else None,
+                        "complexity": getattr(result.signals, "complexity", None)
+                        if result.signals
+                        else None,
+                    }
+                )
 
             return mcp_json(data, fmt)
         except Exception as e:
@@ -162,34 +178,55 @@ def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> 
 
             decision = runtime.run(router.route(input))
 
-            intent = str(decision.intent.value) if hasattr(decision.intent, "value") else str(decision.intent)
-            complexity = str(decision.complexity.value) if hasattr(decision.complexity, "value") else str(decision.complexity)
+            intent = (
+                str(decision.intent.value)
+                if hasattr(decision.intent, "value")
+                else str(decision.intent)
+            )
+            complexity = (
+                str(decision.complexity.value)
+                if hasattr(decision.complexity, "value")
+                else str(decision.complexity)
+            )
             confidence = round(decision.confidence, 3)
 
             if fmt == "summary":
-                return mcp_json({
+                return mcp_json(
+                    {
+                        "intent": intent,
+                        "complexity": complexity,
+                        "confidence": confidence,
+                    },
+                    fmt,
+                )
+
+            data = omit_empty(
+                {
+                    "input": input,
                     "intent": intent,
                     "complexity": complexity,
+                    "tier": str(decision.tier.value)
+                    if hasattr(decision.tier, "value")
+                    else str(decision.tier),
+                    "lens": decision.lens,
+                    "tools": list(decision.tools),
+                    "mood": str(decision.mood.value)
+                    if hasattr(decision.mood, "value")
+                    else str(decision.mood),
+                    "expertise": str(decision.expertise.value)
+                    if hasattr(decision.expertise, "value")
+                    else str(decision.expertise),
                     "confidence": confidence,
-                }, fmt)
-
-            data = omit_empty({
-                "input": input,
-                "intent": intent,
-                "complexity": complexity,
-                "tier": str(decision.tier.value) if hasattr(decision.tier, "value") else str(decision.tier),
-                "lens": decision.lens,
-                "tools": list(decision.tools),
-                "mood": str(decision.mood.value) if hasattr(decision.mood, "value") else str(decision.mood),
-                "expertise": str(decision.expertise.value) if hasattr(decision.expertise, "value") else str(decision.expertise),
-                "confidence": confidence,
-                "focus": list(decision.focus),
-                "suggested_skills": list(decision.suggested_skills),
-            })
+                    "focus": list(decision.focus),
+                    "suggested_skills": list(decision.suggested_skills),
+                }
+            )
 
             if fmt == "full":
                 data["reasoning"] = decision.reasoning
-                data["skill_confidence"] = round(decision.skill_confidence, 3) if decision.skill_confidence else None
+                data["skill_confidence"] = (
+                    round(decision.skill_confidence, 3) if decision.skill_confidence else None
+                )
                 data["confidence_breakdown"] = decision.confidence_breakdown
                 data["matched_exemplar"] = decision.matched_exemplar
 
@@ -227,9 +264,9 @@ def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> 
         fmt = resolve_format(format)
 
         try:
+            from sunwell.models.registry.registry import resolve_model
             from sunwell.planning.reasoning.decisions import DecisionType
             from sunwell.planning.reasoning.reasoner import Reasoner
-            from sunwell.models.registry.registry import resolve_model
 
             model = resolve_model("default")
             if not model:
@@ -258,11 +295,14 @@ def register_planning_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> 
             confidence = round(result.confidence, 3)
 
             if fmt == "summary":
-                return mcp_json({
-                    "outcome": outcome,
-                    "confidence": confidence,
-                    "is_confident": result.is_confident,
-                }, fmt)
+                return mcp_json(
+                    {
+                        "outcome": outcome,
+                        "confidence": confidence,
+                        "is_confident": result.is_confident,
+                    },
+                    fmt,
+                )
 
             data: dict = {
                 "question": question,

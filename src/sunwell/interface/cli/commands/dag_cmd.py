@@ -468,9 +468,7 @@ def migrate(dry_run: bool, source: str) -> None:
         return
 
     # Find all JSON plan files (exclude .trace files)
-    plan_files = [
-        f for f in source_path.glob("*.json") if not f.name.endswith(".trace.json")
-    ]
+    plan_files = [f for f in source_path.glob("*.json") if not f.name.endswith(".trace.json")]
 
     if not plan_files:
         console.print(f"[yellow]No plan files found in {source_path}[/yellow]")
@@ -518,9 +516,7 @@ def migrate(dry_run: bool, source: str) -> None:
                                     if is_completed
                                     else ("failed" if is_failed else "pending")
                                 ),
-                                "hash": completed.get(artifact_id, {}).get(
-                                    "content_hash", ""
-                                ),
+                                "hash": completed.get(artifact_id, {}).get("content_hash", ""),
                             }
                         )
 
@@ -566,9 +562,7 @@ def migrate(dry_run: bool, source: str) -> None:
                     )
                     migrated_artifacts += 1
 
-                console.print(
-                    f"  [green]✓[/green] {plan_file.name}: {len(artifacts)} artifacts"
-                )
+                console.print(f"  [green]✓[/green] {plan_file.name}: {len(artifacts)} artifacts")
 
         except (json_module.JSONDecodeError, KeyError) as e:
             errors.append((plan_file.name, str(e)))

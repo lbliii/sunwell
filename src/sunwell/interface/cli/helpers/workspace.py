@@ -127,7 +127,7 @@ def format_workspace_context(
 
 def _detect_python_framework(cwd: Path) -> str | None:
     """Detect Python framework from dependencies, not file names.
-    
+
     Checks pyproject.toml and requirements.txt for actual framework imports.
     """
     framework_deps = {
@@ -162,7 +162,9 @@ def _detect_python_framework(cwd: Path) -> str | None:
                     # Match lines starting with the dep name (handles flask==1.0, flask>=2.0, etc.)
                     for line in content.splitlines():
                         line = line.strip()
-                        if line.startswith(dep) and (len(line) == len(dep) or line[len(dep)] in "=<>~["):
+                        if line.startswith(dep) and (
+                            len(line) == len(dep) or line[len(dep)] in "=<>~["
+                        ):
                             return framework
             except OSError:
                 pass

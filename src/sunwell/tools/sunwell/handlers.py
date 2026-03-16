@@ -322,7 +322,6 @@ class SunwellToolHandlers:
             self._lineage = LineageStore(self.workspace)
         return self._lineage
 
-
     async def _build_artifact_graph(self, path: str | None = None) -> Any:
         """Build artifact graph for weakness analysis.
 

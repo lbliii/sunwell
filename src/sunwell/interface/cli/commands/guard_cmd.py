@@ -22,13 +22,15 @@ def guard() -> None:
 
 @guard.command()
 @click.option(
-    "--min-confidence", "-c",
+    "--min-confidence",
+    "-c",
     default=0.7,
     type=float,
     help="Minimum confidence for suggestions (default: 0.7)",
 )
 @click.option(
-    "--apply", "-a",
+    "--apply",
+    "-a",
     is_flag=True,
     help="Apply suggested evolutions interactively",
 )
@@ -122,17 +124,20 @@ async def _evolve_guards(min_confidence: float, apply: bool) -> None:
 @guard.command()
 @click.argument("rule_id")
 @click.option(
-    "--false-positive", "-fp",
+    "--false-positive",
+    "-fp",
     is_flag=True,
     help="Mark last violation as false positive",
 )
 @click.option(
-    "--correct", "-c",
+    "--correct",
+    "-c",
     is_flag=True,
     help="Mark last violation as correct (guard was right)",
 )
 @click.option(
-    "--comment", "-m",
+    "--comment",
+    "-m",
     default=None,
     help="Add comment to feedback",
 )
@@ -183,7 +188,8 @@ def feedback(rule_id: str, false_positive: bool, correct: bool, comment: str | N
 
 @guard.command()
 @click.option(
-    "--json", "-j",
+    "--json",
+    "-j",
     "as_json",
     is_flag=True,
     help="Output as JSON",
@@ -208,6 +214,7 @@ def stats(as_json: bool) -> None:
 
     if as_json:
         import json
+
         console.print(json.dumps(stats, indent=2))
         return
 
@@ -218,16 +225,16 @@ def stats(as_json: bool) -> None:
     console.print(f"[sunwell.heading]Violations:[/] {total}")
     console.print(f"[sunwell.heading]Learning:[/] {learn_icon}")
 
-    if stats['by_outcome']:
+    if stats["by_outcome"]:
         console.print("\n[sunwell.heading]By Outcome:[/sunwell.heading]")
-        for outcome, count in stats['by_outcome'].items():
+        for outcome, count in stats["by_outcome"].items():
             if count > 0:
                 icon = "⊘" if outcome == "blocked" else "△" if outcome == "overridden" else "✗"
                 console.print(f"  {icon} {outcome}: {count}")
 
-    if stats['by_rule']:
+    if stats["by_rule"]:
         console.print("\n[sunwell.heading]By Rule:[/sunwell.heading]")
-        for rule, count in sorted(stats['by_rule'].items(), key=lambda x: -x[1]):
+        for rule, count in sorted(stats["by_rule"].items(), key=lambda x: -x[1]):
             console.print(f"  · {rule}: {count}")
 
 

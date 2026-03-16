@@ -15,7 +15,6 @@ Example:
     Signal-to-Noise: Every sentence must earn its place
 """
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -52,9 +51,7 @@ class ExpertiseExtractor:
     min_relevance: float = 0.1
 
     # Cache
-    _all_heuristics: list[tuple[Heuristic, str]] | None = field(
-        default=None, init=False
-    )
+    _all_heuristics: list[tuple[Heuristic, str]] | None = field(default=None, init=False)
 
     def _collect_heuristics(self) -> list[tuple[Heuristic, str]]:
         """Collect all heuristics from lenses with source info.
@@ -67,7 +64,11 @@ class ExpertiseExtractor:
         result: list[tuple[Heuristic, str]] = []
 
         for lens in self.lenses:
-            lens_name = getattr(lens.metadata, 'name', 'Unknown') if hasattr(lens, 'metadata') else 'Unknown'
+            lens_name = (
+                getattr(lens.metadata, "name", "Unknown")
+                if hasattr(lens, "metadata")
+                else "Unknown"
+            )
 
             for h in lens.heuristics:
                 result.append((h, lens_name))
@@ -112,29 +113,26 @@ class ExpertiseExtractor:
         scored = [(h, s, rel) for h, s, rel in scored if rel >= self.min_relevance]
 
         # Take top heuristics
-        top_heuristics = scored[:self.max_heuristics]
+        top_heuristics = scored[: self.max_heuristics]
 
         # Build summaries
         heuristic_summaries = [
-            HeuristicSummary.from_heuristic(h, relevance=rel)
-            for h, _source, rel in top_heuristics
+            HeuristicSummary.from_heuristic(h, relevance=rel) for h, _source, rel in top_heuristics
         ]
 
         # Collect validators from lenses
         validators = []
         for lens in self.lenses:
             # Lens uses all_validators property (deterministic + heuristic)
-            if hasattr(lens, 'all_validators'):
+            if hasattr(lens, "all_validators"):
                 validators.extend(lens.all_validators)
-            elif hasattr(lens, 'deterministic_validators'):
+            elif hasattr(lens, "deterministic_validators"):
                 validators.extend(lens.deterministic_validators)
-                if hasattr(lens, 'heuristic_validators'):
+                if hasattr(lens, "heuristic_validators"):
                     validators.extend(lens.heuristic_validators)
 
         # Get source lens names
-        source_lenses = list(dict.fromkeys([
-            s for _h, s, _r in top_heuristics
-        ]))
+        source_lenses = list(dict.fromkeys([s for _h, s, _r in top_heuristics]))
 
         # Detect domain from lenses
         domain = self._detect_domain_from_lenses()
@@ -161,9 +159,33 @@ class ExpertiseExtractor:
 
         # Stop words to ignore in matching
         stop_words = {
-            "the", "a", "an", "is", "are", "be", "to", "of", "in", "for",
-            "on", "with", "at", "by", "from", "as", "and", "or", "but",
-            "if", "then", "else", "when", "where", "how", "what", "which",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "be",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "and",
+            "or",
+            "but",
+            "if",
+            "then",
+            "else",
+            "when",
+            "where",
+            "how",
+            "what",
+            "which",
         }
         goal_words = goal_words - stop_words
 
@@ -260,7 +282,7 @@ class ExpertiseExtractor:
     def _detect_domain_from_lenses(self) -> str:
         """Detect domain based on lens metadata."""
         for lens in self.lenses:
-            if hasattr(lens, 'metadata') and hasattr(lens.metadata, 'domain'):
+            if hasattr(lens, "metadata") and hasattr(lens.metadata, "domain"):
                 return lens.metadata.domain
 
         # Infer from lens names
@@ -277,7 +299,7 @@ class ExpertiseExtractor:
 
     def _get_lens_name(self, lens: Lens) -> str:
         """Get lens name safely."""
-        if hasattr(lens, 'metadata') and hasattr(lens.metadata, 'name'):
+        if hasattr(lens, "metadata") and hasattr(lens.metadata, "name"):
             return lens.metadata.name
         return "Unknown"
 
@@ -347,7 +369,7 @@ def _parse_dori_rule(content: str, rule_name: str) -> list[Heuristic]:
 
     heuristics: list[Heuristic] = []
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     current_name = rule_name
     current_rule = ""
     current_always: list[str] = []
@@ -357,15 +379,17 @@ def _parse_dori_rule(content: str, rule_name: str) -> list[Heuristic]:
         line = line.strip()
 
         # New section
-        if line.startswith('## '):
+        if line.startswith("## "):
             # Save previous
             if current_rule or current_always or current_never:
-                heuristics.append(Heuristic(
-                    name=current_name,
-                    rule=current_rule,
-                    always=current_always,
-                    never=current_never,
-                ))
+                heuristics.append(
+                    Heuristic(
+                        name=current_name,
+                        rule=current_rule,
+                        always=current_always,
+                        never=current_never,
+                    )
+                )
 
             current_name = line[3:].strip()
             current_rule = ""
@@ -373,28 +397,30 @@ def _parse_dori_rule(content: str, rule_name: str) -> list[Heuristic]:
             current_never = []
 
         # Rule text (first paragraph after header)
-        elif line and not current_rule and not line.startswith('-') and not line.startswith('*'):
+        elif line and not current_rule and not line.startswith("-") and not line.startswith("*"):
             current_rule = line
 
         # Always patterns
-        elif line.startswith('- ✅') or line.lower().startswith('- do:'):
-            pattern = line.split(':', 1)[-1].strip() if ':' in line else line[4:].strip()
+        elif line.startswith("- ✅") or line.lower().startswith("- do:"):
+            pattern = line.split(":", 1)[-1].strip() if ":" in line else line[4:].strip()
             if pattern:
                 current_always.append(pattern)
 
         # Never patterns
-        elif line.startswith('- ❌') or line.lower().startswith("- don't:"):
-            pattern = line.split(':', 1)[-1].strip() if ':' in line else line[4:].strip()
+        elif line.startswith("- ❌") or line.lower().startswith("- don't:"):
+            pattern = line.split(":", 1)[-1].strip() if ":" in line else line[4:].strip()
             if pattern:
                 current_never.append(pattern)
 
     # Save last
     if current_rule or current_always or current_never:
-        heuristics.append(Heuristic(
-            name=current_name,
-            rule=current_rule,
-            always=current_always,
-            never=current_never,
-        ))
+        heuristics.append(
+            Heuristic(
+                name=current_name,
+                rule=current_rule,
+                always=current_always,
+                never=current_never,
+            )
+        )
 
     return heuristics

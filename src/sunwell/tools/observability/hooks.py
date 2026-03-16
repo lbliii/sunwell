@@ -276,7 +276,7 @@ class LoggingHook:
 
         result_str = str(result)
         if len(result_str) > self.max_result_length:
-            result_str = result_str[:self.max_result_length] + "..."
+            result_str = result_str[: self.max_result_length] + "..."
 
         if success:
             logger.log(

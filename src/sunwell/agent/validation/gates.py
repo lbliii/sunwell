@@ -22,7 +22,6 @@ Gate types:
 - INTEGRATION: Does everything work together?
 """
 
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -342,10 +341,7 @@ def _matches_task_pattern(
 
 def _is_protocol_task(task: Task) -> bool:
     """Check if task produces a protocol/interface."""
-    return (
-        _matches_task_pattern(task, ("protocol", "interface"))
-        or task.is_contract
-    )
+    return _matches_task_pattern(task, ("protocol", "interface")) or task.is_contract
 
 
 def _is_model_task(task: Task) -> bool:
@@ -387,9 +383,9 @@ def _find_blocked_tasks(
     """
     source_ids = {t.id for t in source_tasks}
     return tuple(
-        t.id for t in all_tasks
-        if t.id not in source_ids
-        and any(src.id in t.depends_on for src in source_tasks)
+        t.id
+        for t in all_tasks
+        if t.id not in source_ids and any(src.id in t.depends_on for src in source_tasks)
     )
 
 
@@ -490,10 +486,7 @@ def is_runnable_milestone(tasks: list[Task]) -> bool:
     """
     if not tasks:
         return False
-    return all(
-        t.target_path and t.target_path.endswith(".py")
-        for t in tasks
-    )
+    return all(t.target_path and t.target_path.endswith(".py") for t in tasks)
 
 
 # =============================================================================

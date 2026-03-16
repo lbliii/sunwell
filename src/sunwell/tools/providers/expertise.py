@@ -9,7 +9,6 @@ These tools enable a ReAct pattern where the model can request and verify
 guidance during generation, rather than relying only on system-injected context.
 """
 
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -36,9 +35,7 @@ class ExpertiseToolHandler:
     lens: Lens
 
     # Cache for verification (heuristics retrieved this session)
-    _retrieved_cache: dict[str, list[Heuristic]] = field(
-        default_factory=dict, init=False
-    )
+    _retrieved_cache: dict[str, list[Heuristic]] = field(default_factory=dict, init=False)
     _call_count: int = field(default=0, init=False)
 
     async def handle(self, tool_name: str, arguments: dict) -> str:
@@ -156,22 +153,26 @@ class ExpertiseToolHandler:
                 pattern_lower = pattern.lower()
                 # Simple keyword matching for common anti-patterns
                 if self._check_pattern_violation(code, pattern_lower):
-                    violations.append({
-                        "heuristic": h.name,
-                        "pattern": pattern,
-                        "type": "never",
-                        "severity": "warning",
-                    })
+                    violations.append(
+                        {
+                            "heuristic": h.name,
+                            "pattern": pattern,
+                            "type": "never",
+                            "severity": "warning",
+                        }
+                    )
 
             # Check "always" patterns (to confirm good practices)
             for pattern in h.always:
                 pattern_lower = pattern.lower()
                 if self._check_pattern_present(code, pattern_lower):
-                    good_practices.append({
-                        "heuristic": h.name,
-                        "pattern": pattern,
-                        "type": "always",
-                    })
+                    good_practices.append(
+                        {
+                            "heuristic": h.name,
+                            "pattern": pattern,
+                            "type": "always",
+                        }
+                    )
 
         # Format output
         output_parts = ["## Verification Results\n"]
@@ -180,9 +181,7 @@ class ExpertiseToolHandler:
         if violations:
             output_parts.append(f"### ⚠️ Potential Issues ({len(violations)})\n")
             for v in violations:
-                output_parts.append(
-                    f"- **{v['heuristic']}**: Avoid '{v['pattern']}'"
-                )
+                output_parts.append(f"- **{v['heuristic']}**: Avoid '{v['pattern']}'")
             output_parts.append("")
         else:
             output_parts.append("### ✅ No Violations Found\n")
@@ -190,9 +189,7 @@ class ExpertiseToolHandler:
         if good_practices:
             output_parts.append(f"### ✅ Good Practices Detected ({len(good_practices)})\n")
             for gp in good_practices[:5]:  # Limit to top 5
-                output_parts.append(
-                    f"- **{gp['heuristic']}**: Following '{gp['pattern']}'"
-                )
+                output_parts.append(f"- **{gp['heuristic']}**: Following '{gp['pattern']}'")
             if len(good_practices) > 5:
                 output_parts.append(f"- ...and {len(good_practices) - 5} more")
 
@@ -220,7 +217,11 @@ class ExpertiseToolHandler:
             return "No heuristics available in the current lens."
 
         # Get lens name
-        lens_name = getattr(self.lens.metadata, 'name', 'Lens') if hasattr(self.lens, 'metadata') else 'Lens'
+        lens_name = (
+            getattr(self.lens.metadata, "name", "Lens")
+            if hasattr(self.lens, "metadata")
+            else "Lens"
+        )
 
         output_parts = [f"## Available Expertise ({lens_name})\n"]
         output_parts.append(f"Total heuristics: {len(self.lens.heuristics)}\n")
@@ -256,8 +257,7 @@ class ExpertiseToolHandler:
 
         output_parts.append("\n---")
         output_parts.append(
-            "💡 Use `get_expertise(topic)` with a topic or keyword "
-            "to retrieve specific guidance."
+            "💡 Use `get_expertise(topic)` with a topic or keyword to retrieve specific guidance."
         )
 
         return "\n".join(output_parts)
@@ -315,21 +315,70 @@ class ExpertiseToolHandler:
         """Extract meaningful keywords from a pattern description."""
         # Filter out common stop words
         stop_words = {
-            "the", "a", "an", "is", "are", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "must", "shall",
-            "to", "of", "in", "for", "on", "with", "at", "by", "from",
-            "as", "into", "through", "during", "before", "after",
-            "and", "or", "but", "if", "then", "else", "when", "where",
-            "use", "using", "used", "make", "makes", "made",
-            "all", "any", "both", "each", "every", "some", "no", "not",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "and",
+            "or",
+            "but",
+            "if",
+            "then",
+            "else",
+            "when",
+            "where",
+            "use",
+            "using",
+            "used",
+            "make",
+            "makes",
+            "made",
+            "all",
+            "any",
+            "both",
+            "each",
+            "every",
+            "some",
+            "no",
+            "not",
         }
 
         words = pattern.lower().split()
         keywords = [
-            w.strip(".,;:!?\"'()[]{}")
-            for w in words
-            if len(w) > 2 and w.lower() not in stop_words
+            w.strip(".,;:!?\"'()[]{}") for w in words if len(w) > 2 and w.lower() not in stop_words
         ]
 
         return keywords[:5]  # Limit to 5 most significant keywords
@@ -339,9 +388,7 @@ class ExpertiseToolHandler:
         return {
             "call_count": self._call_count,
             "cached_topics": len(self._retrieved_cache),
-            "total_cached_heuristics": sum(
-                len(v) for v in self._retrieved_cache.values()
-            ),
+            "total_cached_heuristics": sum(len(v) for v in self._retrieved_cache.values()),
         }
 
     def clear_cache(self) -> None:

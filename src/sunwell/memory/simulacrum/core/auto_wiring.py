@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-
     from sunwell.memory.simulacrum.hierarchical.chunk_manager import ChunkManager
     from sunwell.memory.simulacrum.hierarchical.chunks import Chunk, ChunkSummary
     from sunwell.memory.simulacrum.hierarchical.config import ChunkConfig

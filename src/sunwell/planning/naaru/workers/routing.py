@@ -1,6 +1,5 @@
 """Routing worker - RFC-030 UnifiedRouter for all routing decisions."""
 
-
 import asyncio
 from collections import deque
 from datetime import datetime
@@ -92,11 +91,13 @@ class CognitiveRoutingWorker(RegionWorker):
             result = decision.to_dict()
             # top_k and threshold are now included via to_dict()
 
-            self._routing_history.append({
-                "task": task[:100],
-                "decision": result,
-                "timestamp": datetime.now().isoformat(),
-            })
+            self._routing_history.append(
+                {
+                    "task": task[:100],
+                    "decision": result,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             return result
         except Exception as e:
             return {

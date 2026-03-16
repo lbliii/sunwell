@@ -12,6 +12,7 @@ from typing import Any
 
 from sunwell.domains.protocol import ValidationResult
 
+
 @dataclass(slots=True)
 class SourceValidator:
     """Verify research claims have sources.
@@ -122,9 +123,11 @@ class CoherenceValidator:
         paragraphs = [p.strip() for p in artifact.split("\n\n") if p.strip()]
         if len(paragraphs) < self.min_paragraphs:
             n = len(paragraphs)
-            errors.append({
-                "message": f"Content has {n} paragraph(s), expected at least {self.min_paragraphs}",
-            })
+            errors.append(
+                {
+                    "message": f"Content has {n} paragraph(s), expected at least {self.min_paragraphs}",
+                }
+            )
 
         # Check for transition words (indicates connected ideas)
         transition_words = {
@@ -145,9 +148,11 @@ class CoherenceValidator:
 
         # For longer content, transitions are expected
         if len(paragraphs) > 2 and not has_transitions:
-            errors.append({
-                "message": "Multi-paragraph content lacks transition words",
-            })
+            errors.append(
+                {
+                    "message": "Multi-paragraph content lacks transition words",
+                }
+            )
 
         duration = int((time.monotonic() - start) * 1000)
 

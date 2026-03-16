@@ -175,12 +175,16 @@ class SubagentRecord:
             cleanup=data["cleanup"],
             label=data.get("label"),
             created_at=datetime.fromisoformat(data["created_at"]),
-            started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
+            started_at=datetime.fromisoformat(data["started_at"])
+            if data.get("started_at")
+            else None,
             ended_at=datetime.fromisoformat(data["ended_at"]) if data.get("ended_at") else None,
             outcome=SubagentOutcome(data["outcome"]) if data.get("outcome") else None,
             error_message=data.get("error_message"),
             # Heartbeat fields
-            last_heartbeat=datetime.fromisoformat(data["last_heartbeat"]) if data.get("last_heartbeat") else None,
+            last_heartbeat=datetime.fromisoformat(data["last_heartbeat"])
+            if data.get("last_heartbeat")
+            else None,
             heartbeat_interval_seconds=data.get("heartbeat_interval_seconds", 30),
             progress=data.get("progress"),
             status_message=data.get("status_message"),
@@ -336,10 +340,7 @@ class SubagentRegistry:
             List of subagent records (may be empty)
         """
         with self._lock:
-            return [
-                r for r in self._runs.values()
-                if r.parent_session_id == parent_session_id
-            ]
+            return [r for r in self._runs.values() if r.parent_session_id == parent_session_id]
 
     def list_active(self) -> list[SubagentRecord]:
         """List all active (running) subagents."""
@@ -503,7 +504,8 @@ class SubagentRegistry:
                 logger.warning(
                     "Subagent await timed out after %.1fs, %d timed out",
                     timeout,
-                    len(run_ids) - len([o for o in results.values() if o != SubagentOutcome.TIMEOUT]),
+                    len(run_ids)
+                    - len([o for o in results.values() if o != SubagentOutcome.TIMEOUT]),
                 )
                 break
 
@@ -530,7 +532,8 @@ class SubagentRegistry:
         """
         with self._lock:
             return sum(
-                1 for r in self._runs.values()
+                1
+                for r in self._runs.values()
                 if r.parent_session_id == parent_session_id and r.is_running
             )
 
@@ -660,11 +663,7 @@ class SubagentRegistry:
             List of (record, progress) tuples for running subagents
         """
         with self._lock:
-            return [
-                (r, r.progress)
-                for r in self._runs.values()
-                if r.is_running
-            ]
+            return [(r, r.progress) for r in self._runs.values() if r.is_running]
 
     def add_listener(self, listener: SubagentListener) -> Callable[[], None]:
         """Add a lifecycle listener.

@@ -325,7 +325,8 @@ class TestValidator:
 
         # Filter to test files only
         test_files = [
-            f for f in files
+            f
+            for f in files
             if "test" in f.name.lower() or any(p.name == "tests" for p in f.parents)
         ]
 

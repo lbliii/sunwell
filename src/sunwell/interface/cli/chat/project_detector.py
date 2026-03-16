@@ -20,9 +20,16 @@ PROJECT_MARKERS: dict[str, tuple[str, ...]] = {
 
 # Key files to always include in context (if they exist)
 KEY_FILES = (
-    "README.md", "README.rst", "README.txt", "README",
-    "pyproject.toml", "package.json", "Cargo.toml", "go.mod",
-    "Makefile", "justfile",
+    "README.md",
+    "README.rst",
+    "README.txt",
+    "README",
+    "pyproject.toml",
+    "package.json",
+    "Cargo.toml",
+    "go.mod",
+    "Makefile",
+    "justfile",
     ".env.example",
 )
 
@@ -199,18 +206,33 @@ class ProjectDetector:
             Directory tree as string
         """
         ignore_patterns = {
-            ".git", "__pycache__", "node_modules", ".venv", "venv",
-            ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
-            ".egg-info", ".tox", ".coverage", "htmlcov", ".next", ".svelte-kit",
-            "target", ".cargo",
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".venv",
+            "venv",
+            ".mypy_cache",
+            ".pytest_cache",
+            ".ruff_cache",
+            "dist",
+            "build",
+            ".egg-info",
+            ".tox",
+            ".coverage",
+            "htmlcov",
+            ".next",
+            ".svelte-kit",
+            "target",
+            ".cargo",
         }
 
         lines = []
         file_count = 0
 
         for root, dirs, files in cwd.walk():
-            dirs[:] = [d for d in sorted(dirs)
-                       if d not in ignore_patterns and not d.startswith(".")]
+            dirs[:] = [
+                d for d in sorted(dirs) if d not in ignore_patterns and not d.startswith(".")
+            ]
 
             rel_root = root.relative_to(cwd)
             depth = len(rel_root.parts)

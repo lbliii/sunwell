@@ -12,7 +12,6 @@ Policy files support:
 - Audit configuration
 """
 
-
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -315,9 +314,7 @@ def validate_policy(config: SecurityPolicyConfig) -> list[PolicyValidationError]
 
     # Version check
     if not config.version:
-        errors.append(
-            PolicyValidationError("version", "Missing required field 'version'")
-        )
+        errors.append(PolicyValidationError("version", "Missing required field 'version'"))
 
     # Enforcement mode check
     if config.default_enforcement not in POLICY_VALID_ENFORCEMENTS:
@@ -408,9 +405,7 @@ class PolicyEnforcer:
         """
         self.config = config
         self.environment = environment
-        self._applicable_rules = [
-            r for r in config.rules if r.applies_to_environment(environment)
-        ]
+        self._applicable_rules = [r for r in config.rules if r.applies_to_environment(environment)]
 
     def check_permissions(
         self,
@@ -430,38 +425,28 @@ class PolicyEnforcer:
             # Check filesystem
             for path in getattr(permissions, "filesystem_read", []):
                 if self._matches_any(path, rule.deny_filesystem):
-                    violations.append(
-                        f"[{rule.name}] Filesystem read denied: {path}"
-                    )
+                    violations.append(f"[{rule.name}] Filesystem read denied: {path}")
                     if rule.recommend:
                         violations.append(f"  Recommendation: {rule.recommend}")
 
             for path in getattr(permissions, "filesystem_write", []):
                 if self._matches_any(path, rule.deny_filesystem):
-                    violations.append(
-                        f"[{rule.name}] Filesystem write denied: {path}"
-                    )
+                    violations.append(f"[{rule.name}] Filesystem write denied: {path}")
 
             # Check network
             for host in getattr(permissions, "network_allow", []):
                 if self._matches_any(host, rule.deny_network):
-                    violations.append(
-                        f"[{rule.name}] Network access denied: {host}"
-                    )
+                    violations.append(f"[{rule.name}] Network access denied: {host}")
 
             # Check shell
             for cmd in getattr(permissions, "shell_allow", []):
                 if self._matches_any(cmd, rule.deny_shell):
-                    violations.append(
-                        f"[{rule.name}] Shell command denied: {cmd}"
-                    )
+                    violations.append(f"[{rule.name}] Shell command denied: {cmd}")
 
             # Check env
             for var in getattr(permissions, "env_read", []):
                 if self._matches_any(var, rule.deny_env):
-                    violations.append(
-                        f"[{rule.name}] Environment variable access denied: {var}"
-                    )
+                    violations.append(f"[{rule.name}] Environment variable access denied: {var}")
 
         allowed = len(violations) == 0
         return allowed, violations

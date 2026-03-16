@@ -1,5 +1,7 @@
 # ✅ Chirp Pattern Adoption Complete!
 
+> **Deprecation note (2026-03):** Page-load SSE patterns described here are superseded. Use polling or POST→fragment with `sse-connect`. See `docs/chirp-mcp-integration.md`.
+
 ## What We Just Did
 
 Refactored the entire Chirp integration to use **idiomatic patterns from chirp-pad**. This establishes a much stronger foundation for the remaining migration.

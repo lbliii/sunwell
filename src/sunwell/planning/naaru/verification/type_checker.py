@@ -143,11 +143,13 @@ async def run_mypy_check(
     else:
         cmd = [mypy_path]
 
-    cmd.extend([
-        "--no-incremental",
-        "--no-error-summary",
-        "--show-error-codes",
-    ])
+    cmd.extend(
+        [
+            "--no-incremental",
+            "--no-error-summary",
+            "--show-error-codes",
+        ]
+    )
 
     if strict:
         cmd.append("--strict")
@@ -172,7 +174,7 @@ async def run_mypy_check(
                 process.communicate(),
                 timeout=timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             await process.wait()
             return TypeCheckResult(
@@ -261,12 +263,14 @@ async def check_protocol_compliance(
         else:
             cmd = [mypy_path]
 
-        cmd.extend([
-            "--no-incremental",
-            "--no-error-summary",
-            "--show-error-codes",
-            str(stub_path),
-        ])
+        cmd.extend(
+            [
+                "--no-incremental",
+                "--no-error-summary",
+                "--show-error-codes",
+                str(stub_path),
+            ]
+        )
 
         try:
             process = await asyncio.create_subprocess_exec(
@@ -280,7 +284,7 @@ async def check_protocol_compliance(
                     process.communicate(),
                     timeout=timeout_seconds,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 await process.wait()
                 return TypeCheckResult(
@@ -351,7 +355,7 @@ def parse_protocol_errors(mypy_output: str) -> list[str]:
         r"incompatible.*signature",
         r"incompatible.*return type",
         r"incompatible.*argument type",
-        r'Cannot instantiate.*Protocol',
+        r"Cannot instantiate.*Protocol",
         r"has no attribute",
     ]
 

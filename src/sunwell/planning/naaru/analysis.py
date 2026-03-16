@@ -13,7 +13,6 @@ Example:
     >>> print(f"Potential speedup: {analysis['parallelization_ratio']:.1f}x")
 """
 
-
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -175,14 +174,10 @@ def analyze_parallelism(tasks: list[Task]) -> ParallelismAnalysis:
     phases = tuple(_compute_phases(tasks))
 
     # Find potential conflicts (convert sets to frozensets for immutability)
-    potential_conflicts = tuple(
-        (a, b, frozenset(files)) for a, b, files in _find_conflicts(tasks)
-    )
+    potential_conflicts = tuple((a, b, frozenset(files)) for a, b, files in _find_conflicts(tasks))
 
     # Compute parallelization ratio
-    parallelization_ratio = (
-        total_tasks / critical_path_length if critical_path_length > 0 else 1.0
-    )
+    parallelization_ratio = total_tasks / critical_path_length if critical_path_length > 0 else 1.0
 
     return ParallelismAnalysis(
         total_tasks=total_tasks,
@@ -275,12 +270,14 @@ def _compute_phases(tasks: list) -> list[dict[str, Any]]:
                 break
             all_modifies.update(task.modifies)
 
-        phases.append({
-            "name": name,
-            "tasks": len(group_tasks),
-            "parallel": not has_conflict,
-            "contract_count": sum(1 for t in group_tasks if t.is_contract),
-        })
+        phases.append(
+            {
+                "name": name,
+                "tasks": len(group_tasks),
+                "parallel": not has_conflict,
+                "contract_count": sum(1 for t in group_tasks if t.is_contract),
+            }
+        )
 
     return phases
 
@@ -290,7 +287,7 @@ def _find_conflicts(tasks: list) -> list[tuple[str, str, set[str]]]:
     conflicts = []
 
     for i, task_a in enumerate(tasks):
-        for task_b in tasks[i + 1:]:
+        for task_b in tasks[i + 1 :]:
             overlap = task_a.modifies & task_b.modifies
             if overlap:
                 conflicts.append((task_a.id, task_b.id, overlap))
@@ -302,8 +299,8 @@ async def validate_contracts(
     tasks: list[Task],
     completed_ids: set[str],
     workspace: Path | None = None,
-    model: "ModelProtocol | None" = None,
-) -> tuple[list[str], list["ContractVerificationResult"]]:
+    model: ModelProtocol | None = None,
+) -> tuple[list[str], list[ContractVerificationResult]]:
     """Validate that completed implementations satisfy their contracts (RFC-034).
 
     This runs after task execution to verify the produced artifacts
@@ -359,9 +356,7 @@ async def validate_contracts(
         # Find the contract task
         contract_task_id = artifact_producers.get(task.contract)
         if not contract_task_id:
-            errors.append(
-                f"Task {task.id} references unknown contract: {task.contract}"
-            )
+            errors.append(f"Task {task.id} references unknown contract: {task.contract}")
             continue
 
         # Check if the contract task completed
@@ -382,9 +377,7 @@ async def validate_contracts(
         contract_file = _find_contract_file(contract_task, workspace)
 
         if impl_file is None:
-            errors.append(
-                f"Task {task.id}: Cannot determine implementation file path"
-            )
+            errors.append(f"Task {task.id}: Cannot determine implementation file path")
             continue
 
         if contract_file is None:
@@ -404,22 +397,19 @@ async def validate_contracts(
         # Report failures
         if result.status == VerificationStatus.FAILED:
             mismatch_details = "; ".join(
-                f"{m.method_name}: {m.issue}"
-                for m in result.all_mismatches[:3]
+                f"{m.method_name}: {m.issue}" for m in result.all_mismatches[:3]
             )
             errors.append(
                 f"Task {task.id}: Implementation does not satisfy {task.contract}: "
                 f"{mismatch_details}"
             )
         elif result.status == VerificationStatus.ERROR:
-            errors.append(
-                f"Task {task.id}: Verification error: {result.error_message}"
-            )
+            errors.append(f"Task {task.id}: Verification error: {result.error_message}")
 
     return errors, results
 
 
-def _find_implementation_file(task: "Task", workspace: Path) -> Path | None:
+def _find_implementation_file(task: Task, workspace: Path) -> Path | None:
     """Find the implementation file for a task.
 
     Checks task.target_path and task.modifies for Python files.
@@ -443,14 +433,16 @@ def _find_implementation_file(task: "Task", workspace: Path) -> Path | None:
     for modified in task.modifies:
         modified_path = Path(modified)
         if modified_path.suffix == ".py":
-            full_path = workspace / modified_path if not modified_path.is_absolute() else modified_path
+            full_path = (
+                workspace / modified_path if not modified_path.is_absolute() else modified_path
+            )
             if full_path.exists():
                 return full_path
 
     return None
 
 
-def _find_contract_file(task: "Task", workspace: Path) -> Path | None:
+def _find_contract_file(task: Task, workspace: Path) -> Path | None:
     """Find the contract/Protocol file for a contract task.
 
     Checks task.target_path and task.modifies for Python files.

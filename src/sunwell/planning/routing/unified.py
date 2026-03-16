@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 
 # Pre-compiled regex pattern for JSON extraction (avoid per-call compilation)
-_RE_JSON_OBJECT = re.compile(r'\{[^{}]*\}', re.DOTALL)
+_RE_JSON_OBJECT = re.compile(r"\{[^{}]*\}", re.DOTALL)
 
 
 # =============================================================================
@@ -56,7 +56,7 @@ _RE_JSON_OBJECT = re.compile(r'\{[^{}]*\}', re.DOTALL)
 # =============================================================================
 
 
-UNIFIED_ROUTER_PROMPT = '''Analyze this request and respond with JSON only.
+UNIFIED_ROUTER_PROMPT = """Analyze this request and respond with JSON only.
 
 Request: "{request}"
 Context: {context}
@@ -70,7 +70,7 @@ Context: {context}
   "expertise": "beginner|intermediate|expert",
   "confidence": 0.0-1.0,
   "reasoning": "one sentence"
-}}'''
+}}"""
 
 
 # Lens name mapping (short names from prompt → full lens names)

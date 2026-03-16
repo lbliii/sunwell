@@ -66,14 +66,16 @@ class SunwellCalendar(CalendarProvider):
             notes=event.notes,
         )
 
-        data.append({
-            "id": new_event.id,
-            "title": new_event.title,
-            "start": new_event.start.isoformat(),
-            "end": new_event.end.isoformat(),
-            "location": new_event.location,
-            "notes": new_event.notes,
-        })
+        data.append(
+            {
+                "id": new_event.id,
+                "title": new_event.title,
+                "start": new_event.start.isoformat(),
+                "end": new_event.end.isoformat(),
+                "location": new_event.location,
+                "notes": new_event.notes,
+            }
+        )
 
         self._save(data)
         return new_event

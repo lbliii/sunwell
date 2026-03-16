@@ -225,10 +225,7 @@ async def _unlink_async(path: str, target: str) -> None:
     workspace = config.load()
 
     if not workspace:
-        console.print(
-            f"[yellow]No workspace config found at {root}[/yellow]\n"
-            "Nothing to unlink."
-        )
+        console.print(f"[yellow]No workspace config found at {root}[/yellow]\nNothing to unlink.")
         return
 
     # Check if link exists
@@ -301,10 +298,10 @@ async def _show_async(path: str, json_output: bool) -> None:
     }
 
     summary = f"""[bold]Workspace:[/bold] {workspace.primary}
-[bold]Topology:[/bold] {topology_emoji.get(workspace.topology, '❓')} {workspace.topology}
+[bold]Topology:[/bold] {topology_emoji.get(workspace.topology, "❓")} {workspace.topology}
 [bold]ID:[/bold] {workspace.id}
-[bold]Created:[/bold] {workspace.created_at.strftime('%Y-%m-%d %H:%M')}
-[bold]Updated:[/bold] {workspace.updated_at.strftime('%Y-%m-%d %H:%M')}"""
+[bold]Created:[/bold] {workspace.created_at.strftime("%Y-%m-%d %H:%M")}
+[bold]Updated:[/bold] {workspace.updated_at.strftime("%Y-%m-%d %H:%M")}"""
 
     console.print(Panel(summary, title="[bold]Workspace Configuration[/bold]"))
 
@@ -348,8 +345,7 @@ async def _show_async(path: str, json_output: bool) -> None:
     else:
         console.print("\n[yellow]No links configured.[/yellow]")
         console.print(
-            "\nRun detection to find related projects:\n"
-            f"  sunwell workspace detect {root}"
+            f"\nRun detection to find related projects:\n  sunwell workspace detect {root}"
         )
 
 
@@ -479,7 +475,9 @@ def list_workspaces(json_output: bool) -> None:
 
     console.print(table)
     if current:
-        console.print(f"\n[bold]Current workspace:[/bold] [cyan]{current.name}[/cyan] ({current.id})")
+        console.print(
+            f"\n[bold]Current workspace:[/bold] [cyan]{current.name}[/cyan] ({current.id})"
+        )
 
 
 @workspace.command("current")
@@ -741,7 +739,9 @@ def workspace_info(workspace_id: str, json_output: bool) -> None:
 
                 if project:
                     current = manager.get_current()
-                    is_current = current is not None and current.path.resolve() == workspace_path.resolve()
+                    is_current = (
+                        current is not None and current.path.resolve() == workspace_path.resolve()
+                    )
                     status = manager.get_status(workspace_path)
                     last_used = registry.projects.get(project.id, {}).get("last_used")
 
@@ -758,7 +758,9 @@ def workspace_info(workspace_id: str, json_output: bool) -> None:
                     )
                 else:
                     current = manager.get_current()
-                    is_current = current is not None and current.path.resolve() == workspace_path.resolve()
+                    is_current = (
+                        current is not None and current.path.resolve() == workspace_path.resolve()
+                    )
                     status = manager.get_status(workspace_path)
 
                     info = WorkspaceInfo(
@@ -851,6 +853,7 @@ def unregister_workspace(workspace_id: str, yes: bool) -> None:
 
     # Check if workspace exists
     from sunwell.knowledge.project import ProjectRegistry
+
     registry = ProjectRegistry()
     project = registry.get(workspace_id)
 
@@ -862,7 +865,9 @@ def unregister_workspace(workspace_id: str, yes: bool) -> None:
         console.print(f"[bold]Unregistering workspace:[/bold] {workspace_id}")
         console.print(f"  Path: {project.root}")
         console.print()
-        console.print("[dim]This will remove the workspace from the registry but keep all files.[/dim]")
+        console.print(
+            "[dim]This will remove the workspace from the registry but keep all files.[/dim]"
+        )
         if not click.confirm("Continue?"):
             console.print("[dim]Cancelled[/dim]")
             return
@@ -871,7 +876,9 @@ def unregister_workspace(workspace_id: str, yes: bool) -> None:
         result = manager.unregister(workspace_id)
         console.print(f"[green]✓[/green] Workspace unregistered: [cyan]{workspace_id}[/cyan]")
         if result.was_current:
-            console.print("[dim]Note: This was the current workspace. Current workspace cleared.[/dim]")
+            console.print(
+                "[dim]Note: This was the current workspace. Current workspace cleared.[/dim]"
+            )
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise SystemExit(1) from None
@@ -911,6 +918,7 @@ def purge_workspace(workspace_id: str, confirm: bool, delete_runs: bool, force: 
 
     # Check if workspace exists
     from sunwell.knowledge.project import ProjectRegistry
+
     registry = ProjectRegistry()
     project = registry.get(workspace_id)
 
@@ -965,7 +973,9 @@ def purge_workspace(workspace_id: str, confirm: bool, delete_runs: bool, force: 
             for item in result.failed_items:
                 console.print(f"    - {item}")
         if result.was_current:
-            console.print("[dim]Note: This was the current workspace. Current workspace cleared.[/dim]")
+            console.print(
+                "[dim]Note: This was the current workspace. Current workspace cleared.[/dim]"
+            )
     except (ValueError, RuntimeError) as e:
         console.print(f"[red]Error:[/red] {e}")
         raise SystemExit(1) from None
@@ -988,7 +998,9 @@ def purge_workspace(workspace_id: str, confirm: bool, delete_runs: bool, force: 
     is_flag=True,
     help="Force delete even if runs are active",
 )
-def remove_workspace(workspace_id: str, confirm_full_delete: bool, delete_runs: bool, force: bool) -> None:
+def remove_workspace(
+    workspace_id: str, confirm_full_delete: bool, delete_runs: bool, force: bool
+) -> None:
     """Fully delete a workspace (RFC-141).
 
     WARNING: This is destructive and cannot be undone.
@@ -1006,6 +1018,7 @@ def remove_workspace(workspace_id: str, confirm_full_delete: bool, delete_runs: 
 
     # Check if workspace exists
     from sunwell.knowledge.project import ProjectRegistry
+
     registry = ProjectRegistry()
     project = registry.get(workspace_id)
 
@@ -1103,7 +1116,9 @@ def rename_workspace(workspace_id: str, new_id: str, name: str | None) -> None:
 
     try:
         result = manager.rename(workspace_id, new_id=new_id, new_name=name)
-        console.print(f"[green]✓[/green] Workspace renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]")
+        console.print(
+            f"[green]✓[/green] Workspace renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]"
+        )
         if result.runs_updated > 0:
             console.print(f"  Runs updated: {result.runs_updated}")
     except ValueError as e:
@@ -1208,4 +1223,3 @@ def cleanup_workspace(dry_run: bool, confirm: bool) -> None:
         console.print()
         console.print(f"[green]Cleaned runs:[/green] {result.cleaned_runs}")
         console.print(f"[green]Cleaned registrations:[/green] {result.cleaned_registrations}")
-

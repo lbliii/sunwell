@@ -3,7 +3,6 @@
 RFC-025: Extracted from manager.py to slim it down.
 """
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -130,18 +129,102 @@ class PendingDomain:
 
         # Extract keywords (simple tokenization)
         words = query.lower().split()
-        stop_words = {"the", "a", "an", "is", "are", "was", "were", "be", "been",
-                      "being", "have", "has", "had", "do", "does", "did", "will",
-                      "would", "could", "should", "may", "might", "must", "shall",
-                      "can", "need", "dare", "ought", "used", "to", "of", "in",
-                      "for", "on", "with", "at", "by", "from", "as", "into", "like",
-                      "through", "after", "over", "between", "out", "against",
-                      "during", "without", "before", "under", "around", "among",
-                      "i", "you", "he", "she", "it", "we", "they", "what", "which",
-                      "who", "when", "where", "why", "how", "all", "each", "every",
-                      "both", "few", "more", "most", "other", "some", "such", "no",
-                      "nor", "not", "only", "own", "same", "so", "than", "too",
-                      "very", "just", "my", "your", "his", "her", "its", "our"}
+        stop_words = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "can",
+            "need",
+            "dare",
+            "ought",
+            "used",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "like",
+            "through",
+            "after",
+            "over",
+            "between",
+            "out",
+            "against",
+            "during",
+            "without",
+            "before",
+            "under",
+            "around",
+            "among",
+            "i",
+            "you",
+            "he",
+            "she",
+            "it",
+            "we",
+            "they",
+            "what",
+            "which",
+            "who",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "every",
+            "both",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "my",
+            "your",
+            "his",
+            "her",
+            "its",
+            "our",
+        }
 
         for word in words:
             # Clean punctuation
@@ -168,8 +251,8 @@ class PendingDomain:
         if total_mentions == 0:
             return 0.0
 
-        top_5_mentions = sum(c for _, c in sorted(
-            self.keywords.items(), key=lambda x: x[1], reverse=True
-        )[:5])
+        top_5_mentions = sum(
+            c for _, c in sorted(self.keywords.items(), key=lambda x: x[1], reverse=True)[:5]
+        )
 
         return min(top_5_mentions / total_mentions, 1.0)

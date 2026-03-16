@@ -9,7 +9,6 @@ Spatial context answers: "Where is this information located?"
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 import fnmatch
 from dataclasses import dataclass
 from enum import Enum
@@ -22,10 +21,10 @@ if TYPE_CHECKING:
 class PositionType(Enum):
     """Type of positional context."""
 
-    DOCUMENT = "document"     # Markdown, RST, etc.
-    CODE = "code"             # Source code
+    DOCUMENT = "document"  # Markdown, RST, etc.
+    CODE = "code"  # Source code
     CONVERSATION = "conversation"  # Chat turn
-    EXTERNAL = "external"     # URL, API response, etc.
+    EXTERNAL = "external"  # URL, API response, etc.
 
 
 @dataclass(frozen=True, slots=True)

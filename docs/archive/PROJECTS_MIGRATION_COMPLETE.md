@@ -1,5 +1,7 @@
 # ✅ Projects Page Migration Complete!
 
+> **Deprecation note (2026-03):** View Transitions are disabled. Use hybrid routing. See `docs/chirp-mcp-integration.md`.
+
 ## Summary
 
 Successfully migrated the Projects page to Chirp using **page convention routing**, **FormAction pattern**, and **proper template organization**. All CRUD operations implemented with clean htmx interactions.

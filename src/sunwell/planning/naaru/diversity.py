@@ -8,7 +8,6 @@ It provides four strategies for generating diverse candidates:
 - harmonic: Multi-persona generation (maximum diversity)
 """
 
-
 import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -84,6 +83,7 @@ async def diversity_none(
     """
     if options is None:
         from sunwell.models import GenerateOptions
+
         options = GenerateOptions()
 
     result = await model.generate(prompt, options=options)
@@ -122,6 +122,7 @@ async def diversity_sampling(
     """
     if options is None:
         from sunwell.models import GenerateOptions
+
         options = GenerateOptions()
 
     async def generate_with_temp(temp: float) -> Candidate:
@@ -194,11 +195,10 @@ async def diversity_harmonic(
 
     if options is None:
         from sunwell.models import GenerateOptions
+
         options = GenerateOptions()
 
-    async def generate_with_persona(
-        name: str, persona_prompt: str, temp: float
-    ) -> Candidate:
+    async def generate_with_persona(name: str, persona_prompt: str, temp: float) -> Candidate:
         persona_options = GenerateOptions(
             temperature=temp,
             max_tokens=options.max_tokens,
@@ -214,9 +214,11 @@ async def diversity_harmonic(
             tokens=tokens,
         )
 
-    candidates = await asyncio.gather(*[
-        generate_with_persona(name, prompt_text, temp)
-        for name, (prompt_text, temp) in personas.items()
-    ])
+    candidates = await asyncio.gather(
+        *[
+            generate_with_persona(name, prompt_text, temp)
+            for name, (prompt_text, temp) in personas.items()
+        ]
+    )
 
     return list(candidates)

@@ -239,9 +239,7 @@ class SkillComposer:
         """
         # Get the skills
         skills_to_compose = [
-            self._skill_by_name[n]
-            for n in skill_names
-            if n in self._skill_by_name
+            self._skill_by_name[n] for n in skill_names if n in self._skill_by_name
         ]
 
         if not skills_to_compose:
@@ -559,32 +557,35 @@ Detailed steps to accomplish the goal.
                     existing_names.add(dep.skill_name)
 
             all_deps = list(skill.depends_on) + [
-                d for d in inferred_deps
+                d
+                for d in inferred_deps
                 if d.skill_name not in {e.skill_name for e in skill.depends_on}
             ]
 
             # Filter to skills in our set
             filtered_deps = tuple(d for d in all_deps if d.skill_name in skill_names)
 
-            skills_with_deps.append(Skill(
-                name=skill.name,
-                description=skill.description,
-                skill_type=skill.skill_type,
-                depends_on=filtered_deps,
-                produces=skill.produces,
-                requires=skill.requires,
-                triggers=skill.triggers,
-                instructions=skill.instructions,
-                scripts=skill.scripts,
-                templates=skill.templates,
-                resources=skill.resources,
-                preset=skill.preset,
-                permissions=skill.permissions,
-                security=skill.security,
-                trust=skill.trust,
-                timeout=skill.timeout,
-                validate_with=skill.validate_with,
-            ))
+            skills_with_deps.append(
+                Skill(
+                    name=skill.name,
+                    description=skill.description,
+                    skill_type=skill.skill_type,
+                    depends_on=filtered_deps,
+                    produces=skill.produces,
+                    requires=skill.requires,
+                    triggers=skill.triggers,
+                    instructions=skill.instructions,
+                    scripts=skill.scripts,
+                    templates=skill.templates,
+                    resources=skill.resources,
+                    preset=skill.preset,
+                    permissions=skill.permissions,
+                    security=skill.security,
+                    trust=skill.trust,
+                    timeout=skill.timeout,
+                    validate_with=skill.validate_with,
+                )
+            )
 
         return SkillGraph.from_skills(skills_with_deps)
 
@@ -658,8 +659,7 @@ Detailed steps to accomplish the goal.
 
         # Build instructions
         steps = "\n".join(
-            f"{i+1}. Execute {s.name}: {s.description}"
-            for i, s in enumerate(skills)
+            f"{i + 1}. Execute {s.name}: {s.description}" for i, s in enumerate(skills)
         )
 
         return Skill(
@@ -727,8 +727,7 @@ Merge all outputs when all skills complete.
             all_produces.update(skill.produces)
 
         conditions = "\n".join(
-            f"- If condition_{i}: Execute {s.name}"
-            for i, s in enumerate(skills)
+            f"- If condition_{i}: Execute {s.name}" for i, s in enumerate(skills)
         )
 
         return Skill(
@@ -763,8 +762,7 @@ Evaluate conditions and execute matching skills.
             all_produces.update(skill.produces)
 
         chain = "\n".join(
-            f"{i+1}. Try {s.name} - if fails, continue"
-            for i, s in enumerate(skills)
+            f"{i + 1}. Try {s.name} - if fails, continue" for i, s in enumerate(skills)
         )
 
         return Skill(

@@ -44,7 +44,7 @@ If observations are contradictory or too sparse, use lower confidence.
 
 def _extract_confidence(content: str) -> float:
     """Extract confidence score from digest output."""
-    match = re.search(r'CONFIDENCE:\s*([\d.]+)', content, re.IGNORECASE)
+    match = re.search(r"CONFIDENCE:\s*([\d.]+)", content, re.IGNORECASE)
     if match:
         try:
             return min(1.0, max(0.0, float(match.group(1))))
@@ -56,7 +56,7 @@ def _extract_confidence(content: str) -> float:
 def _extract_prompt(content: str) -> str:
     """Extract prompt text, removing confidence line."""
     # Remove confidence line
-    cleaned = re.sub(r'\n?CONFIDENCE:.*$', '', content, flags=re.IGNORECASE | re.MULTILINE)
+    cleaned = re.sub(r"\n?CONFIDENCE:.*$", "", content, flags=re.IGNORECASE | re.MULTILINE)
     return cleaned.strip()
 
 
@@ -111,7 +111,11 @@ async def digest_identity(
         return current_identity or Identity()
 
     # Build prompt
-    previous = current_identity.prompt if current_identity and current_identity.prompt else "None - first synthesis"
+    previous = (
+        current_identity.prompt
+        if current_identity and current_identity.prompt
+        else "None - first synthesis"
+    )
     obs_text = "\n".join(f"- {obs}" for obs in observations[-20:])  # Last 20
 
     prompt = _DIGEST_PROMPT.format(
@@ -130,7 +134,7 @@ async def digest_identity(
         # Enforce length limit
         if len(prompt_text) > MAX_IDENTITY_PROMPT_LENGTH:
             # Truncate at word boundary
-            prompt_text = prompt_text[:MAX_IDENTITY_PROMPT_LENGTH].rsplit(' ', 1)[0] + "..."
+            prompt_text = prompt_text[:MAX_IDENTITY_PROMPT_LENGTH].rsplit(" ", 1)[0] + "..."
 
         # Only return if confident enough
         if confidence < MIN_IDENTITY_CONFIDENCE:
@@ -173,8 +177,14 @@ async def quick_digest(
     # Simple heuristic: look for dominant patterns
     casual_count = sum(1 for o in observations if "casual" in o.lower() or "informal" in o.lower())
     formal_count = sum(1 for o in observations if "formal" in o.lower())
-    appreciative_count = sum(1 for o in observations if "appreciat" in o.lower() or "thank" in o.lower())
-    testing_count = sum(1 for o in observations if "test" in o.lower() or "memory" in o.lower() or "recall" in o.lower())
+    appreciative_count = sum(
+        1 for o in observations if "appreciat" in o.lower() or "thank" in o.lower()
+    )
+    testing_count = sum(
+        1
+        for o in observations
+        if "test" in o.lower() or "memory" in o.lower() or "recall" in o.lower()
+    )
 
     parts = []
 

@@ -83,9 +83,7 @@ DOMAIN_PATTERNS: dict[str, Pattern[str]] = {
 }
 
 # File path pattern for detecting file references in text
-FILE_PATH_PATTERN: Pattern[str] = re.compile(
-    r"[\w/]+\.(py|ts|js|go|rs|java|rb|md|yaml|json)"
-)
+FILE_PATH_PATTERN: Pattern[str] = re.compile(r"[\w/]+\.(py|ts|js|go|rs|java|rb|md|yaml|json)")
 
 
 def detect_domains(text: str) -> list[str]:

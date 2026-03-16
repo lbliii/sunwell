@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from sunwell.contracts.fount import FountProtocol
-from sunwell.foundation.schema.models.types import LensReference
 from sunwell.foundation.core.lens import Lens
 from sunwell.foundation.errors import ErrorCode, lens_error
 from sunwell.foundation.schema.loader.parsers import (
@@ -32,6 +31,7 @@ from sunwell.foundation.schema.loader.parsers import (
     parse_workflows,
 )
 from sunwell.foundation.schema.loader.presets import load_presets, resolve_preset
+from sunwell.foundation.schema.models.types import LensReference
 from sunwell.foundation.utils import safe_yaml_load, safe_yaml_loads
 
 
@@ -181,9 +181,7 @@ class LensLoader:
         # Parse compose
         compose = ()
         if "compose" in lens_data:
-            compose = tuple(
-                parse_lens_reference(ref) for ref in lens_data["compose"]
-            )
+            compose = tuple(parse_lens_reference(ref) for ref in lens_data["compose"])
 
         # Parse heuristics
         heuristics = ()
@@ -247,6 +245,7 @@ class LensLoader:
 
         # Parse quality policy
         from sunwell.foundation.core.lens import QualityPolicy
+
         quality_policy = QualityPolicy()
         if "quality_policy" in lens_data:
             quality_policy = parse_quality_policy(lens_data["quality_policy"])

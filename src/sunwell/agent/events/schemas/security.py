@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 
 class SecurityApprovalRequestedData(TypedDict, total=False):
     """Data for security_approval_requested event."""
+
     dag_id: str  # Required
     dag_name: str  # Required
     skill_count: int  # Required
@@ -16,6 +17,7 @@ class SecurityApprovalRequestedData(TypedDict, total=False):
 
 class SecurityApprovalReceivedData(TypedDict, total=False):
     """Data for security_approval_received event."""
+
     dag_id: str  # Required
     approved: bool  # Required
     modified: bool  # Whether permissions were modified
@@ -24,6 +26,7 @@ class SecurityApprovalReceivedData(TypedDict, total=False):
 
 class SecurityViolationData(TypedDict, total=False):
     """Data for security_violation event."""
+
     skill_name: str  # Required
     violation_type: str  # Required: credential_leak, path_traversal, etc.
     evidence: str  # Required
@@ -34,6 +37,7 @@ class SecurityViolationData(TypedDict, total=False):
 
 class SecurityScanCompleteData(TypedDict, total=False):
     """Data for security_scan_complete event."""
+
     output_length: int  # Required
     violations_found: int  # Required
     scan_duration_ms: int  # Required
@@ -42,6 +46,7 @@ class SecurityScanCompleteData(TypedDict, total=False):
 
 class AuditLogEntryData(TypedDict, total=False):
     """Data for audit_log_entry event."""
+
     skill_name: str  # Required
     action: str  # Required: execute/violation/denied/error
     risk_level: str  # Required: low/medium/high/critical

@@ -14,7 +14,6 @@ Example:
     ```
 """
 
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -157,9 +156,7 @@ class ConstraintValidator:
         # Enumerate all variable bindings
         for bindings in enumerate_bindings(parsed.for_clauses, artifacts):
             # Check WHERE clause if present (SIM102: combined if)
-            if parsed.where_clause and not evaluate_condition(
-                parsed.where_clause, bindings
-            ):
+            if parsed.where_clause and not evaluate_condition(parsed.where_clause, bindings):
                 continue  # Filtered out by WHERE
 
             # Check ASSERT clause
@@ -265,10 +262,7 @@ class SchemaValidationRunner:
         severity_order = {"error": 0, "warning": 1, "info": 2}
         min_level = severity_order.get(min_severity, 1)
 
-        return [
-            v for v in violations
-            if severity_order.get(v.severity, 1) <= min_level
-        ]
+        return [v for v in violations if severity_order.get(v.severity, 1) <= min_level]
 
     def format_report(
         self,

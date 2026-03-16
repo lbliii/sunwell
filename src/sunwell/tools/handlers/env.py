@@ -34,8 +34,7 @@ async def get_env(args: dict) -> str:
 
     if _is_env_blocked(name, ENV_BLOCKLIST_PATTERNS):
         return (
-            f"[BLOCKED] Environment variable '{name}' may contain secrets "
-            "and cannot be accessed."
+            f"[BLOCKED] Environment variable '{name}' may contain secrets and cannot be accessed."
         )
 
     if name not in ENV_ALLOWLIST:

@@ -142,18 +142,18 @@ class SunwellProjects(ProjectsProvider):
                 continue
 
             # Check for project markers
-            is_project = any(
-                (entry / marker).exists() for marker in project_markers
-            )
+            is_project = any((entry / marker).exists() for marker in project_markers)
 
             if is_project and str(entry) not in existing_paths:
-                existing.append({
-                    "path": str(entry),
-                    "name": entry.name,
-                    "last_opened": now.isoformat(),
-                    "status": "active",
-                    "description": None,
-                })
+                existing.append(
+                    {
+                        "path": str(entry),
+                        "name": entry.name,
+                        "last_opened": now.isoformat(),
+                        "status": "active",
+                        "description": None,
+                    }
+                )
 
         self._save(existing)
         return await self.list_projects()

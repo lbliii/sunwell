@@ -178,15 +178,11 @@ def evaluate_condition(condition: str, bindings: dict[str, Any]) -> bool:
     # Handle comparisons
     if "==" in condition:
         left, right = condition.split("==", 1)
-        return _resolve_value(left.strip(), bindings) == _resolve_value(
-            right.strip(), bindings
-        )
+        return _resolve_value(left.strip(), bindings) == _resolve_value(right.strip(), bindings)
 
     if "!=" in condition:
         left, right = condition.split("!=", 1)
-        return _resolve_value(left.strip(), bindings) != _resolve_value(
-            right.strip(), bindings
-        )
+        return _resolve_value(left.strip(), bindings) != _resolve_value(right.strip(), bindings)
 
     # Handle IN membership
     if " IN " in condition.upper():

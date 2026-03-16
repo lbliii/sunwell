@@ -263,7 +263,9 @@ class Workspace:
         )
 
     @classmethod
-    def single_project(cls, project_id: str, project_path: Path, name: str | None = None) -> Workspace:
+    def single_project(
+        cls, project_id: str, project_path: Path, name: str | None = None
+    ) -> Workspace:
         """Create a workspace with a single project.
 
         Convenience factory for the common case of working with one project.

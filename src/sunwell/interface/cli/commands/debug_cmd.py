@@ -227,8 +227,10 @@ def logs(lines: int, list: bool, session: str | None) -> None:
             mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
             age = datetime.now() - mtime
             age_str = (
-                f"{age.days}d ago" if age.days > 0
-                else f"{age.seconds // 3600}h ago" if age.seconds >= 3600
+                f"{age.days}d ago"
+                if age.days > 0
+                else f"{age.seconds // 3600}h ago"
+                if age.seconds >= 3600
                 else f"{age.seconds // 60}m ago"
             )
             console.print(f"  {i}. {log_file.name} ({size_kb:.1f} KB, {age_str})")
@@ -253,7 +255,9 @@ def logs(lines: int, list: bool, session: str | None) -> None:
         # Show header
         mtime = datetime.fromtimestamp(target_log.stat().st_mtime)
         console.print(f"[bold]Session log:[/bold] {target_log.name}")
-        console.print(f"[dim]Time: {mtime.strftime('%Y-%m-%d %H:%M:%S')} ({len(log_lines)} lines total)[/dim]\n")
+        console.print(
+            f"[dim]Time: {mtime.strftime('%Y-%m-%d %H:%M:%S')} ({len(log_lines)} lines total)[/dim]\n"
+        )
 
         # Show last N lines
         display_lines = log_lines[-lines:] if len(log_lines) > lines else log_lines
@@ -483,9 +487,7 @@ Free:  {free // (1024**3)} GB
     # Memory (platform-specific)
     try:
         if platform.system() == "Darwin":
-            result = subprocess.run(
-                ["vm_stat"], capture_output=True, text=True, timeout=5
-            )
+            result = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5)
             (dest / "memory.txt").write_text(result.stdout)
         elif platform.system() == "Linux":
             mem_info = Path("/proc/meminfo").read_text()
@@ -510,10 +512,7 @@ Free:  {free // (1024**3)} GB
             relevant = [
                 line
                 for line in lines[1:]
-                if any(
-                    term in line.lower()
-                    for term in ["sunwell", "python", "ollama", "node"]
-                )
+                if any(term in line.lower() for term in ["sunwell", "python", "ollama", "node"])
             ]
             (dest / "processes.txt").write_text(header + "\n" + "\n".join(relevant))
         else:

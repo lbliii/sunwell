@@ -125,17 +125,14 @@ class PlanMetricsV2(PlanMetrics):
         """
         return (
             # Parallelism (reworked) — 35%
-            self.parallel_work_ratio * 20        # Work per wave transition
-            + self.avg_wave_width * 15           # Fat waves = good
-
+            self.parallel_work_ratio * 20  # Work per wave transition
+            + self.avg_wave_width * 15  # Fat waves = good
             # Structure quality — 30%
-            + self.depth_utilization * 20        # Using depth well
+            + self.depth_utilization * 20  # Using depth well
             + (1 / (1 + self.wave_variance)) * 10  # Balanced waves
-
             # Semantic coherence — 20%
-            + self.keyword_coverage * 15         # Covers the goal
+            + self.keyword_coverage * 15  # Covers the goal
             + (5 if self.has_convergence else 0)  # Proper DAG structure
-
             # Conflict avoidance — 15%
             + (1 / (1 + self.file_conflicts)) * 15
         )

@@ -68,9 +68,7 @@ class ProseChunker:
 
         return chunks
 
-    def _split_by_headers(
-        self, content: str
-    ) -> list[tuple[str | None, str, int]]:
+    def _split_by_headers(self, content: str) -> list[tuple[str | None, str, int]]:
         """Split content by markdown headers.
 
         Returns: [(title, content, start_line), ...]
@@ -136,10 +134,7 @@ class ProseChunker:
             para_words = len(para.split())
 
             # If adding this paragraph exceeds max, save current chunk
-            if (
-                current_word_count + para_words > self.MAX_WORDS
-                and current_chunk_paragraphs
-            ):
+            if current_word_count + para_words > self.MAX_WORDS and current_chunk_paragraphs:
                 chunk_content = "\n\n".join(current_chunk_paragraphs)
                 chunks.append(
                     ProseChunk(

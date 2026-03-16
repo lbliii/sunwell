@@ -13,7 +13,7 @@ class _AnalysisStub:
 class Self:
     """No-op Self singleton stub. Mirror feature was removed."""
 
-    _instance: "Self | None" = None
+    _instance: Self | None = None
 
     def __init__(self) -> None:
         self.source_root = Path(__file__).resolve().parents[5]
@@ -21,7 +21,7 @@ class Self:
         self.analysis = _AnalysisStub()
 
     @classmethod
-    def get(cls) -> "Self":
+    def get(cls) -> Self:
         """Return singleton instance."""
         if cls._instance is None:
             cls._instance = cls()

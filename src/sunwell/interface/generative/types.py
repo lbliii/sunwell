@@ -15,17 +15,17 @@ InteractionType = Literal["workspace", "view", "action", "conversation", "hybrid
 
 # Auxiliary panel types for conversation layouts
 AuxiliaryPanelType = Literal[
-    "calendar",   # Calendar/scheduling view
-    "tasks",      # Task/todo list
-    "chart",      # Data visualization (line, bar, pie)
-    "image",      # Visual aid or preview
-    "upload",     # File upload prompt
-    "code",       # Code block with syntax highlighting
-    "map",        # Location/geographic reference
-    "editor",     # Editable text panel
-    "document",   # Document preview
-    "products",   # Product comparison list
-    "links",      # Related resources/references
+    "calendar",  # Calendar/scheduling view
+    "tasks",  # Task/todo list
+    "chart",  # Data visualization (line, bar, pie)
+    "image",  # Visual aid or preview
+    "upload",  # File upload prompt
+    "code",  # Code block with syntax highlighting
+    "map",  # Location/geographic reference
+    "editor",  # Editable text panel
+    "document",  # Document preview
+    "products",  # Product comparison list
+    "links",  # Related resources/references
 ]
 
 # Suggested input tool types

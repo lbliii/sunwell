@@ -3,7 +3,6 @@
 Generate behavioral tests from specifications.
 """
 
-
 import json
 import re
 import uuid
@@ -88,9 +87,7 @@ class TestGenerator:
         tests = sorted(tests, key=lambda t: t.priority, reverse=True)
         return tests[:max_tests]
 
-    def _allocate_budget(
-        self, spec: Specification, max_tests: int
-    ) -> dict[str, int]:
+    def _allocate_budget(self, spec: Specification, max_tests: int) -> dict[str, int]:
         """Allocate test budget across categories."""
         budget: dict[str, int] = {
             "happy_path": 0,
@@ -111,9 +108,7 @@ class TestGenerator:
         has_invariants = len(spec.invariants) > 0
         has_preconditions = len(spec.preconditions) > 0
 
-        categories_with_content = sum(
-            [has_edge_cases, has_invariants, has_preconditions]
-        )
+        categories_with_content = sum([has_edge_cases, has_invariants, has_preconditions])
 
         if categories_with_content > 0 and remaining > 0:
             per_category = remaining // categories_with_content

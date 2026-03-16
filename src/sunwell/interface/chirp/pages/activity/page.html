@@ -42,11 +42,8 @@
             </select>
         </div>
 
-        <div class="activity-feed"
-             hx-get="/activity/feed"
-             hx-trigger="load"
-             hx-swap="beforeend"
-             style="max-height: 600px; overflow-y: auto;">
+        <div class="activity-feed" id="activity-feed" style="max-height: 600px; overflow-y: auto;"
+             hx-get="/activity/feed" hx-trigger="every 5s" hx-swap="innerHTML">
             <div style="text-align: center; padding: var(--chirpui-spacing-xl) var(--chirpui-spacing-md);">
                 <p class="chirpui-text-muted">Listening for tool calls...</p>
                 <p class="chirpui-ui-sm chirpui-text-muted">Activity will appear here when AI agents call Sunwell tools</p>

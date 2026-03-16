@@ -7,7 +7,6 @@ Performance optimizations:
 - Adaptive worker count based on GIL state
 """
 
-
 import asyncio
 import fnmatch
 import hashlib
@@ -253,9 +252,7 @@ class CodebaseIndexer:
         # Pre-compile include patterns for O(1) matching per pattern
         self._include_re: tuple[re.Pattern[str], ...] | None = None
         if include_patterns:
-            self._include_re = tuple(
-                re.compile(fnmatch.translate(p)) for p in include_patterns
-            )
+            self._include_re = tuple(re.compile(fnmatch.translate(p)) for p in include_patterns)
         self._index: CodebaseIndex | None = None
         self._vector_index: dict[str, list[float]] = {}
 
@@ -285,10 +282,9 @@ class CodebaseIndexer:
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=workers) as pool:
             # Parse all files in parallel threads
-            chunk_lists = await asyncio.gather(*[
-                loop.run_in_executor(pool, self._chunk_file, path)
-                for path in files
-            ])
+            chunk_lists = await asyncio.gather(
+                *[loop.run_in_executor(pool, self._chunk_file, path) for path in files]
+            )
 
         # Flatten and deduplicate using content-addressable hashing
         seen_hashes: set[str] = set()
@@ -309,8 +305,7 @@ class CodebaseIndexer:
             result = await self.embedder.embed(texts)
 
             embedding_dict = {
-                chunk.id: result.vectors[i].tolist()
-                for i, chunk in enumerate(chunks)
+                chunk.id: result.vectors[i].tolist() for i, chunk in enumerate(chunks)
             }
         else:
             embedding_dict = {}
@@ -467,34 +462,40 @@ class CodebaseIndexer:
         # Extract classes
         classes = extract_class_defs(tree)
         for node in classes:
-            definitions.append((
-                node.lineno,
-                node.end_lineno or node.lineno,
-                "class",
-                node.name,
-            ))
+            definitions.append(
+                (
+                    node.lineno,
+                    node.end_lineno or node.lineno,
+                    "class",
+                    node.name,
+                )
+            )
 
         # Extract functions
         functions = extract_function_defs(tree)
         for node in functions:
-            definitions.append((
-                node.lineno,
-                node.end_lineno or node.lineno,
-                "function",
-                node.name,
-            ))
+            definitions.append(
+                (
+                    node.lineno,
+                    node.end_lineno or node.lineno,
+                    "function",
+                    node.name,
+                )
+            )
 
         if not definitions:
             # No functions/classes, chunk whole file
             if len(lines) <= self.MAX_CHUNK_LINES:
-                return [CodeChunk(
-                    file_path=file_path,
-                    start_line=1,
-                    end_line=len(lines),
-                    content=content,
-                    chunk_type="module",
-                    name=file_path.stem,
-                )]
+                return [
+                    CodeChunk(
+                        file_path=file_path,
+                        start_line=1,
+                        end_line=len(lines),
+                        content=content,
+                        chunk_type="module",
+                        name=file_path.stem,
+                    )
+                ]
             return self._chunk_by_blocks(file_path, lines)
 
         # Sort by start line and deduplicate
@@ -507,19 +508,21 @@ class CodebaseIndexer:
             while actual_start > 1 and lines[actual_start - 2].strip().startswith("@"):
                 actual_start -= 1
 
-            chunk_lines = lines[actual_start - 1:end_line]
+            chunk_lines = lines[actual_start - 1 : end_line]
             chunk_content = "\n".join(chunk_lines)
 
             if len(chunk_lines) >= self.MIN_CHUNK_LINES:
-                chunks.append(CodeChunk(
-                    file_path=file_path,
-                    start_line=actual_start,
-                    end_line=end_line,
-                    content=chunk_content,
-                    chunk_type=def_type,
-                    name=name,
-                    _content_hash=_content_hash(chunk_content),
-                ))
+                chunks.append(
+                    CodeChunk(
+                        file_path=file_path,
+                        start_line=actual_start,
+                        end_line=end_line,
+                        content=chunk_content,
+                        chunk_type=def_type,
+                        name=name,
+                        _content_hash=_content_hash(chunk_content),
+                    )
+                )
 
         return chunks
 
@@ -536,13 +539,15 @@ class CodebaseIndexer:
             chunk_lines = lines[i:end]
 
             if len(chunk_lines) >= self.MIN_CHUNK_LINES:
-                chunks.append(CodeChunk(
-                    file_path=file_path,
-                    start_line=i + 1,
-                    end_line=end,
-                    content="\n".join(chunk_lines),
-                    chunk_type="block",
-                ))
+                chunks.append(
+                    CodeChunk(
+                        file_path=file_path,
+                        start_line=i + 1,
+                        end_line=end,
+                        content="\n".join(chunk_lines),
+                        chunk_type="block",
+                    )
+                )
 
         return chunks
 

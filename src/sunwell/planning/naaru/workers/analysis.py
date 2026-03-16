@@ -1,6 +1,5 @@
 """Analysis worker - reads code, finds patterns, introspection."""
 
-
 import asyncio
 import json
 

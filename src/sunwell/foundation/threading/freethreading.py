@@ -19,7 +19,6 @@ When GIL is enabled (standard Python):
 - Keep workers lower to reduce context-switch overhead
 """
 
-
 import asyncio
 import os
 import sys
@@ -66,6 +65,7 @@ def is_free_threaded() -> bool:
     # Method 2: Build config
     try:
         import sysconfig
+
         gil_disabled = sysconfig.get_config_var("Py_GIL_DISABLED")
         if gil_disabled:
             return bool(int(gil_disabled))
@@ -189,10 +189,7 @@ async def run_parallel[T](
     loop = asyncio.get_event_loop()
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [
-            loop.run_in_executor(pool, task)
-            for task in tasks
-        ]
+        futures = [loop.run_in_executor(pool, task) for task in tasks]
         results = await asyncio.gather(*futures, return_exceptions=True)
 
     elapsed = (time.perf_counter() - start) * 1000

@@ -294,16 +294,18 @@ class ToolOrchestratorShard:
 
             if score > 0.1:  # Include if any relevance
                 # Use to_prompt_fragment() to get formatted content
-                expertise.append(RetrievedExpertise(
-                    name=heuristic.name,
-                    content=heuristic.to_prompt_fragment(),
-                    score=score,
-                    source="heuristic (keyword)",
-                ))
+                expertise.append(
+                    RetrievedExpertise(
+                        name=heuristic.name,
+                        content=heuristic.to_prompt_fragment(),
+                        score=score,
+                        source="heuristic (keyword)",
+                    )
+                )
 
         # Sort by score descending
         expertise.sort(key=lambda e: e.score, reverse=True)
-        return expertise[:self.top_k]
+        return expertise[: self.top_k]
 
     def _build_enriched_prompt(
         self,
@@ -332,13 +334,15 @@ class ToolOrchestratorShard:
             parts.append(e.content)
             parts.append("")
 
-        parts.extend([
-            "---",
-            "",
-            "## Task",
-            "",
-            task,
-        ])
+        parts.extend(
+            [
+                "---",
+                "",
+                "## Task",
+                "",
+                task,
+            ]
+        )
 
         return "\n".join(parts)
 
@@ -346,6 +350,7 @@ class ToolOrchestratorShard:
 # =============================================================================
 # Convenience function for quick usage
 # =============================================================================
+
 
 async def prefetch_expertise(
     task: str,

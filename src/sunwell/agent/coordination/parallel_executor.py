@@ -24,6 +24,7 @@ from sunwell.agent.coordination.registry import (
     SubagentRecord,
     get_registry,
 )
+from sunwell.agent.coordination.types import TaskResult
 from sunwell.agent.execution.lanes import ExecutionLane, get_lanes
 from sunwell.agent.isolation import (
     FallbackIsolation,
@@ -39,29 +40,6 @@ if TYPE_CHECKING:
     from sunwell.planning.naaru.types import Task
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(slots=True)
-class TaskResult:
-    """Result of executing a task."""
-
-    task_id: str
-    """ID of the task."""
-
-    success: bool
-    """Whether the task completed successfully."""
-
-    output: str | None = None
-    """Output or result description."""
-
-    error: str | None = None
-    """Error message if failed."""
-
-    artifacts: list[str] = field(default_factory=list)
-    """Paths of artifacts created."""
-
-    duration_ms: int = 0
-    """Execution time in milliseconds."""
 
 
 @dataclass(slots=True)
@@ -197,9 +175,7 @@ class ParallelExecutor:
         if config.enable_worktree_isolation:
             worktree_manager = WorktreeManager(base_path=parent.cwd)
             if not await worktree_manager.is_git_repo():
-                logger.warning(
-                    "Workspace is not a git repo, falling back to in-memory staging"
-                )
+                logger.warning("Workspace is not a git repo, falling back to in-memory staging")
                 worktree_manager = None
                 fallback_manager = FallbackIsolation(workspace=parent.cwd)
         else:
@@ -260,7 +236,9 @@ class ParallelExecutor:
                     task_result = TaskResult(
                         task_id=task.id,
                         success=outcome == SubagentOutcome.OK,
-                        error=f"Outcome: {outcome.value}" if outcome != SubagentOutcome.OK else None,
+                        error=f"Outcome: {outcome.value}"
+                        if outcome != SubagentOutcome.OK
+                        else None,
                     )
                     task_results.append(task_result)
                     # Create failure handoff
@@ -327,9 +305,7 @@ class ParallelExecutor:
                             full_path = worktree_info.path / file_path
                             if full_path.exists():
                                 content = full_path.read_text(encoding="utf-8")
-                                validation = self._content_validator.validate(
-                                    content, file_path
-                                )
+                                validation = self._content_validator.validate(content, file_path)
                                 if not validation.valid:
                                     results[run_id] = MergeResult(
                                         success=False,
@@ -470,6 +446,7 @@ class ParallelExecutor:
         # Enqueue all tasks in the subagent lane
         tasks_to_run = []
         for run_id, (task, record) in task_map.items():
+
             async def task_wrapper(
                 rid: str = run_id,
                 t: Task = task,
@@ -533,21 +510,19 @@ class ParallelExecutor:
                 )
                 result = await self._task_executor(child_session, task)
 
-                result.duration_ms = int(
-                    (datetime.now() - task_start).total_seconds() * 1000
-                )
+                result.duration_ms = int((datetime.now() - task_start).total_seconds() * 1000)
                 task_results.append(result)
 
             except Exception as e:
                 logger.exception("Sequential task %s failed", task.id)
-                task_results.append(TaskResult(
-                    task_id=task.id,
-                    success=False,
-                    error=str(e),
-                    duration_ms=int(
-                        (datetime.now() - task_start).total_seconds() * 1000
-                    ),
-                ))
+                task_results.append(
+                    TaskResult(
+                        task_id=task.id,
+                        success=False,
+                        error=str(e),
+                        duration_ms=int((datetime.now() - task_start).total_seconds() * 1000),
+                    )
+                )
 
         end_time = datetime.now()
         duration_ms = int((end_time - start_time).total_seconds() * 1000)

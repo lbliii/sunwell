@@ -16,7 +16,7 @@ Usage:
         get_tool_scope,
         requires_approval,
     )
-    
+
     classifier = DAGClassifier(model=model)
     result = await classifier.classify("Add input validation to login")
     # result.path = (CONVERSATION, ACT, WRITE, MODIFY)

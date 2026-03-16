@@ -1,6 +1,5 @@
 """Persona data models for stakeholder simulation."""
 
-
 from dataclasses import dataclass
 
 

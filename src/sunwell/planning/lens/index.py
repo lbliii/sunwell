@@ -64,8 +64,7 @@ class LensIndex:
     def from_dict(cls, data: dict[str, object]) -> LensIndex:
         """Create from dictionary representation."""
         lenses = {
-            uri: LensIndexEntry.from_dict(entry)
-            for uri, entry in data.get("lenses", {}).items()
+            uri: LensIndexEntry.from_dict(entry) for uri, entry in data.get("lenses", {}).items()
         }
         return cls(
             version=data.get("version", INDEX_VERSION),
@@ -112,9 +111,7 @@ class LensIndexManager:
         builtin_lens_dir: Directory for built-in lenses
     """
 
-    user_lens_dir: Path = field(
-        default_factory=lambda: Path.home() / ".sunwell" / "lenses"
-    )
+    user_lens_dir: Path = field(default_factory=lambda: Path.home() / ".sunwell" / "lenses")
     builtin_lens_dir: Path | None = None
 
     _index: LensIndex | None = field(default=None, init=False)
@@ -378,9 +375,7 @@ class LensIndexManager:
         self._save_index(new_index)
         return new_index
 
-    def _create_legacy_entry(
-        self, lens_file: Path, namespace: str
-    ) -> LensIndexEntry | None:
+    def _create_legacy_entry(self, lens_file: Path, namespace: str) -> LensIndexEntry | None:
         """Create an index entry for a legacy flat lens file."""
         import yaml
 

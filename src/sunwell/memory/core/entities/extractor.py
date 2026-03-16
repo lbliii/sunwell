@@ -45,13 +45,48 @@ class PatternEntityExtractor:
 
     # Technology patterns (known frameworks, libraries)
     TECH_KEYWORDS = {
-        "Python", "JavaScript", "TypeScript", "React", "ReactJS", "Vue", "Angular",
-        "Django", "Flask", "FastAPI", "Node", "NodeJS", "Express", "Next.js",
-        "Docker", "Kubernetes", "Redis", "PostgreSQL", "MongoDB", "MySQL",
-        "AWS", "GCP", "Azure", "Git", "GitHub", "GitLab",
-        "pytest", "jest", "vitest", "unittest", "SQLAlchemy", "Pydantic",
-        "numpy", "pandas", "scikit-learn", "tensorflow", "pytorch",
-        "Svelte", "Solid", "Qwik", "Astro", "Remix",
+        "Python",
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "ReactJS",
+        "Vue",
+        "Angular",
+        "Django",
+        "Flask",
+        "FastAPI",
+        "Node",
+        "NodeJS",
+        "Express",
+        "Next.js",
+        "Docker",
+        "Kubernetes",
+        "Redis",
+        "PostgreSQL",
+        "MongoDB",
+        "MySQL",
+        "AWS",
+        "GCP",
+        "Azure",
+        "Git",
+        "GitHub",
+        "GitLab",
+        "pytest",
+        "jest",
+        "vitest",
+        "unittest",
+        "SQLAlchemy",
+        "Pydantic",
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "tensorflow",
+        "pytorch",
+        "Svelte",
+        "Solid",
+        "Qwik",
+        "Astro",
+        "Remix",
     }
 
     # Code symbol patterns
@@ -90,12 +125,14 @@ class PatternEntityExtractor:
                     entity = self._create_entity(file_path, EntityType.FILE)
                     entities.append(entity)
                     if learning_id:
-                        mentions.append(EntityMention(
-                            learning_id=learning_id,
-                            entity_id=entity.entity_id,
-                            mention_text=file_path,
-                            confidence=0.95,
-                        ))
+                        mentions.append(
+                            EntityMention(
+                                learning_id=learning_id,
+                                entity_id=entity.entity_id,
+                                mention_text=file_path,
+                                confidence=0.95,
+                            )
+                        )
                     seen_names.add(file_path)
 
         # Extract tech keywords
@@ -107,12 +144,14 @@ class PatternEntityExtractor:
                     entity = self._create_entity(tech, EntityType.TECH)
                     entities.append(entity)
                     if learning_id:
-                        mentions.append(EntityMention(
-                            learning_id=learning_id,
-                            entity_id=entity.entity_id,
-                            mention_text=tech,
-                            confidence=0.9,
-                        ))
+                        mentions.append(
+                            EntityMention(
+                                learning_id=learning_id,
+                                entity_id=entity.entity_id,
+                                mention_text=tech,
+                                confidence=0.9,
+                            )
+                        )
                     seen_names.add(tech)
 
         # Extract code symbols
@@ -124,12 +163,14 @@ class PatternEntityExtractor:
                     entity = self._create_entity(symbol, EntityType.SYMBOL)
                     entities.append(entity)
                     if learning_id:
-                        mentions.append(EntityMention(
-                            learning_id=learning_id,
-                            entity_id=entity.entity_id,
-                            mention_text=symbol,
-                            confidence=0.85,
-                        ))
+                        mentions.append(
+                            EntityMention(
+                                learning_id=learning_id,
+                                entity_id=entity.entity_id,
+                                mention_text=symbol,
+                                confidence=0.85,
+                            )
+                        )
                     seen_names.add(symbol)
 
         # Extract concepts (capitalized phrases)
@@ -146,12 +187,14 @@ class PatternEntityExtractor:
                 entity = self._create_entity(concept, EntityType.CONCEPT)
                 entities.append(entity)
                 if learning_id:
-                    mentions.append(EntityMention(
-                        learning_id=learning_id,
-                        entity_id=entity.entity_id,
-                        mention_text=concept,
-                        confidence=0.7,
-                    ))
+                    mentions.append(
+                        EntityMention(
+                            learning_id=learning_id,
+                            entity_id=entity.entity_id,
+                            mention_text=concept,
+                            confidence=0.7,
+                        )
+                    )
                 seen_names.add(concept)
 
         return ExtractionResult(
@@ -164,9 +207,7 @@ class PatternEntityExtractor:
     def _create_entity(self, name: str, entity_type: EntityType) -> Entity:
         """Create an entity with ID and metadata."""
         # Generate stable ID from name + type
-        entity_id = hashlib.sha256(
-            f"{name.lower()}:{entity_type.value}".encode()
-        ).hexdigest()[:16]
+        entity_id = hashlib.sha256(f"{name.lower()}:{entity_type.value}".encode()).hexdigest()[:16]
 
         return Entity(
             entity_id=entity_id,

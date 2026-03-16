@@ -164,7 +164,9 @@ class HarmonicPlanner:
         Validation mode controlled by SUNWELL_EVENT_VALIDATION env var.
         RFC-112: Debug logging for Observatory event flow verification.
         """
-        self._logger.debug(f"[Observatory] Emitting event: {event_type} (callback={'set' if self.event_callback else 'NOT SET'})")
+        self._logger.debug(
+            f"[Observatory] Emitting event: {event_type} (callback={'set' if self.event_callback else 'NOT SET'})"
+        )
 
         if self.event_callback is None:
             self._logger.debug(f"[Observatory] Event {event_type} dropped - no callback configured")
@@ -241,14 +243,17 @@ class HarmonicPlanner:
             object.__setattr__(self, "_last_planning_context", planning_context)
 
             # Emit knowledge retrieved event
-            self._emit_event("knowledge_retrieved", {
-                "facts_count": len(planning_context.facts),
-                "constraints_count": len(planning_context.constraints),
-                "dead_ends_count": len(planning_context.dead_ends),
-                "templates_count": len(planning_context.templates),
-                "heuristics_count": len(planning_context.heuristics),
-                "patterns_count": len(planning_context.patterns),
-            })
+            self._emit_event(
+                "knowledge_retrieved",
+                {
+                    "facts_count": len(planning_context.facts),
+                    "constraints_count": len(planning_context.constraints),
+                    "dead_ends_count": len(planning_context.dead_ends),
+                    "templates_count": len(planning_context.templates),
+                    "heuristics_count": len(planning_context.heuristics),
+                    "patterns_count": len(planning_context.patterns),
+                },
+            )
 
             # Inject into Convergence for use during generation
             if self.convergence and planning_context:
@@ -258,11 +263,14 @@ class HarmonicPlanner:
         # RFC-122: Check for high-confidence template match
         template = planning_context.best_template if planning_context else None
         if template and template.template_data and template.confidence >= 0.8:
-            self._emit_event("template_matched", {
-                "template_id": template.id,
-                "template_name": template.template_data.name,
-                "confidence": template.confidence,
-            })
+            self._emit_event(
+                "template_matched",
+                {
+                    "template_id": template.id,
+                    "template_name": template.template_data.name,
+                    "confidence": template.confidence,
+                },
+            )
             return await plan_with_template(self, goal, template, planning_context, context)
 
         # Build context with knowledge if available
@@ -311,25 +319,29 @@ class HarmonicPlanner:
         # Emit scored events (use candidate_id for reliable matching)
         for i, candidate in enumerate(scored_candidates):
             effective_score = get_effective_score(candidate.score)
-            self._emit_event("plan_candidate_scored", {
-                "candidate_id": candidate.id,
-                "score": effective_score,
-                "scoring_version": self.scoring_version.value,
-                "progress": i + 1,
-                "total_candidates": len(candidates),
-                "metrics": metrics_to_dict(candidate.score),
-            })
+            self._emit_event(
+                "plan_candidate_scored",
+                {
+                    "candidate_id": candidate.id,
+                    "score": effective_score,
+                    "scoring_version": self.scoring_version.value,
+                    "progress": i + 1,
+                    "total_candidates": len(candidates),
+                    "metrics": metrics_to_dict(candidate.score),
+                },
+            )
 
         # Emit scoring complete event
-        self._emit_event("plan_scoring_complete", {
-            "total_scored": len(scores),
-            "scoring_version": self.scoring_version.value,
-        })
+        self._emit_event(
+            "plan_scoring_complete",
+            {
+                "total_scored": len(scores),
+                "scoring_version": self.scoring_version.value,
+            },
+        )
 
         # Sort by effective score (V1 or V2) and select best
-        scored_candidates.sort(
-            key=lambda c: get_effective_score(c.score), reverse=True
-        )
+        scored_candidates.sort(key=lambda c: get_effective_score(c.score), reverse=True)
         best = scored_candidates[0]
 
         # Track refinement state
@@ -347,26 +359,25 @@ class HarmonicPlanner:
 
         # Emit winner event with candidate_id (reliable matching)
         final_score = get_effective_score(best_metrics)
-        self._emit_event("plan_winner", {
-            "tasks": len(best_graph),
-            "artifact_count": len(best_graph),
-            "selected_candidate_id": best.id,
-            "total_candidates": len(candidates),
-            "score": final_score,
-            "scoring_version": self.scoring_version.value,
-            "metrics": metrics_to_dict(best_metrics),
-            "selection_reason": format_selection_reason(
-                best_metrics, len(scored_candidates)
-            ),
-            "variance_strategy": self.variance.value,
-            "variance_config": best.variance_config,
-            "refinement_rounds": refinement_rounds_applied,
-            "final_score_improvement": (
-                final_score - initial_score
-                if refinement_rounds_applied > 0
-                else 0.0
-            ),
-        })
+        self._emit_event(
+            "plan_winner",
+            {
+                "tasks": len(best_graph),
+                "artifact_count": len(best_graph),
+                "selected_candidate_id": best.id,
+                "total_candidates": len(candidates),
+                "score": final_score,
+                "scoring_version": self.scoring_version.value,
+                "metrics": metrics_to_dict(best_metrics),
+                "selection_reason": format_selection_reason(best_metrics, len(scored_candidates)),
+                "variance_strategy": self.variance.value,
+                "variance_config": best.variance_config,
+                "refinement_rounds": refinement_rounds_applied,
+                "final_score_improvement": (
+                    final_score - initial_score if refinement_rounds_applied > 0 else 0.0
+                ),
+            },
+        )
 
         return best_graph, best_metrics
 
@@ -539,17 +550,18 @@ class HarmonicPlanner:
 
             # RFC-058: Emit refine start event
             current_score = get_effective_score(current_metrics)
-            self._emit_event("plan_refine_start", {
-                "round": round_num + 1,
-                "total_rounds": self.refinement_rounds,
-                "current_score": current_score,
-                "improvements_identified": feedback,
-            })
+            self._emit_event(
+                "plan_refine_start",
+                {
+                    "round": round_num + 1,
+                    "total_rounds": self.refinement_rounds,
+                    "current_score": current_score,
+                    "improvements_identified": feedback,
+                },
+            )
 
             # Ask LLM to refine
-            refined = await refine_with_feedback(
-                self, goal, current_graph, feedback, context
-            )
+            refined = await refine_with_feedback(self, goal, current_graph, feedback, context)
 
             if refined is None:
                 break  # Refinement failed
@@ -558,10 +570,13 @@ class HarmonicPlanner:
             refined_metrics = self._score_plan(refined, goal)
 
             # RFC-058: Emit refine attempt event
-            self._emit_event("plan_refine_attempt", {
-                "round": round_num + 1,
-                "improvements_applied": extract_applied_improvements(refined, current_graph),
-            })
+            self._emit_event(
+                "plan_refine_attempt",
+                {
+                    "round": round_num + 1,
+                    "improvements_applied": extract_applied_improvements(refined, current_graph),
+                },
+            )
 
             # Only accept if improved (use effective score)
             new_score = get_effective_score(refined_metrics)
@@ -571,30 +586,41 @@ class HarmonicPlanner:
                 current_metrics = refined_metrics
 
                 # RFC-058: Emit refine complete event (improved)
-                self._emit_event("plan_refine_complete", {
-                    "round": round_num + 1,
-                    "improved": True,
-                    "old_score": old_score,
-                    "new_score": new_score,
-                    "improvement": new_score - old_score,
-                })
+                self._emit_event(
+                    "plan_refine_complete",
+                    {
+                        "round": round_num + 1,
+                        "improved": True,
+                        "old_score": old_score,
+                        "new_score": new_score,
+                        "improvement": new_score - old_score,
+                    },
+                )
             else:
                 # RFC-058: Emit refine complete event (no improvement)
-                self._emit_event("plan_refine_complete", {
-                    "round": round_num + 1,
-                    "improved": False,
-                    "reason": "Score did not improve",
-                })
+                self._emit_event(
+                    "plan_refine_complete",
+                    {
+                        "round": round_num + 1,
+                        "improved": False,
+                        "reason": "Score did not improve",
+                    },
+                )
                 break  # No improvement, stop
 
         # RFC-058: Emit refine final event
         final_score = get_effective_score(current_metrics)
-        self._emit_event("plan_refine_final", {
-            "total_rounds": round_num + 1 if round_num < self.refinement_rounds else self.refinement_rounds,
-            "initial_score": initial_score,
-            "final_score": final_score,
-            "total_improvement": final_score - initial_score,
-        })
+        self._emit_event(
+            "plan_refine_final",
+            {
+                "total_rounds": round_num + 1
+                if round_num < self.refinement_rounds
+                else self.refinement_rounds,
+                "initial_score": initial_score,
+                "final_score": final_score,
+                "total_improvement": final_score - initial_score,
+            },
+        )
 
         return current_graph, current_metrics
 
@@ -624,14 +650,16 @@ class HarmonicPlanner:
             }
             # Add V2 metrics if available
             if isinstance(metrics, PlanMetricsV2):
-                summary.update({
-                    "score_v2": metrics.score_v2,
-                    "avg_wave_width": metrics.avg_wave_width,
-                    "parallel_work_ratio": metrics.parallel_work_ratio,
-                    "wave_variance": metrics.wave_variance,
-                    "keyword_coverage": metrics.keyword_coverage,
-                    "has_convergence": metrics.has_convergence,
-                    "depth_utilization": metrics.depth_utilization,
-                })
+                summary.update(
+                    {
+                        "score_v2": metrics.score_v2,
+                        "avg_wave_width": metrics.avg_wave_width,
+                        "parallel_work_ratio": metrics.parallel_work_ratio,
+                        "wave_variance": metrics.wave_variance,
+                        "keyword_coverage": metrics.keyword_coverage,
+                        "has_convergence": metrics.has_convergence,
+                        "depth_utilization": metrics.depth_utilization,
+                    }
+                )
             summaries.append(summary)
         return summaries

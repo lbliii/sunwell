@@ -32,8 +32,16 @@ def _is_low_quality(text: str) -> bool:
         return True
 
     # Looks like a category label, not a fact (starts with generic category word)
-    category_starters = ("names", "preferences", "context", "relationships",
-                         "communication", "emotional", "behaviors", "facts")
+    category_starters = (
+        "names",
+        "preferences",
+        "context",
+        "relationships",
+        "communication",
+        "emotional",
+        "behaviors",
+        "facts",
+    )
     if text_clean.split()[0].rstrip("s:,") in category_starters and "(" in text_clean:
         return True
 
@@ -165,26 +173,28 @@ async def extract_with_categories(
             if line.startswith("FACT:"):
                 fact_text = line[5:].strip()
                 # Filter out echoes and invalid responses
-                if (fact_text
-                    and fact_text.upper() != "NONE"
-                    and not _is_low_quality(fact_text)):
+                if fact_text and fact_text.upper() != "NONE" and not _is_low_quality(fact_text):
                     # Infer actual category from content
                     category = _categorize_fact(fact_text)
                     facts.append((fact_text, category, 0.85))
             elif line.startswith("INTEREST:"):
                 # Interests stored as facts with category="interest"
                 interest_text = line[9:].strip()
-                if (interest_text
+                if (
+                    interest_text
                     and interest_text.upper() != "NONE"
-                    and not _is_low_quality(interest_text)):
+                    and not _is_low_quality(interest_text)
+                ):
                     # Lower confidence for inferred interests
                     facts.append((interest_text, "interest", 0.7))
             elif line.startswith("BEHAVIOR:"):
                 behavior_text = line[9:].strip()
                 # Filter out echoes and invalid responses
-                if (behavior_text
+                if (
+                    behavior_text
                     and behavior_text.upper() != "NONE"
-                    and not _is_low_quality(behavior_text)):
+                    and not _is_low_quality(behavior_text)
+                ):
                     behaviors.append((behavior_text, 0.8))
             elif line.upper() == "NONE":
                 break
@@ -193,6 +203,7 @@ async def extract_with_categories(
     except Exception:
         # Fall back to regex for both
         from sunwell.memory.simulacrum.extractors.extractor import extract_user_facts
+
         facts = extract_user_facts(message)
         behaviors = extract_behaviors_regex(message)
         return facts, behaviors

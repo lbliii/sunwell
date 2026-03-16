@@ -7,7 +7,6 @@ It provides:
 3. Cache invalidation by skill or content change
 """
 
-
 import hashlib
 import threading
 from collections import OrderedDict
@@ -191,9 +190,7 @@ class SkillCache:
         """
         with self._lock:
             keys_to_remove = [
-                k
-                for k, entry in self._cache.items()
-                if entry.skill_name == skill_name
+                k for k, entry in self._cache.items() if entry.skill_name == skill_name
             ]
             for k in keys_to_remove:
                 del self._cache[k]
@@ -206,9 +203,7 @@ class SkillCache:
             Number of entries invalidated
         """
         with self._lock:
-            keys_to_remove = [
-                k for k in self._cache if k.startswith(skill_hash_prefix)
-            ]
+            keys_to_remove = [k for k in self._cache if k.startswith(skill_hash_prefix)]
             for k in keys_to_remove:
                 del self._cache[k]
             return len(keys_to_remove)

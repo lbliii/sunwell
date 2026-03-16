@@ -1,6 +1,5 @@
 """Tool types and trust levels for RFC-012 tool calling."""
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -39,7 +38,13 @@ class ToolTrust(Enum):
 
         Higher trust levels include all tools from lower levels.
         """
-        order = [ToolTrust.DISCOVERY, ToolTrust.READ_ONLY, ToolTrust.WORKSPACE, ToolTrust.SHELL, ToolTrust.FULL]
+        order = [
+            ToolTrust.DISCOVERY,
+            ToolTrust.READ_ONLY,
+            ToolTrust.WORKSPACE,
+            ToolTrust.SHELL,
+            ToolTrust.FULL,
+        ]
         return order.index(self) >= order.index(other)
 
 
@@ -55,10 +60,14 @@ TOOL_GROUPS: dict[str, frozenset[str]] = {
     "group:file_management": frozenset(["delete_file", "rename_file", "copy_file"]),
     "group:undo": frozenset(["undo_file", "list_backups", "restore_file"]),
     "group:shell": frozenset(["run_command"]),
-    "group:git": frozenset(["git_status", "git_diff", "git_log", "git_commit", "git_add", "git_restore"]),
+    "group:git": frozenset(
+        ["git_status", "git_diff", "git_log", "git_commit", "git_add", "git_restore"]
+    ),
     "group:memory": frozenset(["memory_search", "memory_get"]),
     "group:web": frozenset(["web_search", "web_fetch"]),
-    "group:expertise": frozenset(["get_expertise", "verify_against_expertise", "list_expertise_areas"]),
+    "group:expertise": frozenset(
+        ["get_expertise", "verify_against_expertise", "list_expertise_areas"]
+    ),
 }
 """Tool groups for logical grouping. Use in allowed_tools or also_allow."""
 
@@ -90,8 +99,20 @@ class ToolProfile(Enum):
 PROFILE_GROUPS: dict[ToolProfile, tuple[str, ...]] = {
     ToolProfile.MINIMAL: ("group:discovery",),
     ToolProfile.READ_ONLY: ("group:discovery", "group:read"),
-    ToolProfile.CODING: ("group:discovery", "group:read", "group:write", "group:shell", "group:git"),
-    ToolProfile.RESEARCH: ("group:discovery", "group:read", "group:memory", "group:web", "group:expertise"),
+    ToolProfile.CODING: (
+        "group:discovery",
+        "group:read",
+        "group:write",
+        "group:shell",
+        "group:git",
+    ),
+    ToolProfile.RESEARCH: (
+        "group:discovery",
+        "group:read",
+        "group:memory",
+        "group:web",
+        "group:expertise",
+    ),
     ToolProfile.FULL: tuple(TOOL_GROUPS.keys()),
 }
 
@@ -146,7 +167,9 @@ class ToolRateLimits:
     _shell_commands: list[datetime] = field(default_factory=list, init=False)
     _bytes_written: int = field(default=0, init=False)
 
-    def _prune_old_entries(self, entries: list[datetime], window_seconds: int = 60) -> list[datetime]:
+    def _prune_old_entries(
+        self, entries: list[datetime], window_seconds: int = 60
+    ) -> list[datetime]:
         """Remove entries older than the window."""
         cutoff = datetime.now()
         return [e for e in entries if (cutoff - e).total_seconds() < window_seconds]
@@ -262,6 +285,7 @@ class ToolPolicy:
         else:
             # Local import to break circular dependency with constants.py
             from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+
             base = TRUST_LEVEL_TOOLS.get(self.trust_level, frozenset())
 
         # Apply modifiers

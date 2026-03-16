@@ -187,9 +187,7 @@ class EscalationHandler:
         """Clear a pending escalation."""
         self._pending.pop(escalation_id, None)
 
-    def _get_options_for_reason(
-        self, reason: EscalationReason
-    ) -> tuple[EscalationOption, ...]:
+    def _get_options_for_reason(self, reason: EscalationReason) -> tuple[EscalationOption, ...]:
         """Get appropriate options for an escalation reason."""
         # Common options
         approve = EscalationOption(
@@ -322,24 +320,30 @@ class EscalationHandler:
 
         if esc.action_classification:
             ac = esc.action_classification
-            lines.extend([
-                "",
-                f"**Action**: {ac.action_type}",
-                f"**Risk Level**: {ac.risk.value.upper()}",
-                f"**Path**: {ac.path or 'N/A'}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"**Action**: {ac.action_type}",
+                    f"**Risk Level**: {ac.risk.value.upper()}",
+                    f"**Path**: {ac.path or 'N/A'}",
+                ]
+            )
 
         if esc.scope_check and not esc.scope_check.passed:
-            lines.extend([
-                "",
-                f"**Scope Issue**: {esc.scope_check.reason}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"**Scope Issue**: {esc.scope_check.reason}",
+                ]
+            )
 
         if esc.verification_confidence is not None:
-            lines.extend([
-                "",
-                f"**Verification Confidence**: {esc.verification_confidence:.0%}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"**Verification Confidence**: {esc.verification_confidence:.0%}",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -418,9 +422,7 @@ class EscalationHandler:
             reason=f"No UI, auto-skip ({self._auto_skip_count}/{policy.max_auto_skips})",
         )
 
-    def _process_response(
-        self, escalation: Escalation, response: dict
-    ) -> EscalationResolution:
+    def _process_response(self, escalation: Escalation, response: dict) -> EscalationResolution:
         """Process user response to escalation."""
         option_id = response.get("option_id", "skip")
         acknowledged = response.get("acknowledged", False)

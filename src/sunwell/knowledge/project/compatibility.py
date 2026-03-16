@@ -18,7 +18,6 @@ Example:
     ```
 """
 
-
 from typing import TYPE_CHECKING
 
 from sunwell.knowledge.project.schema import ProjectSchema, ValidatorConfig

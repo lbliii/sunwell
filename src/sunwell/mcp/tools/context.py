@@ -13,18 +13,13 @@ communicate with any other planners or workers."
 (Cursor self-driving codebases research, Feb 2026)
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import mcp_json
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -71,13 +66,17 @@ def register_context_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
             manager = runtime.backlog if runtime else None
             if manager is None:
                 from sunwell.features.backlog.manager import BacklogManager
+
                 manager = BacklogManager(root=workspace)
 
             goal = manager.backlog.goals.get(goal_id)
             if goal is None:
-                return mcp_json({
-                    "error": f"Goal '{goal_id}' not found",
-                }, "compact")
+                return mcp_json(
+                    {
+                        "error": f"Goal '{goal_id}' not found",
+                    },
+                    "compact",
+                )
 
             # Build context package
             context: dict = {
@@ -94,19 +93,15 @@ def register_context_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
                 "scope": {
                     "max_files": goal.scope.max_files,
                     "max_lines_changed": goal.scope.max_lines_changed,
-                    "allowed_paths": [
-                        str(p) for p in goal.scope.allowed_paths
-                    ] if goal.scope.allowed_paths else [],
-                    "forbidden_paths": [
-                        str(p) for p in goal.scope.forbidden_paths
-                    ] if goal.scope.forbidden_paths else [],
+                    "allowed_paths": [str(p) for p in goal.scope.allowed_paths]
+                    if goal.scope.allowed_paths
+                    else [],
+                    "forbidden_paths": [str(p) for p in goal.scope.forbidden_paths]
+                    if goal.scope.forbidden_paths
+                    else [],
                 },
-                "relevant_files": _gather_relevant_files(
-                    workspace, goal
-                ),
-                "dependencies": _gather_dependency_context(
-                    manager, goal
-                ),
+                "relevant_files": _gather_relevant_files(workspace, goal),
+                "dependencies": _gather_dependency_context(manager, goal),
                 "expertise": _gather_expertise(workspace, goal),
                 "instructions": _build_execution_instructions(goal),
             }
@@ -138,13 +133,15 @@ def _gather_relevant_files(workspace: Path, goal) -> list[dict]:
             if full_path.exists() and full_path.is_file():
                 try:
                     content = full_path.read_text(errors="ignore")
-                    files.append({
-                        "path": str(path),
-                        "content": content[:MAX_FILE_PREVIEW_CHARS],
-                        "truncated": len(content) > MAX_FILE_PREVIEW_CHARS,
-                        "total_lines": content.count("\n") + 1,
-                        "source": "scope_allowed",
-                    })
+                    files.append(
+                        {
+                            "path": str(path),
+                            "content": content[:MAX_FILE_PREVIEW_CHARS],
+                            "truncated": len(content) > MAX_FILE_PREVIEW_CHARS,
+                            "total_lines": content.count("\n") + 1,
+                            "source": "scope_allowed",
+                        }
+                    )
                 except OSError:
                     pass
 
@@ -160,7 +157,9 @@ def _gather_relevant_files(workspace: Path, goal) -> list[dict]:
                 if match.is_file() and match.suffix in (".py", ".ts", ".js", ".go", ".rs"):
                     # Skip hidden/excluded directories
                     parts = match.relative_to(workspace).parts
-                    if any(p.startswith(".") or p in ("__pycache__", "node_modules") for p in parts):
+                    if any(
+                        p.startswith(".") or p in ("__pycache__", "node_modules") for p in parts
+                    ):
                         continue
 
                     rel_path = str(match.relative_to(workspace))
@@ -169,13 +168,15 @@ def _gather_relevant_files(workspace: Path, goal) -> list[dict]:
 
                     try:
                         content = match.read_text(errors="ignore")
-                        files.append({
-                            "path": rel_path,
-                            "content": content[:MAX_FILE_PREVIEW_CHARS],
-                            "truncated": len(content) > MAX_FILE_PREVIEW_CHARS,
-                            "total_lines": content.count("\n") + 1,
-                            "source": "keyword_match",
-                        })
+                        files.append(
+                            {
+                                "path": rel_path,
+                                "content": content[:MAX_FILE_PREVIEW_CHARS],
+                                "truncated": len(content) > MAX_FILE_PREVIEW_CHARS,
+                                "total_lines": content.count("\n") + 1,
+                                "source": "keyword_match",
+                            }
+                        )
                     except OSError:
                         pass
 
@@ -204,10 +205,12 @@ def _gather_dependency_context(manager, goal) -> dict:
     for dep_id in goal.requires:
         dep_goal = manager.backlog.goals.get(dep_id)
         if dep_goal is None:
-            dependencies["pending_dependencies"].append({
-                "id": dep_id,
-                "status": "not_found",
-            })
+            dependencies["pending_dependencies"].append(
+                {
+                    "id": dep_id,
+                    "status": "not_found",
+                }
+            )
             continue
 
         is_completed = dep_id in manager.backlog.completed
@@ -326,20 +329,22 @@ def _build_execution_instructions(goal) -> str:
     if goal.scope.forbidden_paths:
         lines.append(f"- Do NOT modify: {', '.join(str(p) for p in goal.scope.forbidden_paths)}")
 
-    lines.extend([
-        "",
-        "### When Done",
-        "Call `sunwell_submit_handoff()` with:",
-        "- success: true/false",
-        "- summary: Brief description of what you did",
-        "- files_changed: Comma-separated list of modified files",
-        "- findings: Things you discovered (comma-separated)",
-        "- concerns: Risks or issues to flag (comma-separated)",
-        "- suggestions: Ideas for follow-up work (comma-separated)",
-        "",
-        "### If You Cannot Complete",
-        "Call `sunwell_release_goal()` to release the claim.",
-    ])
+    lines.extend(
+        [
+            "",
+            "### When Done",
+            "Call `sunwell_submit_handoff()` with:",
+            "- success: true/false",
+            "- summary: Brief description of what you did",
+            "- files_changed: Comma-separated list of modified files",
+            "- findings: Things you discovered (comma-separated)",
+            "- concerns: Risks or issues to flag (comma-separated)",
+            "- suggestions: Ideas for follow-up work (comma-separated)",
+            "",
+            "### If You Cannot Complete",
+            "Call `sunwell_release_goal()` to release the claim.",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -364,13 +369,13 @@ def _extract_file_hints(description: str) -> list[str]:
     hints.extend(quoted)
 
     # Look for dotted module names (e.g., auth.middleware)
-    dotted = re.findall(r'\b(\w+\.\w+(?:\.\w+)*)\b', description)
+    dotted = re.findall(r"\b(\w+\.\w+(?:\.\w+)*)\b", description)
     for d in dotted:
         if not d[0].isdigit():  # Skip version numbers
             hints.append(d.replace(".", "/"))
 
     # Look for snake_case identifiers that might be filenames
-    snake = re.findall(r'\b([a-z][a-z_]+(?:_[a-z]+)+)\b', description)
+    snake = re.findall(r"\b([a-z][a-z_]+(?:_[a-z]+)+)\b", description)
     hints.extend(snake[:3])
 
     return list(dict.fromkeys(hints))[:10]  # Deduplicate, cap at 10

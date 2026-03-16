@@ -12,7 +12,6 @@ Example:
     ['Technical Writer', 'Team Writer']
 """
 
-
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path

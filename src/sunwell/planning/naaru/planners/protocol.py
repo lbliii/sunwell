@@ -3,7 +3,6 @@
 This module defines the TaskPlanner protocol, PlanningStrategy, and related exceptions.
 """
 
-
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 

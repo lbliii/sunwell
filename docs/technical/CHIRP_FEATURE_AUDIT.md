@@ -16,7 +16,7 @@
 3. **Dependency injection** - Service providers
 4. **Template filters** - Custom filters (format_duration, format_tokens, etc.)
 5. **StaticFiles middleware** - CSS/JS serving
-6. **View Transitions API** - Smooth navigation (`view_transitions=True`)
+6. ~~**View Transitions API**~~ - Disabled (conflicts with HTMX partial swaps)
 7. **htmx integration** - Progressive enhancement
 8. **EventStream** - SSE for real-time updates (basic)
 9. **Pounce ASGI server** - `app.run()` internally uses Pounce

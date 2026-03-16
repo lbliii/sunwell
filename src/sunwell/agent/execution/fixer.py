@@ -13,7 +13,6 @@ Fix strategies:
 - ESCALATE: Too complex, ask user
 """
 
-
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -497,9 +496,7 @@ class FixStage:
                         case "DIRECT":
                             fixed = await self._direct_fix(error, artifact, signals)
                         case "COMPOUND_EYE":
-                            fixed = await self._compound_eye_fix(
-                                error, artifact, signals
-                            )
+                            fixed = await self._compound_eye_fix(error, artifact, signals)
                         case "VORTEX":
                             fixed = await self._vortex_fix(error, artifact, signals)
                         case _:
@@ -809,12 +806,8 @@ class StaticAnalysisFixer:
         language = language_from_extension(artifact.path.suffix)
 
         # Build fix prompt
-        lint_desc = "\n".join(
-            f"- Line {e.line}: [{e.code}] {e.message}" for e in lint_errors
-        )
-        type_desc = "\n".join(
-            f"- Line {e.line}: {e.message}" for e in type_errors
-        )
+        lint_desc = "\n".join(f"- Line {e.line}: [{e.code}] {e.message}" for e in lint_errors)
+        type_desc = "\n".join(f"- Line {e.line}: {e.message}" for e in type_errors)
 
         # Use language-specific lint prompt
         prompt = get_fix_prompt(

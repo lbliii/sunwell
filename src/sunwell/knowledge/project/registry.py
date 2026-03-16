@@ -48,6 +48,7 @@ def _load_registry() -> dict:
         try:
             if path.exists():
                 import shutil
+
                 shutil.copy2(path, backup_path)
         except Exception:
             pass  # Backup failed, continue
@@ -61,12 +62,13 @@ def _load_registry() -> dict:
 # RFC-133 Phase 2: Slug Generation and Resolution
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def generate_slug(name: str) -> str:
     """Generate a URL-safe slug from a project name.
-    
+
     Args:
         name: Project name (e.g., "My Cool App")
-        
+
     Returns:
         URL-safe slug (e.g., "my-cool-app")
     """
@@ -92,10 +94,10 @@ def generate_slug(name: str) -> str:
 
 def is_valid_slug(slug: str) -> bool:
     """Check if a string is a valid URL slug.
-    
+
     Args:
         slug: String to validate
-        
+
     Returns:
         True if valid slug format
     """
@@ -462,10 +464,7 @@ def init_project(
     # Check if already initialized
     manifest_path = root / ".sunwell" / "project.toml"
     if manifest_path.exists():
-        raise RegistryError(
-            f"Project already initialized at {root}\n"
-            f"Manifest: {manifest_path}"
-        )
+        raise RegistryError(f"Project already initialized at {root}\nManifest: {manifest_path}")
 
     # Generate ID from directory name if not provided
     if not project_id:

@@ -4,7 +4,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="view-transition" content="same-origin">
   <script>
     (function(){
       var t=localStorage.getItem('chirpui-theme')||'system';
@@ -18,11 +17,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
-  <style>
-    @view-transition { navigation: auto; }
-  </style>
   <link rel="stylesheet" href="/static/chirpui.css">
-  <link rel="stylesheet" href="/static/chirpui-transitions.css">
   <link rel="stylesheet" href="/static/css/sunwell.css">
   {% block head %}{% end %}
 </head>
@@ -73,7 +68,9 @@
   {% block content %}
   {% block page_root %}
   <div id="page-root">
+    <div id="page-content-inner">
     {% block page_content %}{% end %}
+    </div>
   </div>
   {% end %}
   {% end %}

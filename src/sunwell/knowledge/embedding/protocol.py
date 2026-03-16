@@ -1,6 +1,5 @@
 """Embedding protocol for vector operations."""
 
-
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable

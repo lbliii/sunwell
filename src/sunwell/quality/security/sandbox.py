@@ -13,7 +13,6 @@ Fallback strategy: If platform-specific isolation is unavailable,
 uses process-level restrictions + aggressive auditing.
 """
 
-
 import os
 import platform
 import tempfile
@@ -42,9 +41,7 @@ class PermissionDeniedError(Exception):
         self.skill_name = skill_name
         self.requested = requested
         self.allowed = allowed
-        super().__init__(
-            f"Skill '{skill_name}' requested {requested} but only allowed {allowed}"
-        )
+        super().__init__(f"Skill '{skill_name}' requested {requested} but only allowed {allowed}")
 
 
 class SandboxExecutionError(Exception):
@@ -260,12 +257,10 @@ class SecureSandbox:
         self._base_sandbox = ScriptSandbox(
             trust=config.base_trust,
             read_paths=tuple(
-                Path(os.path.expanduser(p))
-                for p in config.permissions.filesystem_read
+                Path(os.path.expanduser(p)) for p in config.permissions.filesystem_read
             ),
             write_paths=tuple(
-                Path(os.path.expanduser(p))
-                for p in config.permissions.filesystem_write
+                Path(os.path.expanduser(p)) for p in config.permissions.filesystem_write
             ),
             allow_network=bool(config.allowed_hosts),
             timeout_seconds=config.max_cpu_seconds,
@@ -326,9 +321,7 @@ class SecureSandbox:
                     audit.files_accessed.append(script.name)
 
                     if result.exit_code != 0:
-                        error = SandboxExecutionError(
-                            skill.name, "execute", result.stderr
-                        )
+                        error = SandboxExecutionError(skill.name, "execute", result.stderr)
                         audit.record_error(error)
                         raise error
 
@@ -381,8 +374,7 @@ class SecureSandbox:
             if path not in config_scope.filesystem_read:
                 # Check if any pattern matches
                 if not any(
-                    self._path_matches(path, allowed)
-                    for allowed in config_scope.filesystem_read
+                    self._path_matches(path, allowed) for allowed in config_scope.filesystem_read
                 ):
                     return False
 
@@ -390,8 +382,7 @@ class SecureSandbox:
         for path in skill_scope.filesystem_write:
             if path not in config_scope.filesystem_write:
                 if not any(
-                    self._path_matches(path, allowed)
-                    for allowed in config_scope.filesystem_write
+                    self._path_matches(path, allowed) for allowed in config_scope.filesystem_write
                 ):
                     return False
 
@@ -399,8 +390,7 @@ class SecureSandbox:
         for cmd in skill_scope.shell_allow:
             if cmd not in config_scope.shell_allow:
                 if not any(
-                    self._command_matches(cmd, allowed)
-                    for allowed in config_scope.shell_allow
+                    self._command_matches(cmd, allowed) for allowed in config_scope.shell_allow
                 ):
                     return False
 
@@ -408,8 +398,7 @@ class SecureSandbox:
         for host in skill_scope.network_allow:
             if host not in config_scope.network_allow:
                 if not any(
-                    self._host_matches(host, allowed)
-                    for allowed in config_scope.network_allow
+                    self._host_matches(host, allowed) for allowed in config_scope.network_allow
                 ):
                     return False
 
@@ -473,9 +462,7 @@ class SecureSandbox:
     def _setup_macos_sandbox(self) -> None:
         """Configure sandbox-exec profile (macOS only)."""
         profile = self._generate_sandbox_profile()
-        self._sandbox_profile_path = Path(
-            tempfile.mktemp(suffix=".sb", prefix="sunwell_")
-        )
+        self._sandbox_profile_path = Path(tempfile.mktemp(suffix=".sb", prefix="sunwell_"))
         self._sandbox_profile_path.write_text(profile)
 
     def _generate_sandbox_profile(self) -> str:

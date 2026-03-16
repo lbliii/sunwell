@@ -1,5 +1,7 @@
 # Frontend Integration Summary
 
+> **Deprecation note (2026-03):** SSE patterns (page-load `sse-connect`) are deprecated. Use hybrid routing: polling or POST→fragment. See `docs/chirp-mcp-integration.md`.
+
 This document summarizes the work completed to wire up the Chirp frontend to all backend API endpoints and ensure user flows are working.
 
 ## ✅ Completed (9 major areas)

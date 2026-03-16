@@ -25,8 +25,7 @@ def register_knowledge_tools(app: App) -> None:
     """
 
     @app.tool(
-        "sunwell_search",
-        description="Semantic search across the codebase using vector embeddings"
+        "sunwell_search", description="Semantic search across the codebase using vector embeddings"
     )
     def sunwell_search(
         query: str,
@@ -63,8 +62,7 @@ def register_knowledge_tools(app: App) -> None:
             return {"error": str(e), "results": []}
 
     @app.tool(
-        "sunwell_ask",
-        description="Ask a question about the codebase and get a synthesized answer"
+        "sunwell_ask", description="Ask a question about the codebase and get a synthesized answer"
     )
     def sunwell_ask(
         question: str,
@@ -92,10 +90,7 @@ def register_knowledge_tools(app: App) -> None:
             logger.error(f"Error answering question: {e}")
             return {"error": str(e), "answer": None}
 
-    @app.tool(
-        "sunwell_codebase",
-        description="Get structural intelligence about the codebase"
-    )
+    @app.tool("sunwell_codebase", description="Get structural intelligence about the codebase")
     def sunwell_codebase(
         aspect: str = "structure",
         project: str | None = None,
@@ -121,12 +116,14 @@ def register_knowledge_tools(app: App) -> None:
             if aspect == "structure":
                 # Count basic file types
                 python_files = list(ws.rglob("*.py"))
-                info.update({
-                    "python_files": len(python_files),
-                    "has_tests": any("test" in str(p) for p in python_files),
-                    "has_src": (ws / "src").exists(),
-                    "has_docs": (ws / "docs").exists(),
-                })
+                info.update(
+                    {
+                        "python_files": len(python_files),
+                        "has_tests": any("test" in str(p) for p in python_files),
+                        "has_src": (ws / "src").exists(),
+                        "has_docs": (ws / "docs").exists(),
+                    }
+                )
 
             elif aspect == "frameworks":
                 # Detect common frameworks
@@ -144,10 +141,7 @@ def register_knowledge_tools(app: App) -> None:
             logger.error(f"Error getting codebase info: {e}")
             return {"error": str(e)}
 
-    @app.tool(
-        "sunwell_workspace",
-        description="List known projects in Sunwell workspace"
-    )
+    @app.tool("sunwell_workspace", description="List known projects in Sunwell workspace")
     def sunwell_workspace() -> dict:
         """List all known projects.
 
@@ -162,12 +156,14 @@ def register_knowledge_tools(app: App) -> None:
 
             formatted = []
             for project in projects:
-                formatted.append({
-                    "id": project.id,
-                    "name": project.name,
-                    "root": str(project.root),
-                    "active": project.active if hasattr(project, "active") else True,
-                })
+                formatted.append(
+                    {
+                        "id": project.id,
+                        "name": project.name,
+                        "root": str(project.root),
+                        "active": project.active if hasattr(project, "active") else True,
+                    }
+                )
 
             return {
                 "projects": formatted,
@@ -178,4 +174,6 @@ def register_knowledge_tools(app: App) -> None:
             logger.error(f"Error listing workspace projects: {e}")
             return {"error": str(e), "projects": []}
 
-    logger.debug("Registered knowledge tools: sunwell_search, sunwell_ask, sunwell_codebase, sunwell_workspace")
+    logger.debug(
+        "Registered knowledge tools: sunwell_search, sunwell_ask, sunwell_codebase, sunwell_workspace"
+    )

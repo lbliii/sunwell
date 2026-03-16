@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 
 class PlanStartData(TypedDict, total=False):
     """Data for plan_start event."""
+
     goal: str
 
 
@@ -16,6 +17,7 @@ class PlanWinnerData(TypedDict, total=False):
 
     RFC-060: This schema is the single source of truth for plan_winner events.
     """
+
     # Core fields (legacy)
     tasks: int  # REQUIRED - enforced via REQUIRED_FIELDS
     artifact_count: int
@@ -25,10 +27,14 @@ class PlanWinnerData(TypedDict, total=False):
     # RFC-058: Harmonic planning fields
     selected_candidate_id: str  # REQUIRED - ID of selected candidate (e.g., 'candidate-0')
     total_candidates: int  # How many candidates were generated
-    metrics: dict[str, int | float | bool | list[int]]  # PlanMetrics as dict (score, depth, width, etc.)
+    metrics: dict[
+        str, int | float | bool | list[int]
+    ]  # PlanMetrics as dict (score, depth, width, etc.)
     selection_reason: str  # Human-readable selection reason
     variance_strategy: str  # "prompting" | "temperature" | "constraints" | "mixed"
-    variance_config: dict[str, str | int | float | bool]  # Variance config used for selected candidate
+    variance_config: dict[
+        str, str | int | float | bool
+    ]  # Variance config used for selected candidate
     refinement_rounds: int  # How many refinement rounds were run
     final_score_improvement: float  # Total score improvement from refinement
     score: float  # CANONICAL - top-level score (same as metrics.score)
@@ -40,6 +46,7 @@ class PlanWinnerData(TypedDict, total=False):
 
 class TaskStartData(TypedDict, total=False):
     """Data for task_start event."""
+
     task_id: str  # Required
     artifact_id: str  # Alias for compatibility
     description: str  # Required
@@ -47,6 +54,7 @@ class TaskStartData(TypedDict, total=False):
 
 class TaskProgressData(TypedDict, total=False):
     """Data for task_progress event."""
+
     task_id: str  # Required
     artifact_id: str  # Alias for compatibility
     progress: int  # 0-100
@@ -55,6 +63,7 @@ class TaskProgressData(TypedDict, total=False):
 
 class TaskCompleteData(TypedDict, total=False):
     """Data for task_complete event."""
+
     task_id: str  # Required
     artifact_id: str  # Alias for compatibility
     duration_ms: int  # Required
@@ -78,12 +87,14 @@ class TaskOutputData(TypedDict, total=False):
 
 class MemoryLearningData(TypedDict, total=False):
     """Data for memory_learning event."""
+
     fact: str  # Required
     category: str  # Required
 
 
 class CompleteData(TypedDict, total=False):
     """Data for complete event."""
+
     tasks_completed: int  # Required
     tasks_failed: int
     gates_passed: int
@@ -95,6 +106,7 @@ class CompleteData(TypedDict, total=False):
 
 class ErrorData(TypedDict, total=False):
     """Data for error event."""
+
     message: str  # Required
     phase: str | None  # "planning" | "discovery" | "execution" | "validation"
     context: dict[str, Any] | None  # Additional context (artifact_id, task_id, etc.)
@@ -104,6 +116,7 @@ class ErrorData(TypedDict, total=False):
 
 class EscalateData(TypedDict, total=False):
     """Data for escalate event."""
+
     reason: str  # Required
     action: str
     context: dict[str, Any] | None

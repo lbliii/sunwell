@@ -9,7 +9,6 @@ Compares permission scopes between:
 Outputs human-readable diffs and risk impact assessment.
 """
 
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any

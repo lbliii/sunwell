@@ -9,8 +9,8 @@ Provides:
 from sunwell.tools.observability.hooks import (
     ExecutionHook,
     HookManager,
-    create_metrics_hook,
     create_logging_hook,
+    create_metrics_hook,
 )
 from sunwell.tools.observability.metrics import (
     MetricsCollector,

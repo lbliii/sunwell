@@ -241,9 +241,7 @@ async def run_contract_validation(
                     protocol=protocol_name,
                 )
             elif event.type == EventType.GATE_FAIL:
-                error_msg = event.data.get(
-                    "error_message", "Contract verification failed"
-                )
+                error_msg = event.data.get("error_message", "Contract verification failed")
                 yield AgentEvent(
                     EventType.CONTRACT_VERIFY_FAIL,
                     {

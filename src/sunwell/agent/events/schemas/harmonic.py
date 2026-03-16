@@ -5,12 +5,14 @@ from typing import Any, TypedDict
 
 class PlanCandidateStartData(TypedDict, total=False):
     """Data for plan_candidate_start event."""
+
     total_candidates: int  # Required
     variance_strategy: str  # e.g., "prompting", "temperature"
 
 
 class PlanCandidateGeneratedData(TypedDict, total=False):
     """Data for plan_candidate_generated event."""
+
     candidate_id: str  # REQUIRED - stable identifier (e.g., 'candidate-0')
     artifact_count: int  # Required
     progress: int  # Current count (1-based)
@@ -23,6 +25,7 @@ class PlanCandidatesCompleteData(TypedDict, total=False):
 
     RFC-060: Aligned with actual HarmonicPlanner emission.
     """
+
     total_candidates: int  # Kept for backward compat
     total_artifacts: int  # Kept for backward compat
     successful_candidates: int  # How many candidates succeeded
@@ -31,6 +34,7 @@ class PlanCandidatesCompleteData(TypedDict, total=False):
 
 class PlanCandidateScoredData(TypedDict, total=False):
     """Data for plan_candidate_scored event."""
+
     candidate_id: str  # REQUIRED - stable identifier (e.g., 'candidate-0')
     score: float  # Required
     progress: int  # Current count (1-based)
@@ -40,4 +44,5 @@ class PlanCandidateScoredData(TypedDict, total=False):
 
 class PlanScoringCompleteData(TypedDict, total=False):
     """Data for plan_scoring_complete event."""
+
     total_scored: int  # Required

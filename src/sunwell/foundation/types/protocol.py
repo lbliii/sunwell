@@ -7,14 +7,6 @@ for backward compatibility.
 """
 
 # Re-export serialization protocols from contracts
-from sunwell.contracts.serialization import (
-    DictSerializable,
-    Embeddable,
-    Promptable,
-    Saveable,
-    Serializable,
-)
-
 # Re-export execution protocols from contracts
 from sunwell.contracts.execution import (
     ChatSessionProtocol,
@@ -28,6 +20,13 @@ from sunwell.contracts.execution import (
 
 # Re-export model types that were previously imported here
 from sunwell.contracts.model import Tool, ToolCall
+from sunwell.contracts.serialization import (
+    DictSerializable,
+    Embeddable,
+    Promptable,
+    Saveable,
+    Serializable,
+)
 
 # NOTE: MessageBus and NaaruRegion were previously re-exported here
 # for WorkerProtocol backward compat. Consumers should now import

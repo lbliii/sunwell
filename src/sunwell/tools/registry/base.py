@@ -7,19 +7,17 @@ This module provides the foundation for the dynamic tool registry:
 - tool_metadata: Decorator to attach metadata to tool classes
 """
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.knowledge.project import Project
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 from sunwell.models import Tool
 from sunwell.tools.core.types import ToolTrust
 
 if TYPE_CHECKING:
-    from sunwell.knowledge.project import Project
-    from sunwell.memory.simulacrum.core.store import SimulacrumStore
     from sunwell.tools.registry.dynamic import DynamicToolRegistry
 
 

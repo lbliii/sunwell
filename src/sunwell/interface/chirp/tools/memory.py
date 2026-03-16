@@ -46,7 +46,7 @@ def register_memory_tools(app: App) -> None:
 
     @app.tool(
         "sunwell_briefing",
-        description="Get Sunwell's rolling briefing with mission status and context"
+        description="Get Sunwell's rolling briefing with mission status and context",
     )
     def sunwell_briefing(project: str | None = None) -> dict:
         """Get the rolling briefing.
@@ -73,9 +73,7 @@ def register_memory_tools(app: App) -> None:
                     "constraints": [],
                     "message": "Provide project path to load memory",
                 }
-            ctx = asyncio.run(
-                memory.get_relevant("current mission and context", top_k=5)
-            )
+            ctx = asyncio.run(memory.get_relevant("current mission and context", top_k=5))
             return {
                 "mission": "No active mission",
                 "status": "idle",
@@ -87,10 +85,7 @@ def register_memory_tools(app: App) -> None:
             logger.error(f"Error fetching briefing: {e}")
             return {"error": str(e)}
 
-    @app.tool(
-        "sunwell_recall",
-        description="Query learnings, dead ends, and insights from memory"
-    )
+    @app.tool("sunwell_recall", description="Query learnings, dead ends, and insights from memory")
     def sunwell_recall(
         query: str,
         scope: str = "all",
@@ -137,8 +132,7 @@ def register_memory_tools(app: App) -> None:
             return {"error": str(e), "memories": []}
 
     @app.tool(
-        "sunwell_lineage",
-        description="Get the creation lineage and provenance of an artifact"
+        "sunwell_lineage", description="Get the creation lineage and provenance of an artifact"
     )
     def sunwell_lineage(
         file_path: str,
@@ -165,11 +159,13 @@ def register_memory_tools(app: App) -> None:
 
             if full_path.exists():
                 stat = full_path.stat()
-                info.update({
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime,
-                    "created": stat.st_ctime,
-                })
+                info.update(
+                    {
+                        "size": stat.st_size,
+                        "modified": stat.st_mtime,
+                        "created": stat.st_ctime,
+                    }
+                )
 
             return info
 
@@ -177,10 +173,7 @@ def register_memory_tools(app: App) -> None:
             logger.error(f"Error getting lineage: {e}")
             return {"error": str(e)}
 
-    @app.tool(
-        "sunwell_session",
-        description="Get current session history and metrics"
-    )
+    @app.tool("sunwell_session", description="Get current session history and metrics")
     def sunwell_session(project: str | None = None) -> dict:
         """Get session history.
 
@@ -204,4 +197,6 @@ def register_memory_tools(app: App) -> None:
             logger.error(f"Error fetching session: {e}")
             return {"error": str(e)}
 
-    logger.debug("Registered memory tools: sunwell_briefing, sunwell_recall, sunwell_lineage, sunwell_session")
+    logger.debug(
+        "Registered memory tools: sunwell_briefing, sunwell_recall, sunwell_lineage, sunwell_session"
+    )

@@ -7,8 +7,6 @@ a State DAG with:
 - Health probes: Orphan detection, broken links, drift detection, readability
 """
 
-from __future__ import annotations
-
 import logging
 import re
 from datetime import datetime
@@ -27,11 +25,25 @@ logger = logging.getLogger(__name__)
 # MODULE-LEVEL CONSTANTS
 # ═══════════════════════════════════════════════════════════════
 
-_SKIP_DIRS: frozenset[str] = frozenset({
-    ".git", "__pycache__", "node_modules", "_build", "build",
-    "dist", ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    "htmlcov", "site", ".cursor", ".idea", ".vscode",
-})
+_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "__pycache__",
+        "node_modules",
+        "_build",
+        "build",
+        "dist",
+        ".tox",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "htmlcov",
+        "site",
+        ".cursor",
+        ".idea",
+        ".vscode",
+    }
+)
 
 _SKIP_PREFIXES: tuple[str, ...] = (".venv", "venv", ".env", "env")
 
@@ -104,9 +116,7 @@ class DocsScanner(Scanner):
         logger.info(f"DocsScanner found {len(nodes)} nodes")
         return nodes
 
-    async def extract_edges(
-        self, root: Path, nodes: list[StateDagNode]
-    ) -> list[StateDagEdge]:
+    async def extract_edges(self, root: Path, nodes: list[StateDagNode]) -> list[StateDagEdge]:
         """Extract edges between documentation nodes.
 
         Extracts:
@@ -300,8 +310,7 @@ class DocsScanner(Scanner):
 
                 # Check if directory has an index file
                 has_index = any(
-                    (dir_path / idx).exists()
-                    for idx in ("index.md", "index.rst", "README.md")
+                    (dir_path / idx).exists() for idx in ("index.md", "index.rst", "README.md")
                 )
 
                 dir_nodes.append(
@@ -340,9 +349,7 @@ class DocsScanner(Scanner):
         except Exception:
             return path.stem.replace("-", " ").replace("_", " ").title()
 
-    def _extract_toctree(
-        self, content: str, file_path: Path, root: Path
-    ) -> list[str]:
+    def _extract_toctree(self, content: str, file_path: Path, root: Path) -> list[str]:
         """Extract toctree entries from content."""
         refs: list[str] = []
 
@@ -382,9 +389,7 @@ class DocsScanner(Scanner):
         # [text](path) but not external links
         links = _RE_MD_LINKS.findall(content)
         return [
-            link
-            for link in links
-            if not link.startswith(("http://", "https://", "mailto:", "#"))
+            link for link in links if not link.startswith(("http://", "https://", "mailto:", "#"))
         ]
 
     def _resolve_reference(
@@ -425,9 +430,7 @@ class DocsScanner(Scanner):
 
         return None
 
-    async def _build_toctree_index(
-        self, root: Path, nodes: list[StateDagNode]
-    ) -> set[str]:
+    async def _build_toctree_index(self, root: Path, nodes: list[StateDagNode]) -> set[str]:
         """Build set of all files referenced in any toctree."""
         toctree_children: set[str] = set()
         node_by_path = {str(n.path.relative_to(root)): n.id for n in nodes}

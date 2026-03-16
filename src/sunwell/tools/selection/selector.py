@@ -100,7 +100,7 @@ class SelectionTrace:
         """Generate a human-readable summary of the selection."""
         lines = [
             f"Query: {self.query[:50]}{'...' if len(self.query) > 50 else ''}",
-            f"Tools: {self.total_available} → {self.final_count} ({self.final_count/self.total_available*100:.0f}%)",
+            f"Tools: {self.total_available} → {self.final_count} ({self.final_count / self.total_available * 100:.0f}%)",
             f"Winner: {self.winner} (signals: {', '.join(self.winner_signals) or 'base'})",
         ]
         if self.planned_tools:
@@ -131,14 +131,18 @@ class SelectionTrace:
         if self.dead_ends_removed:
             lines.append(f"DEAD ENDS:     {', '.join(self.dead_ends_removed)}")
 
-        lines.extend([
-            "",
-            "TOP TOOLS (with signal breakdown):",
-        ])
+        lines.extend(
+            [
+                "",
+                "TOP TOOLS (with signal breakdown):",
+            ]
+        )
 
         for i, ts in enumerate(self.top_tools[:10], 1):
             active = ts.active_signals()
-            signal_str = ", ".join(f"{s}={ts.signal_dict()[s]:.0f}" for s in active) if active else "base"
+            signal_str = (
+                ", ".join(f"{s}={ts.signal_dict()[s]:.0f}" for s in active) if active else "base"
+            )
             lines.append(f"  {i}. {ts.name}: {ts.total_score:.0f} [{signal_str}]")
 
         lines.extend(["", "=" * 60])
@@ -151,70 +155,166 @@ class SelectionTrace:
 
 # Tools relevant for each project type
 PROJECT_TYPE_TOOLS: dict[ProjectType, frozenset[str]] = {
-    ProjectType.CODE: frozenset({
-        # File operations
-        "list_files", "search_files", "find_files", "read_file",
-        "edit_file", "write_file", "patch_file", "mkdir",
-        "delete_file", "rename_file", "copy_file",
-        "undo_file", "list_backups", "restore_file",
-        # Git (essential for code)
-        "git_status", "git_diff", "git_log", "git_blame", "git_show", "git_info",
-        "git_add", "git_restore", "git_commit", "git_branch", "git_checkout",
-        "git_stash", "git_reset", "git_merge", "git_init",
-        # Shell (build, test, etc.)
-        "run_command",
-        # Expertise
-        "get_expertise", "verify_against_expertise", "list_expertise_areas",
-    }),
-    ProjectType.PROSE: frozenset({
-        # File operations (no shell for prose)
-        "list_files", "search_files", "find_files", "read_file",
-        "edit_file", "write_file", "patch_file", "mkdir",
-        "delete_file", "rename_file", "copy_file",
-        "undo_file", "list_backups", "restore_file",
-        # Git (still useful for version control)
-        "git_status", "git_diff", "git_log", "git_add", "git_commit",
-        # Research
-        "web_search", "web_fetch",
-        # Expertise
-        "get_expertise", "verify_against_expertise", "list_expertise_areas",
-    }),
-    ProjectType.SCRIPT: frozenset({
-        # File operations
-        "list_files", "search_files", "find_files", "read_file",
-        "edit_file", "write_file", "patch_file", "mkdir",
-        "delete_file", "rename_file", "copy_file",
-        "undo_file", "list_backups", "restore_file",
-        # Git
-        "git_status", "git_diff", "git_log", "git_add", "git_commit",
-        # Expertise
-        "get_expertise", "verify_against_expertise", "list_expertise_areas",
-    }),
-    ProjectType.DOCS: frozenset({
-        # File operations
-        "list_files", "search_files", "find_files", "read_file",
-        "edit_file", "write_file", "patch_file", "mkdir",
-        "delete_file", "rename_file", "copy_file",
-        "undo_file", "list_backups", "restore_file",
-        # Git
-        "git_status", "git_diff", "git_log", "git_add", "git_commit",
-        # Shell (for building docs)
-        "run_command",
-        # Research
-        "web_search", "web_fetch",
-        # Expertise
-        "get_expertise", "verify_against_expertise", "list_expertise_areas",
-    }),
+    ProjectType.CODE: frozenset(
+        {
+            # File operations
+            "list_files",
+            "search_files",
+            "find_files",
+            "read_file",
+            "edit_file",
+            "write_file",
+            "patch_file",
+            "mkdir",
+            "delete_file",
+            "rename_file",
+            "copy_file",
+            "undo_file",
+            "list_backups",
+            "restore_file",
+            # Git (essential for code)
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_blame",
+            "git_show",
+            "git_info",
+            "git_add",
+            "git_restore",
+            "git_commit",
+            "git_branch",
+            "git_checkout",
+            "git_stash",
+            "git_reset",
+            "git_merge",
+            "git_init",
+            # Shell (build, test, etc.)
+            "run_command",
+            # Expertise
+            "get_expertise",
+            "verify_against_expertise",
+            "list_expertise_areas",
+        }
+    ),
+    ProjectType.PROSE: frozenset(
+        {
+            # File operations (no shell for prose)
+            "list_files",
+            "search_files",
+            "find_files",
+            "read_file",
+            "edit_file",
+            "write_file",
+            "patch_file",
+            "mkdir",
+            "delete_file",
+            "rename_file",
+            "copy_file",
+            "undo_file",
+            "list_backups",
+            "restore_file",
+            # Git (still useful for version control)
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_add",
+            "git_commit",
+            # Research
+            "web_search",
+            "web_fetch",
+            # Expertise
+            "get_expertise",
+            "verify_against_expertise",
+            "list_expertise_areas",
+        }
+    ),
+    ProjectType.SCRIPT: frozenset(
+        {
+            # File operations
+            "list_files",
+            "search_files",
+            "find_files",
+            "read_file",
+            "edit_file",
+            "write_file",
+            "patch_file",
+            "mkdir",
+            "delete_file",
+            "rename_file",
+            "copy_file",
+            "undo_file",
+            "list_backups",
+            "restore_file",
+            # Git
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_add",
+            "git_commit",
+            # Expertise
+            "get_expertise",
+            "verify_against_expertise",
+            "list_expertise_areas",
+        }
+    ),
+    ProjectType.DOCS: frozenset(
+        {
+            # File operations
+            "list_files",
+            "search_files",
+            "find_files",
+            "read_file",
+            "edit_file",
+            "write_file",
+            "patch_file",
+            "mkdir",
+            "delete_file",
+            "rename_file",
+            "copy_file",
+            "undo_file",
+            "list_backups",
+            "restore_file",
+            # Git
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_add",
+            "git_commit",
+            # Shell (for building docs)
+            "run_command",
+            # Research
+            "web_search",
+            "web_fetch",
+            # Expertise
+            "get_expertise",
+            "verify_against_expertise",
+            "list_expertise_areas",
+        }
+    ),
     ProjectType.MIXED: frozenset(),  # Empty means all tools allowed
     ProjectType.UNKNOWN: frozenset(),  # Empty means all tools allowed
 }
 
 # Git tools to filter out for non-git projects
-GIT_TOOLS: frozenset[str] = frozenset({
-    "git_status", "git_diff", "git_log", "git_blame", "git_show", "git_info",
-    "git_add", "git_restore", "git_commit", "git_branch", "git_checkout",
-    "git_stash", "git_reset", "git_merge", "git_init",
-})
+GIT_TOOLS: frozenset[str] = frozenset(
+    {
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_blame",
+        "git_show",
+        "git_info",
+        "git_add",
+        "git_restore",
+        "git_commit",
+        "git_branch",
+        "git_checkout",
+        "git_stash",
+        "git_reset",
+        "git_merge",
+        "git_init",
+    }
+)
 
 
 # =============================================================================
@@ -280,9 +380,9 @@ class MultiSignalToolSelector:
     workspace_root: Path | None = None
 
     # Optional signal providers
-    progressive_policy: "ProgressivePolicy | None" = None
-    learning_store: "LearningStore | None" = None
-    lens: "Lens | None" = None
+    progressive_policy: ProgressivePolicy | None = None
+    learning_store: LearningStore | None = None
+    lens: Lens | None = None
 
     # Configuration
     max_tools: int | None = None
@@ -476,11 +576,13 @@ class MultiSignalToolSelector:
                 signals.append(("dag_available", 10.0))
                 total += 10
 
-            scored.append(ToolScore(
-                name=tool,
-                total_score=total,
-                signals=tuple(signals),
-            ))
+            scored.append(
+                ToolScore(
+                    name=tool,
+                    total_score=total,
+                    signals=tuple(signals),
+                )
+            )
 
         # Sort by score descending, then alphabetically for stability
         scored.sort(key=lambda x: (-x.total_score, x.name))
@@ -502,12 +604,17 @@ class MultiSignalToolSelector:
         See _rank_tools_with_scores for detailed score breakdown.
         """
         scored = self._rank_tools_with_scores(
-            tools, dag_tools, learned_boost, primary_boost,
-            secondary_boost, semantic_scores, planned_tools,
+            tools,
+            dag_tools,
+            learned_boost,
+            primary_boost,
+            secondary_boost,
+            semantic_scores,
+            planned_tools,
         )
         return [ts.name for ts in scored]
 
-    def _ensure_embedding_index(self, available_tools: "tuple[Tool, ...]") -> None:
+    def _ensure_embedding_index(self, available_tools: tuple[Tool, ...]) -> None:
         """Initialize embedding index if enabled and not yet built.
 
         Lazy initialization: Only builds index on first query with semantic enabled.
@@ -546,7 +653,7 @@ class MultiSignalToolSelector:
     def _get_planned_tools(
         self,
         query: str,
-        available_tools: "tuple[Tool, ...]",
+        available_tools: tuple[Tool, ...],
     ) -> frozenset[str]:
         """Get tools from heuristic planning.
 
@@ -581,10 +688,10 @@ class MultiSignalToolSelector:
         query: str,
         task_type: str,
         used_tools: frozenset[str],
-        available_tools: "tuple[Tool, ...]",
+        available_tools: tuple[Tool, ...],
         model_context_window: int | None = None,
         model_tier: str | None = None,
-    ) -> "tuple[Tool, ...]":
+    ) -> tuple[Tool, ...]:
         """Select relevant tools using multi-signal combination.
 
         This is the main entry point. It combines:
@@ -668,7 +775,8 @@ class MultiSignalToolSelector:
         # This allows semantic search to suggest tools not yet unlocked by DAG
         if semantic_scores:
             high_semantic = frozenset(
-                name for name, score in semantic_scores.items()
+                name
+                for name, score in semantic_scores.items()
                 if score > 0.5  # High confidence threshold
             )
             boosted = boosted | (high_semantic & trust_available & project_available)
@@ -722,10 +830,10 @@ class MultiSignalToolSelector:
         query: str,
         task_type: str,
         used_tools: frozenset[str],
-        available_tools: "tuple[Tool, ...]",
+        available_tools: tuple[Tool, ...],
         model_context_window: int | None = None,
         model_tier: str | None = None,
-    ) -> tuple["tuple[Tool, ...]", SelectionTrace]:
+    ) -> tuple[tuple[Tool, ...], SelectionTrace]:
         """Select tools and return detailed trace of the decision.
 
         Same as select() but also returns a SelectionTrace for debugging
@@ -791,8 +899,7 @@ class MultiSignalToolSelector:
 
         if semantic_scores:
             high_semantic = frozenset(
-                name for name, score in semantic_scores.items()
-                if score > 0.5
+                name for name, score in semantic_scores.items() if score > 0.5
             )
             boosted = boosted | (high_semantic & trust_available & project_available)
 
@@ -820,10 +927,7 @@ class MultiSignalToolSelector:
             ranked_scores = ranked_scores[:limit]
 
         # Build trace
-        semantic_hits = tuple(
-            name for name, score in semantic_scores.items()
-            if score > 0.3
-        )
+        semantic_hits = tuple(name for name, score in semantic_scores.items() if score > 0.3)
 
         winner = ranked_scores[0] if ranked_scores else None
 

@@ -241,9 +241,7 @@ class WorkspaceSignatureIndex:
         Returns:
             List of matching signatures.
         """
-        return await asyncio.to_thread(
-            self._search_sync, query, top_k, project_ids
-        )
+        return await asyncio.to_thread(self._search_sync, query, top_k, project_ids)
 
     def _search_sync(
         self,
@@ -375,9 +373,7 @@ class WorkspaceSignatureIndex:
                     "SELECT COUNT(DISTINCT project_id) FROM signatures"
                 ).fetchone()[0]
                 by_kind = dict(
-                    conn.execute(
-                        "SELECT kind, COUNT(*) FROM signatures GROUP BY kind"
-                    ).fetchall()
+                    conn.execute("SELECT kind, COUNT(*) FROM signatures GROUP BY kind").fetchall()
                 )
             finally:
                 conn.close()
