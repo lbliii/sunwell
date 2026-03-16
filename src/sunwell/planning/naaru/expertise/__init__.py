@@ -9,8 +9,6 @@ Architecture:
 Goal → DomainClassifier → LensDiscovery → ExpertiseExtractor
                                                 ↓
                           ExpertiseContext (heuristics, validators)
-                                                ↓
-                    ExpertiseAwareArtifactPlanner (heuristic-informed)
 ```
 
 Example:
@@ -18,7 +16,6 @@ Example:
     ...     DomainClassifier,
     ...     LensDiscovery,
     ...     ExpertiseExtractor,
-    ...     ExpertiseAwareArtifactPlanner,
     ... )
     >>>
     >>> classifier = DomainClassifier()

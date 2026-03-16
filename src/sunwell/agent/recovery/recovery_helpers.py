@@ -118,39 +118,13 @@ async def execute_with_convergence_recovery(
     model: ModelProtocol,
     cwd: Path,
 ) -> AsyncIterator[AgentEvent]:
-    """Execute recovery with convergence loops.
+    """Execute recovery (convergence removed in Phase 2).
 
-    Focused execution that only regenerates failed artifacts,
-    preserving passed ones.
-
-    Args:
-        recovery_state: The recovery state
-        healing_context: Context about what failed
-        model: Model for generation
-        cwd: Working directory
-
-    Yields:
-        AgentEvent for each step
+    Yields ESCALATE — recovery requires convergence feature.
     """
-    from sunwell.agent.convergence import ConvergenceConfig, ConvergenceLoop
-    from sunwell.agent.validation.gates import GateType
+    from sunwell.agent.events import AgentEvent, EventType
 
-    # Get files to fix
-    failed_files = [a.path for a in recovery_state.failed_artifacts]
-
-    # Run convergence loop focused on failed files
-    config = ConvergenceConfig(
-        max_iterations=5,
-        enabled_gates=frozenset({GateType.LINT, GateType.TYPE, GateType.SYNTAX}),
+    yield AgentEvent(
+        EventType.ESCALATE,
+        {"reason": "Recovery requires convergence; feature removed in Sunwell reboot"},
     )
-
-    loop = ConvergenceLoop(
-        model=model,
-        cwd=cwd,
-        config=config,
-        goal=recovery_state.goal,
-        run_id=f"recovery-{recovery_state.run_id}",
-    )
-
-    async for event in loop.run(failed_files):
-        yield event

@@ -37,7 +37,6 @@ from sunwell.agent.recovery.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.convergence.types import ConvergenceIteration
     from sunwell.agent.validation import Artifact
 
 
@@ -72,7 +71,7 @@ class RecoveryManager:
         artifacts: dict[str, Artifact],
         gate_results: dict[str, tuple[bool, list[str]]],
         failure_reason: str,
-        iterations: list[ConvergenceIteration] | None = None,
+        iterations: list[Any] | None = None,
     ) -> RecoveryState:
         """Create recovery state from failed execution.
 

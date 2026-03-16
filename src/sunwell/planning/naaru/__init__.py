@@ -94,7 +94,7 @@ from sunwell.agent.incremental import (
     SkipReason,
 )
 from sunwell.agent.incremental import IncrementalExecutor as IncrementalExecutorV2
-from sunwell.features.external.integration import (
+from sunwell.integration import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationResult,
@@ -228,7 +228,6 @@ from sunwell.planning.naaru.planners import (
     ArtifactPlanner,
     PlanningError,
     PlanningStrategy,
-    SelfImprovementPlanner,
     TaskPlanner,
 )
 
@@ -357,7 +356,6 @@ __all__ = [
     # RFC-032: Task Planners
     "TaskPlanner",
     "PlanningError",
-    "SelfImprovementPlanner",
     "AgentPlanner",
 
     # RFC-034: Planning Strategy

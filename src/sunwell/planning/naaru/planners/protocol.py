@@ -70,7 +70,6 @@ class TaskPlanner(Protocol):
     """Protocol for task planning/decomposition (RFC-032, RFC-094).
 
     Implementations:
-    - SelfImprovementPlanner: Find opportunities in Sunwell's codebase
     - AgentPlanner: Decompose arbitrary user goals into tasks
     - HybridPlanner: Combines both modes (future)
 

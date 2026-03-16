@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.memory.core.learning_cache import LearningCache
 
 

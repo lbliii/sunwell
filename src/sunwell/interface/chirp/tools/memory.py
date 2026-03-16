@@ -1,10 +1,12 @@
 """Memory tools for Chirp MCP integration.
 
 Exposes Sunwell's memory system (briefing, learnings, session history) via Chirp's @app.tool() decorator.
+Wired to PersistentMemory when project path is provided.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +15,24 @@ if TYPE_CHECKING:
     from chirp import App
 
 logger = logging.getLogger(__name__)
+
+
+def _fact(x: object) -> str:
+    """Extract fact string from Learning or similar."""
+    return getattr(x, "fact", str(x))
+
+
+def _get_memory(project: str | None):
+    """Load PersistentMemory for project, or None if unavailable."""
+    if not project:
+        return None
+    try:
+        from sunwell.memory import PersistentMemory
+
+        return PersistentMemory.load(Path(project).expanduser().resolve())
+    except Exception as e:
+        logger.debug("Failed to load PersistentMemory for %s: %s", project, e)
+        return None
 
 
 def register_memory_tools(app: App) -> None:
@@ -48,15 +68,25 @@ def register_memory_tools(app: App) -> None:
             Dict with briefing content
         """
         try:
-            # TODO: Integrate with actual MemoryService
+            memory = _get_memory(project)
+            if not memory:
+                return {
+                    "mission": "No active mission",
+                    "status": "idle",
+                    "learnings": [],
+                    "constraints": [],
+                    "message": "Provide project path to load memory",
+                }
+            ctx = asyncio.run(
+                memory.get_relevant("current mission and context", top_k=5)
+            )
             return {
                 "mission": "No active mission",
                 "status": "idle",
-                "learnings": [],
-                "constraints": [],
-                "message": "Memory briefing not yet implemented in Chirp integration",
+                "learnings": [_fact(l) for l in ctx.learnings[:5]],
+                "constraints": list(ctx.constraints[:5]),
+                "dead_ends": list(ctx.dead_ends[:3]),
             }
-
         except Exception as e:
             logger.error(f"Error fetching briefing: {e}")
             return {"error": str(e)}
@@ -83,15 +113,29 @@ def register_memory_tools(app: App) -> None:
             Dict with recalled memories
         """
         try:
-            # TODO: Integrate with actual MemoryService
+            memory = _get_memory(project)
+            if not memory:
+                return {
+                    "query": query,
+                    "scope": scope,
+                    "memories": [],
+                    "count": 0,
+                    "message": "Provide project path to load memory",
+                }
+            ctx = asyncio.run(memory.get_relevant(query, top_k=limit))
+            memories: list[str] = []
+            if scope in ("all", "learnings"):
+                memories.extend(_fact(l) for l in ctx.learnings[:limit])
+            if scope in ("all", "dead_ends"):
+                memories.extend(ctx.dead_ends[:limit])
+            if scope in ("all", "constraints"):
+                memories.extend(ctx.constraints[:limit])
             return {
                 "query": query,
                 "scope": scope,
-                "memories": [],
-                "count": 0,
-                "message": "Memory recall not yet implemented in Chirp integration",
+                "memories": memories[:limit],
+                "count": len(memories),
             }
-
         except Exception as e:
             logger.error(f"Error recalling memories: {e}")
             return {"error": str(e), "memories": []}
@@ -148,15 +192,18 @@ def register_memory_tools(app: App) -> None:
             Dict with session information
         """
         try:
-            # TODO: Integrate with actual SessionService
+            memory = _get_memory(project)
+            if memory:
+                return {
+                    "session_id": "unknown",
+                    "learning_count": memory.learning_count,
+                    "decision_count": memory.decision_count,
+                    "failure_count": memory.failure_count,
+                }
             return {
                 "session_id": "unknown",
-                "started_at": None,
-                "goals_completed": 0,
-                "tool_calls": 0,
-                "message": "Session tracking not yet implemented in Chirp integration",
+                "message": "Provide project path to load memory",
             }
-
         except Exception as e:
             logger.error(f"Error fetching session: {e}")
             return {"error": str(e)}

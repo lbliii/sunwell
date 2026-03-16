@@ -484,13 +484,6 @@ from sunwell.interface.cli.chat import chat
 
 main.add_command(chat)
 
-# Benchmark suite (RFC-018) - register as group to preserve subcommands
-from sunwell.benchmark.cli import benchmark
-
-# Register as group (not Command) to preserve subcommands like journeys, naaru, etc.
-benchmark.hidden = True
-main.add_command(benchmark)
-
 # Demo command - Prism Principle demonstrations
 from sunwell.interface.cli.commands import demo_cmd
 

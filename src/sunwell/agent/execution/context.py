@@ -8,7 +8,7 @@ Provides existing work context to planners so they can:
 
 from dataclasses import dataclass
 
-from sunwell.features.backlog.goals import Goal
+from sunwell.agent.execution.backlog_stub import Goal
 
 
 @dataclass(frozen=True, slots=True)

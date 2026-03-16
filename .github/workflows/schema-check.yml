@@ -3,8 +3,7 @@ name: Schema Contract Check
 on:
   pull_request:
     paths:
-      - 'src/sunwell/adaptive/event_schema.py'
-      - 'src/sunwell/adaptive/events.py'
+      - 'src/sunwell/agent/events/**'
       - 'schemas/**'
       - 'studio/src/lib/agent-events.ts'
       - 'scripts/generate_event_schema.py'
@@ -12,8 +11,7 @@ on:
     branches:
       - main
     paths:
-      - 'src/sunwell/adaptive/event_schema.py'
-      - 'src/sunwell/adaptive/events.py'
+      - 'src/sunwell/agent/events/**'
 
 jobs:
   check-schema:

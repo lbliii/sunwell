@@ -332,8 +332,7 @@ sunwell/
 │       │       ├── protocol.py     # Planner protocol
 │       │       ├── artifact.py     # Artifact-first planner
 │       │       ├── harmonic.py     # Harmonic planning
-│       │       ├── agent.py        # Agent planner
-│       │       └── self_improvement.py # Self-improvement
+│       │       └── agent.py        # Agent planner
 │       │
 │       ├── simulacrum/         # Persona simulation (40 files)
 │       │   ├── manager.py      # Simulacrum manager

@@ -18,8 +18,12 @@ from sunwell.agent.events import AgentEvent, EventType
 from sunwell.agent.events.schemas import EventEmitter
 from sunwell.agent.execution.context import BacklogContext
 from sunwell.agent.incremental import ExecutionCache, IncrementalExecutor, IncrementalResult
-from sunwell.features.backlog.goals import Goal, GoalResult, GoalScope
-from sunwell.features.backlog.manager import BacklogManager
+from sunwell.agent.execution.backlog_stub import (
+    BacklogManager,
+    Goal,
+    GoalResult,
+    GoalScope,
+)
 from sunwell.foundation.utils import safe_json_dumps, safe_json_loads
 from sunwell.planning.naaru.persistence import hash_goal
 

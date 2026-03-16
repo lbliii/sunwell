@@ -29,7 +29,7 @@ from sunwell.foundation.utils import safe_json_dump, safe_json_load
 logger = logging.getLogger(__name__)
 
 # RFC-067 types - imported here for Task dataclass fields
-from sunwell.features.external.integration.types import (
+from sunwell.integration.types import (
     IntegrationCheck,
     RequiredIntegration,
     TaskType,

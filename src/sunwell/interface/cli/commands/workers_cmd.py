@@ -72,135 +72,9 @@ async def _start_workers(
     dry_run: bool,
     auto: bool,
 ) -> None:
-    """Start parallel execution."""
-    from sunwell.agent.parallel import (
-        Coordinator,
-        GoalDependencyGraph,
-        MultiInstanceConfig,
-        ResourceGovernor,
-        ResourceLimits,
-    )
-    from sunwell.features.backlog.manager import BacklogManager
-
-    root = Path.cwd()
-
-    # Auto-detect worker count if requested
-    if auto:
-        governor = ResourceGovernor(ResourceLimits(), root)
-        num_workers = governor.get_recommended_workers()
-        console.print(f"[cyan]Auto-detected: {num_workers} workers recommended[/cyan]")
-
-    console.print(f"\n🚀 [bold]Starting parallel execution with {num_workers} workers[/bold]\n")
-
-    # Refresh backlog
-    manager = BacklogManager(root=root)
-    backlog = await manager.refresh()
-    goals = backlog.execution_order()
-
-    if not goals:
-        console.print("📋 No goals in backlog")
-        return
-
-    # Analyze parallelizability
-    graph = GoalDependencyGraph.from_backlog(backlog)
-    completed_set = backlog.completed
-
-    parallelizable_groups = graph.get_parallelizable_groups(
-        [g.id for g in goals if g.id not in completed_set],
-        completed_set,
-    )
-
-    total_goals = len([g for g in goals if g.id not in completed_set])
-    parallel_count = sum(len(g) for g in parallelizable_groups if len(g) > 1)
-
-    parallel_pct = 100 * parallel_count // max(1, total_goals)
-    console.print("📊 [bold]Backlog Analysis:[/bold]")
-    console.print(f"   Total goals: {total_goals}")
-    console.print(f"   Parallelizable: {parallel_count} ({parallel_pct}%)")
-    console.print(f"   Sequential (conflicts): {total_goals - parallel_count}")
-    console.print()
-
-    if dry_run:
-        console.print("[yellow]Dry run - no changes will be made[/yellow]\n")
-
-        table = Table(title="Parallel Execution Plan")
-        table.add_column("Wave", style="cyan")
-        table.add_column("Goals", style="white")
-        table.add_column("Workers", style="green")
-
-        for i, group in enumerate(parallelizable_groups[:10], 1):
-            goal_titles = [backlog.goals[gid].title[:30] for gid in group[:3]]
-            if len(group) > 3:
-                goal_titles.append(f"... +{len(group) - 3} more")
-            table.add_row(
-                str(i),
-                "\n".join(goal_titles),
-                str(min(len(group), num_workers)),
-            )
-
-        console.print(table)
-
-        # Estimate time savings
-        serial_time = total_goals * 5  # 5 min per goal estimate
-        parallel_time = len(parallelizable_groups) * 5  # each wave runs in parallel
-        speedup = serial_time / max(1, parallel_time)
-
-        console.print("\n⏱️  [bold]Estimated time:[/bold]")
-        console.print(f"   Serial: ~{serial_time} minutes")
-        console.print(f"   Parallel: ~{parallel_time} minutes")
-        console.print(f"   Speedup: {speedup:.1f}×")
-        return
-
-    # Create coordinator and run
-    config = MultiInstanceConfig(num_workers=num_workers)
-    coordinator = Coordinator(root=root, config=config)
-
-    console.print("🔧 [bold]Workers:[/bold]")
-    for i in range(1, num_workers + 1):
-        console.print(f"   Worker {i}: starting → sunwell/worker-{i}")
-    console.print()
-
-    console.print("─" * 60)
-    console.print()
-
-    result = await coordinator.execute()
-
-    console.print()
-    console.print("─" * 60)
-    console.print()
-
-    # Show results
-    if result.errors:
-        console.print("[red]❌ Errors occurred:[/red]")
-        for error in result.errors:
-            console.print(f"   {error}")
-        return
-
-    completed_msg = f"{result.completed}/{result.total_goals} goals completed"
-    console.print(f"📈 [bold]Progress:[/bold] {completed_msg}")
-    console.print()
-
-    if result.merged_branches:
-        console.print("🔀 [bold]Merged branches:[/bold]")
-        for branch in result.merged_branches:
-            console.print(f"   ✅ {branch}")
-
-    if result.conflict_branches:
-        console.print("\n⚠️  [bold]Branches with conflicts:[/bold]")
-        for branch in result.conflict_branches:
-            console.print(f"   ❌ {branch}")
-        console.print("\n   Run 'sunwell workers conflicts' to see details")
-
-    console.print()
-    console.print("🎉 [bold]Parallel execution complete![/bold]")
-    console.print()
-    console.print(f"   Duration: {result.duration_seconds / 60:.1f} minutes")
-    console.print(f"   Goals completed: {result.completed}")
-    console.print(f"   Goals failed: {result.failed}")
-    console.print(f"   Branches merged: {len(result.merged_branches)}")
-    console.print(f"   Conflicts: {len(result.conflict_branches)}")
-    console.print()
-    console.print("Run `git log --oneline -20` to see changes.")
+    """Start parallel execution (stub - feature removed in Phase 2)."""
+    console.print("[yellow]Parallel workers feature removed in Sunwell reboot[/yellow]")
+    console.print("Use 'sunwell backlog run <goal_id>' for single-goal execution.")
 
 
 @workers.command()
@@ -306,47 +180,8 @@ def merge(ctx, branch: str | None) -> None:
 
 
 async def _merge_branches(branch: str | None) -> None:
-    """Merge worker branches."""
-    from sunwell.agent.parallel.git import (
-        checkout_branch,
-        get_current_branch,
-        merge_ff_only,
-        run_git,
-    )
-
-    root = Path.cwd()
-    base_branch = await get_current_branch(root)
-
-    # Find worker branches
-    result = await run_git(root, ["branch", "--list", "sunwell/worker-*"])
-    branches = [b.strip().lstrip("* ") for b in result.strip().split("\n") if b.strip()]
-
-    if branch:
-        branches = [b for b in branches if b == branch]
-
-    if not branches:
-        console.print("No worker branches found")
-        return
-
-    console.print(f"🔀 [bold]Merging branches to {base_branch}[/bold]\n")
-
-    merged = []
-    conflicts = []
-
-    for b in branches:
-        try:
-            await checkout_branch(root, base_branch)
-            await merge_ff_only(root, b)
-            merged.append(b)
-            console.print(f"   ✅ {b}")
-        except Exception as e:
-            conflicts.append(b)
-            console.print(f"   ❌ {b} - {e}")
-
-    await checkout_branch(root, base_branch)
-
-    console.print()
-    console.print(f"Merged: {len(merged)}, Conflicts: {len(conflicts)}")
+    """Merge worker branches (stub - feature removed in Phase 2)."""
+    console.print("[yellow]Parallel workers feature removed in Sunwell reboot[/yellow]")
 
 
 @workers.command()
@@ -357,37 +192,8 @@ def conflicts(ctx) -> None:
 
 
 async def _show_conflicts() -> None:
-    """Show conflict details."""
-    from sunwell.agent.parallel.git import run_git
-
-    root = Path.cwd()
-
-    # Find worker branches
-    result = await run_git(root, ["branch", "--list", "sunwell/worker-*"])
-    branches = [b.strip().lstrip("* ") for b in result.strip().split("\n") if b.strip()]
-
-    if not branches:
-        console.print("No worker branches found")
-        return
-
-    console.print("⚠️  [bold]Worker Branches:[/bold]\n")
-
-    for branch in branches:
-        # Get commit count
-        try:
-            count_result = await run_git(root, ["rev-list", "--count", f"HEAD..{branch}"])
-            commit_count = count_result.strip()
-        except Exception:
-            commit_count = "?"
-
-        console.print(f"   {branch}: {commit_count} commits ahead")
-
-    console.print("\nTo resolve conflicts manually:")
-    console.print("  git checkout <branch>")
-    console.print("  git rebase main")
-    console.print("  # resolve conflicts")
-    console.print("  git checkout main")
-    console.print("  git merge --ff-only <branch>")
+    """Show conflict details (stub - feature removed in Phase 2)."""
+    console.print("[yellow]Parallel workers feature removed in Sunwell reboot[/yellow]")
 
 
 @workers.command()
@@ -398,31 +204,8 @@ def resources(ctx) -> None:
 
 
 async def _show_resources() -> None:
-    """Show resource usage."""
-    from sunwell.agent.parallel import ResourceGovernor, ResourceLimits
-
-    root = Path.cwd()
-    governor = ResourceGovernor(ResourceLimits(), root)
-
-    console.print("📊 [bold]Resource Usage:[/bold]\n")
-
-    # LLM slots
-    llm_count = governor._read_llm_count()
-    console.print(f"   LLM slots: {llm_count}/{governor.limits.max_concurrent_llm_calls}")
-
-    # Recommended workers
-    recommended = governor.get_recommended_workers()
-    console.print(f"   Recommended workers: {recommended}")
-
-    # Memory (if psutil available)
-    try:
-        import psutil
-
-        mem = psutil.virtual_memory()
-        console.print(f"   Available memory: {mem.available / 1024 / 1024:.0f} MB")
-        console.print(f"   CPU cores: {psutil.cpu_count()}")
-    except ImportError:
-        console.print("   [dim]Install psutil for detailed resource info[/dim]")
+    """Show resource usage (stub - feature removed in Phase 2)."""
+    console.print("[yellow]Parallel workers feature removed in Sunwell reboot[/yellow]")
 
 
 @workers.command()
@@ -465,21 +248,8 @@ def ui_state(ctx, project: str) -> None:
 
 
 async def _get_ui_state(project: Path) -> None:
-    """Get UI state for coordinator."""
-    from sunwell.agent.parallel import Coordinator, MultiInstanceConfig
-
-    root = project.resolve()
-    config = MultiInstanceConfig()
-    coordinator = Coordinator(root=root, config=config)
-
-    try:
-        ui_state = await coordinator.get_ui_state()
-        console.print(json.dumps(ui_state.to_dict(), indent=2))
-    except Exception:
-        # Return empty state on error
-        from sunwell.agent.parallel.types import CoordinatorUIState
-        empty_state = CoordinatorUIState()
-        console.print(json.dumps(empty_state.to_dict(), indent=2))
+    """Get UI state for coordinator (stub - feature removed in Phase 2)."""
+    console.print(json.dumps({"workers": [], "status": "feature_removed"}, indent=2))
 
 
 @workers.command()

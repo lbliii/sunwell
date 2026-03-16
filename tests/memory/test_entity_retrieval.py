@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.memory.core.entities.store import EntityStore
 from sunwell.memory.core.entities.types import Entity, EntityType
 from sunwell.memory.simulacrum.core.planning_context import PlanningContext

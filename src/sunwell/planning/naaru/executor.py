@@ -37,7 +37,7 @@ from sunwell.planning.naaru.artifacts import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sunwell.features.external.integration import IntegrationVerifier
+    from sunwell.integration import IntegrationVerifier
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 logger = logging.getLogger(__name__)
@@ -351,7 +351,7 @@ class ArtifactExecutor:
 
         from pathlib import Path
 
-        from sunwell.features.external.integration import ProducedArtifact
+        from sunwell.integration import ProducedArtifact
 
         try:
             # Build list of produced artifacts from completed results

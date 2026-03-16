@@ -214,7 +214,7 @@ class Naaru:
             return None
 
         if self._integration_verifier is None:
-            from sunwell.features.external.integration import IntegrationVerifier
+            from sunwell.integration import IntegrationVerifier
 
             self._integration_verifier = IntegrationVerifier(
                 project_root=self.workspace,

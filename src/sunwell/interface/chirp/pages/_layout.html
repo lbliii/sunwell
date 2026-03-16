@@ -2,58 +2,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sunwell Studio{% end %}</title>
-
-    {# CSS - Load order: base → themes → design system → variants → biomorphic → springs → app-specific #}
-    <link rel="stylesheet" href="/static/css/chirpui.css">
-    <link rel="stylesheet" href="/static/themes/holy-light.css">
-    <link rel="stylesheet" href="/static/css/design-system.css">
-    <link rel="stylesheet" href="/static/css/themes.css">
-    <link rel="stylesheet" href="/static/css/component-variants.css">
-    <link rel="stylesheet" href="/static/css/biomorphic.css">
-    <link rel="stylesheet" href="/static/css/spring-animations.css">
-    <link rel="stylesheet" href="/static/css/theme.css">
-
-    {# htmx for progressive enhancement #}
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
-
-    {% block head %}{% end %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="view-transition" content="same-origin">
+  <script>
+    (function(){
+      var t=localStorage.getItem('chirpui-theme')||'system';
+      var s=localStorage.getItem('chirpui-style')||'default';
+      document.documentElement.setAttribute('data-theme',t);
+      document.documentElement.setAttribute('data-style',s);
+    })();
+  </script>
+  <script src="/static/chirpui.js"></script>
+  <title id="chirpui-document-title">{{ page_title | default("Sunwell Studio") }}</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+  <style>
+    @view-transition { navigation: auto; }
+  </style>
+  <link rel="stylesheet" href="/static/chirpui.css">
+  <link rel="stylesheet" href="/static/chirpui-transitions.css">
+  <link rel="stylesheet" href="/static/css/sunwell.css">
+  {% block head %}{% end %}
 </head>
-<body hx-boost="true" hx-target="#app-content" hx-swap="innerHTML transition:true" hx-indicator="#nav-spinner">
-    {# Command Palette - Global (Cmd/Ctrl+K) #}
-    {% import "command-palette.html" as cmd %}
-    {% call cmd.command_palette() %}{% end %}
+<body>
+{% from "chirpui/app_shell.html" import app_shell %}
+{% from "chirpui/sidebar.html" import sidebar, sidebar_section, sidebar_link %}
+{% from "chirpui/breadcrumbs.html" import breadcrumbs %}
+{% from "chirpui/theme_toggle.html" import theme_toggle %}
 
-    <nav class="main-nav">
-        <div class="nav-brand">
-            <h1><span class="icon-radiant">✦</span> Sunwell</h1>
-            <span class="subtitle">Studio</span>
-        </div>
+{% region breadcrumbs_oob(breadcrumb_prefix=[], breadcrumb_label=none, current_path="/") %}
+{{ breadcrumbs(sunwell_breadcrumb_items(
+  breadcrumb_prefix | default([]),
+  breadcrumb_label | default(none),
+  current_path | default("/")
+)) }}
+{% end %}
 
-        <ul class="nav-links">
-            <li><a href="/" class="{% if current_page == 'home' %}active{% end %}">Home</a></li>
-            <li><a href="/projects" class="{% if current_page == 'projects' %}active{% end %}">Projects</a></li>
-            <li><a href="/observatory" class="{% if current_page == 'observatory' %}active{% end %}">Observatory</a></li>
-            <li><a href="/dag" class="{% if current_page == 'dag' %}active{% end %}">DAG</a></li>
-            <li><a href="/writer" class="{% if current_page == 'writer' %}active{% end %}">Writer</a></li>
-            <li><a href="/backlog" class="{% if current_page == 'backlog' %}active{% end %}">Backlog</a></li>
-            <li><a href="/activity" class="{% if current_page == 'activity' %}active{% end %}">Activity</a></li>
-            <li><a href="/tools" class="{% if current_page == 'tools' %}active{% end %}">Tools</a></li>
-            <li><a href="/settings" class="{% if current_page == 'settings' %}active{% end %}">Settings</a></li>
-        </ul>
+{% region title_oob(page_title="Sunwell Studio") %}
+<title id="chirpui-document-title" hx-swap-oob="true">{{ page_title }}</title>
+{% end %}
 
-        <span class="nav-indicator htmx-indicator" id="nav-spinner">
-            <span class="spinner"></span>
-        </span>
-    </nav>
+{% region sidebar_oob(current_path="/") %}
+{% call sidebar() %}
+  {% for group in sunwell_sidebar_groups(current_path | default("/")) %}
+  {% call sidebar_section(group.title, cls=group.cls) %}
+    {% for link in group.links %}
+    {{ sidebar_link(link.href, link.label, icon=link.icon, active=link.active) }}
+    {% end %}
+  {% end %}
+  {% end %}
+{% end %}
+{% end %}
 
-    <main class="container" id="app-content">
-        {% block content %}{% end %}
-    </main>
-
-    {% block scripts %}{% end %}
+{% call app_shell(brand="Sunwell", brand_url="/", sidebar_collapsible=true) %}
+  {% slot topbar %}
+  {{ breadcrumbs_oob(
+    breadcrumb_prefix=breadcrumb_prefix | default([]),
+    breadcrumb_label=breadcrumb_label | default(none),
+    current_path=current_path | default("/")
+  ) }}
+  {% end %}
+  {% slot topbar_end %}
+  {{ theme_toggle() }}
+  {% end %}
+  {% slot sidebar %}
+  {{ sidebar_oob(current_path=current_path | default("/")) }}
+  {% end %}
+  {% block content %}{% end %}
+{% end %}
+{% block scripts %}{% end %}
 </body>
 </html>

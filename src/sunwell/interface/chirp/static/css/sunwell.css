@@ -1,0 +1,31 @@
+/* Sunwell Studio — minimal overrides for ChirpUI */
+
+:root {
+  /* Sunwell accent palette */
+  --color-radiant: #ffd700;
+  --color-gold: #c9a227;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-text-muted: #a8a8a8;
+  --color-bg: var(--chirpui-bg, #0d0d0d);
+  --color-surface: var(--chirpui-surface, #1a1a1a);
+  --color-border: var(--chirpui-border, #333);
+  --color-text: var(--chirpui-text, #e5e5e5);
+  --z-modal: 1000;
+  /* Layout tokens for legacy pages */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --font-mono: ui-monospace, "SF Mono", Monaco, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-lg: 1.125rem;
+  --text-2xl: 1.5rem;
+  --leading-normal: 1.5;
+  --duration-slow: 0.4s;
+  --ease-out: ease-out;
+}

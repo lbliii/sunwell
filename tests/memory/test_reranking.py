@@ -12,7 +12,7 @@ import pytest
 from sunwell.memory.core.reranking.cache import RerankingCache
 from sunwell.memory.core.reranking.config import RerankingConfig
 from sunwell.memory.core.reranking.cross_encoder import CrossEncoderReranker
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 
 
 class TestRerankingConfig:

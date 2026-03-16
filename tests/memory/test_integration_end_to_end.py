@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.memory.core.entities.extractor import PatternEntityExtractor
 from sunwell.memory.core.entities.store import EntityStore
 from sunwell.memory.core.learning_cache import LearningCache

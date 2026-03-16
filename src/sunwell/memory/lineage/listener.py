@@ -1,24 +1,28 @@
 """Event listener for lineage tracking (RFC-121).
 
 Listens to file events and updates LineageStore automatically.
-Integrates with RFC-119 EventBus for real-time Studio updates.
+Can be called directly from tool handlers for synchronous updates.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 from sunwell.memory.lineage.human_detection import HumanEditDetector
 from sunwell.memory.lineage.store import LineageStore
 
-if TYPE_CHECKING:
-    from sunwell.interface.server.events import BusEvent, EventBus  # layer-exempt: pre-existing
+
+class LineageEvent(Protocol):
+    """Protocol for events with type and data (e.g. from event bus)."""
+
+    type: str
+    data: dict[str, Any]
 
 
 class LineageEventListener:
     """Listens to agent events and updates lineage.
 
-    Integrates with RFC-119 EventBus to capture file operations.
+    Captures file operations from tool handlers or event bus.
     Can also be called directly from tool handlers for synchronous updates.
 
     Example:
@@ -46,14 +50,14 @@ class LineageEventListener:
     def __init__(
         self,
         store: LineageStore,
-        event_bus: EventBus | None = None,
+        event_bus: Any = None,
         human_detector: HumanEditDetector | None = None,
     ) -> None:
         """Initialize listener.
 
         Args:
             store: LineageStore to record events
-            event_bus: Optional EventBus for WebSocket broadcast
+            event_bus: Optional event bus for broadcast (legacy, unused)
             human_detector: Optional HumanEditDetector for source classification
         """
         self.store = store
@@ -62,7 +66,7 @@ class LineageEventListener:
         self._subscribed = False
 
     async def start(self) -> None:
-        """Start listening for events on the EventBus."""
+        """Start listening for events (no-op when event_bus removed)."""
         if self._subscribed or not self.event_bus:
             return
         # EventBus integration would go here
@@ -73,11 +77,11 @@ class LineageEventListener:
         """Stop listening for events."""
         self._subscribed = False
 
-    async def handle_event(self, event: BusEvent) -> None:
+    async def handle_event(self, event: LineageEvent) -> None:
         """Route event to appropriate handler.
 
         Args:
-            event: BusEvent from the EventBus
+            event: Event with type and data attributes
         """
         if event.type not in self.FILE_EVENTS:
             return
@@ -93,11 +97,11 @@ class LineageEventListener:
                 await self._on_file_renamed(event)
 
     # ─────────────────────────────────────────────────────────────────
-    # Event Handlers (from EventBus)
+    # Event Handlers
     # ─────────────────────────────────────────────────────────────────
 
-    async def _on_file_created(self, event: BusEvent) -> None:
-        """Handle file creation event from EventBus."""
+    async def _on_file_created(self, event: LineageEvent) -> None:
+        """Handle file creation event."""
         data = event.data
         self.on_file_created(
             path=data["path"],
@@ -109,8 +113,8 @@ class LineageEventListener:
             reason=data.get("reason", "Created by Sunwell"),
         )
 
-    async def _on_file_modified(self, event: BusEvent) -> None:
-        """Handle file modification event from EventBus."""
+    async def _on_file_modified(self, event: LineageEvent) -> None:
+        """Handle file modification event."""
         data = event.data
         self.on_file_modified(
             path=data["path"],
@@ -123,8 +127,8 @@ class LineageEventListener:
             lines_removed=data.get("lines_removed", 0),
         )
 
-    async def _on_file_deleted(self, event: BusEvent) -> None:
-        """Handle file deletion event from EventBus."""
+    async def _on_file_deleted(self, event: LineageEvent) -> None:
+        """Handle file deletion event."""
         data = event.data
         self.on_file_deleted(
             path=data["path"],
@@ -132,8 +136,8 @@ class LineageEventListener:
             session_id=data.get("session_id"),
         )
 
-    async def _on_file_renamed(self, event: BusEvent) -> None:
-        """Handle file rename event from EventBus."""
+    async def _on_file_renamed(self, event: LineageEvent) -> None:
+        """Handle file rename event."""
         data = event.data
         self.on_file_renamed(
             old_path=data["old_path"],
@@ -267,14 +271,14 @@ class LineageEventListener:
 
 def create_lineage_listener(
     project_root: Any,
-    event_bus: EventBus | None = None,
+    event_bus: Any = None,
     session_tracker: Any = None,
 ) -> LineageEventListener:
     """Create a fully configured LineageEventListener.
 
     Args:
         project_root: Project root path
-        event_bus: Optional EventBus for WebSocket broadcast
+        event_bus: Optional event bus (legacy, unused)
         session_tracker: Optional SessionTracker
 
     Returns:

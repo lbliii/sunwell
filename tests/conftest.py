@@ -95,13 +95,13 @@ def lens_loader() -> LensLoader:
 @pytest.fixture
 def lenses_dir() -> Path:
     """Get the path to the lenses directory."""
-    return Path(__file__).parent.parent / "lenses"
+    return Path(__file__).parent.parent / "lenses"  # project root / lenses
 
 
 @pytest.fixture
 def tech_writer_lens(lens_loader: LensLoader, lenses_dir: Path) -> Lens:
     """Load the tech-writer lens for testing."""
-    return lens_loader.load(lenses_dir / "tech-writer.lens")
+    return lens_loader.load(lenses_dir / "tech-writer-v2.lens")
 
 
 @pytest.fixture

@@ -512,7 +512,7 @@ async def _plan_async(
     from sunwell.foundation.config import get_config
     from sunwell.interface.cli.helpers import resolve_model
     from sunwell.planning.naaru import get_model_distribution
-    from sunwell.planning.naaru.planners import ExpertiseAwareArtifactPlanner
+    from sunwell.planning.naaru.planners import ArtifactPlanner
     from sunwell.planning.routing import UnifiedRouter
 
     # Load model using resolve_model()
@@ -536,11 +536,7 @@ async def _plan_async(
     except Exception:
         pass
 
-    planner = ExpertiseAwareArtifactPlanner(
-        model=model,
-        router=router,
-        enable_expertise=True,
-    )
+    planner = ArtifactPlanner(model=model, router=router)
 
     # Generate plan
     if output_format == "human":

@@ -1,10 +1,22 @@
 """Main Chirp application entry point - page convention routing."""
 
+import os
 from pathlib import Path
 
 from chirp import App, AppConfig
 from chirp.markdown import register_markdown_filter
 from chirp.middleware.static import StaticFiles
+
+try:
+    from chirp import use_chirp_ui
+except ImportError:
+    from chirp.ext.chirp_ui import use_chirp_ui
+
+
+def _default_debug() -> bool:
+    """Debug mode: False by default; True when SUNWELL_DEBUG=true/1/yes."""
+    val = os.environ.get("SUNWELL_DEBUG", "false").lower()
+    return val in ("true", "1", "yes")
 
 
 def create_app() -> App:
@@ -13,22 +25,69 @@ def create_app() -> App:
     Uses filesystem-based page routing: the pages/ directory defines
     URL paths, layout nesting, and context inheritance.
     """
-    # Resolve paths relative to this file
     pkg_dir = Path(__file__).parent
     pages_dir = pkg_dir / "pages"
-    components_dir = pkg_dir / "components"
     static_dir = pkg_dir / "static"
 
     config = AppConfig(
-        template_dir=str(pages_dir),  # Pages for routing
-        component_dirs=(str(components_dir),),  # Component library (separate directory)
+        template_dir=str(pages_dir),
         static_dir=str(static_dir),
         static_url="/static",
-        debug=True,  # Enable debug mode during development
-        view_transitions=True,  # Enable View Transitions API for smooth navigation
+        debug=_default_debug(),
+        view_transitions=True,
+        delegation=True,
+        alpine=True,
     )
 
     app = App(config=config)
+    use_chirp_ui(app)
+
+    # Template globals for ChirpUI app shell (sidebar, breadcrumbs)
+    _SIDEBAR_LINKS: list[dict[str, str | bool]] = [
+        {"id": "home", "label": "Home", "href": "/", "icon": "home"},
+        {"id": "projects", "label": "Projects", "href": "/projects", "icon": "folder"},
+        {"id": "observatory", "label": "Observatory", "href": "/observatory", "icon": "chart"},
+        {"id": "dag", "label": "DAG", "href": "/dag", "icon": "git-branch"},
+        {"id": "writer", "label": "Writer", "href": "/writer", "icon": "edit"},
+        {"id": "backlog", "label": "Backlog", "href": "/backlog", "icon": "list"},
+        {"id": "activity", "label": "Activity", "href": "/activity", "icon": "activity"},
+        {"id": "tools", "label": "Tools", "href": "/tools", "icon": "wrench"},
+        {"id": "settings", "label": "Settings", "href": "/settings", "icon": "settings"},
+    ]
+
+    def _sunwell_sidebar_groups(current_path: str) -> list[dict]:
+        cp = current_path or "/"
+        items = [
+            {**link, "active": cp == link["href"] or (link["href"] != "/" and cp.startswith(link["href"]))}
+            for link in _SIDEBAR_LINKS
+        ]
+        return [{"id": "nav", "title": "Navigation", "cls": "sunwell-sidebar-group", "links": items}]
+
+    def _sunwell_breadcrumb_items(
+        breadcrumb_prefix: list,
+        breadcrumb_label: str | None,
+        current_path: str,
+    ) -> list[dict]:
+        parts: list[dict] = list(breadcrumb_prefix or [])
+        if breadcrumb_label:
+            parts.append({"label": breadcrumb_label, "href": current_path or "/"})
+        if parts:
+            return parts
+        # Fallback: derive from path
+        path = (current_path or "/").strip("/") or "home"
+        segs = path.split("/")
+        if not segs or segs[0] == "home":
+            return [{"label": "Home", "href": "/"}]
+        items = [{"label": "Home", "href": "/"}]
+        acc = ""
+        for i, seg in enumerate(segs):
+            acc += "/" + seg
+            label = seg.replace("-", " ").replace("_", " ").title()
+            items.append({"label": label, "href": acc})
+        return items
+
+    app.template_global("sunwell_sidebar_groups")(_sunwell_sidebar_groups)
+    app.template_global("sunwell_breadcrumb_items")(_sunwell_breadcrumb_items)
 
     # Register markdown filter - enables {{ content | markdown }} in templates
     # Optional: requires chirp[markdown] to be installed
@@ -79,15 +138,26 @@ def register_providers(app: App) -> None:
         SessionService,
     )
 
+    # Create service instances once (true singletons)
+    # This prevents re-importing numpy in Python 3.14 free-threaded build
+    _config_service = ConfigService()
+    _project_service = ProjectService()
+    _skill_service = SkillService()
+    _backlog_service = BacklogService()
+    _writer_service = WriterService()
+    _memory_service = MemoryService()
+    _coordinator_service = CoordinatorService()
+    _session_service = SessionService()
+
     # Register service singletons
-    app.provide(ConfigService, lambda: ConfigService())
-    app.provide(ProjectService, lambda: ProjectService())
-    app.provide(SkillService, lambda: SkillService())
-    app.provide(BacklogService, lambda: BacklogService())
-    app.provide(WriterService, lambda: WriterService())
-    app.provide(MemoryService, lambda: MemoryService())
-    app.provide(CoordinatorService, lambda: CoordinatorService())
-    app.provide(SessionService, lambda: SessionService())
+    app.provide(ConfigService, lambda: _config_service)
+    app.provide(ProjectService, lambda: _project_service)
+    app.provide(SkillService, lambda: _skill_service)
+    app.provide(BacklogService, lambda: _backlog_service)
+    app.provide(WriterService, lambda: _writer_service)
+    app.provide(MemoryService, lambda: _memory_service)
+    app.provide(CoordinatorService, lambda: _coordinator_service)
+    app.provide(SessionService, lambda: _session_service)
 
 
 def register_mcp_tools(app: App) -> None:

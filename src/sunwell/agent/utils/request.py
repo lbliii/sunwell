@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.agent.convergence import ConvergenceConfig
     from sunwell.foundation.core.lens import Lens
     from sunwell.models import ModelProtocol
 
@@ -49,8 +48,8 @@ class RunOptions:
     converge: bool = False
     """Enable convergence loop (RFC-123)."""
 
-    convergence_config: ConvergenceConfig | None = None
-    """Configuration for convergence behavior."""
+    convergence_config: object | None = None
+    """Configuration for convergence (unused; convergence removed in Phase 2)."""
 
     validate: bool = True
     """Run validation gates after execution."""

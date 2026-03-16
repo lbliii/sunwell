@@ -32,20 +32,18 @@ dependencies = [
     "click>=8.1",
     "httpx>=0.25",
     "rich>=13.0",
-    # RFC-113: HTTP server for Studio UI
-    "fastapi>=0.109",
-    "uvicorn>=0.27",
     "websockets>=16.0",
     # Ollama is default provider, uses OpenAI client for /v1 endpoint
     "openai>=1.0",
     "rosettes>=0.1.0",
     # Chirp migration: HTML-over-the-wire framework
     "bengal-chirp>=0.1.0",
-    "kida-templates>=0.2.0",
+    "chirp-ui>=0.1.6",
+    "kida-templates>=0.2.6",
 ]
 
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.18"]
+anthropic = [    "anthropic>=0.18"]
 embeddings = ["sentence-transformers>=2.2"]
 external = [
     "httpx>=0.27.0",       # Async HTTP client for API calls
@@ -53,12 +51,6 @@ external = [
 ]
 mcp = ["mcp>=1.1.0"]  # Model Context Protocol for Cursor/Claude integration
 all = ["sunwell[anthropic,embeddings,external,mcp]"]
-benchmark = [
-    "tiktoken>=0.5.0", # Accurate token counting
-    "scipy>=1.10.0",   # Statistical tests (Mann-Whitney, Wilcoxon)
-    "ruff>=0.2.0",     # Deterministic linting checks
-    "mypy>=1.8.0",     # Deterministic type checks
-]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
