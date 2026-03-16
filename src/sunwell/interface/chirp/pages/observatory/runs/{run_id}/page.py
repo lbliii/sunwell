@@ -23,5 +23,9 @@ def get(run_id: str, session_svc: SessionService) -> Page:
         "content",
         current_page="observatory",
         run=session,
-        title=f"Run: {session['goal'][:50]}...",
+        page_title=f"Run: {session['goal'][:50]} - Sunwell Studio",
+        breadcrumb_label=session["goal"][:50],
+        breadcrumb_prefix=[
+            {"label": "Observatory", "href": "/observatory"},
+        ],
     )

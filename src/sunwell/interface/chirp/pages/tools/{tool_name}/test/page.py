@@ -1,21 +1,17 @@
-"""Tool test form handler."""
+"""Tool test form handler — returns a fragment loaded into modal via HTMX."""
 
-from chirp import Page, Request
+from chirp import App, Fragment
 
 
-async def get(tool_name: str, request: Request) -> Page:
-    """Render tool test form."""
-    app = request.app
-    if not app._frozen:
-        app._freeze()
-
-    # Get tool schema
+def get(tool_name: str, app: App) -> Fragment:
+    """Render tool test form as a modal fragment."""
     tools = app._tool_registry.list_tools()
     tool = next((t for t in tools if t["name"] == tool_name), None)
 
     if not tool:
-        return Page(
+        return Fragment(
             "tools/{tool_name}/test/page.html",
+            "tool_test",
             tool_name=tool_name,
             description="Tool not found",
             parameters={},
@@ -26,8 +22,9 @@ async def get(tool_name: str, request: Request) -> Page:
     properties = schema.get("properties", {})
     required = schema.get("required", [])
 
-    return Page(
+    return Fragment(
         "tools/{tool_name}/test/page.html",
+        "tool_test",
         tool_name=tool_name,
         description=tool.get("description", ""),
         parameters=properties,

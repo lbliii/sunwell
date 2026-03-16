@@ -1,5 +1,3 @@
-{% block title %}Activity Monitor{% end %}
-
 {% block content %}
 {% from "chirpui/layout.html" import container, grid, stack, page_header %}
 {% from "chirpui/card.html" import card %}
@@ -37,7 +35,6 @@
             <button class="chirpui-btn chirpui-btn--ghost chirpui-btn--sm" onclick="clearFeed()">Clear</button>
             <select id="category-filter" class="chirpui-field__input" onchange="filterByCategory(this.value)" style="width: auto;">
                 <option value="all">All Categories</option>
-                <option value="backlog">Backlog</option>
                 <option value="knowledge">Knowledge</option>
                 <option value="memory">Memory</option>
                 <option value="lens">Lens</option>
@@ -64,7 +61,6 @@
                 <select name="tool" class="chirpui-field__input" style="flex: 1;">
                     <option value="sunwell_list_lenses">sunwell_list_lenses</option>
                     <option value="sunwell_workspace">sunwell_workspace</option>
-                    <option value="sunwell_goals">sunwell_goals</option>
                 </select>
                 <button type="submit" class="chirpui-btn chirpui-btn--primary">Trigger Call</button>
             </div>

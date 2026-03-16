@@ -36,7 +36,11 @@ def get(project_id: str) -> Page:
             "valid": valid,
             "is_default": is_default,
         },
-        title=project.name,
+        page_title=f"{project.name} - Sunwell Studio",
+        breadcrumb_label=project.name,
+        breadcrumb_prefix=[
+            {"label": "Projects", "href": "/projects"},
+        ],
     )
 
 

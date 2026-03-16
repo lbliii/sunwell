@@ -2,27 +2,18 @@
 
 import json
 from collections import defaultdict
-from chirp import Page
+
+from chirp import App, Page
 
 
-def get() -> Page:
+def get(app: App) -> Page:
     """Render tool inspector page."""
-    from sunwell.interface.chirp.main import create_app
-
-    # Get app instance to access tool registry
-    app = create_app()
-    if not app._frozen:
-        app._freeze()
-
-    # Get all registered tools
     tools = app._tool_registry.list_tools()
 
-    # Group by category (extract from tool name prefix)
-    tools_by_category = defaultdict(list)
+    tools_by_category: defaultdict[str, list[dict]] = defaultdict(list)
     for tool in tools:
         name = tool["name"]
         if name.startswith("sunwell_"):
-            # Determine category from tool name
             name_part = name.replace("sunwell_", "")
             if any(x in name_part for x in ["goal", "backlog", "suggest"]):
                 category = "backlog"
@@ -37,7 +28,6 @@ def get() -> Page:
         else:
             category = "other"
 
-        # Enrich tool data
         schema = tool.get("inputSchema", {})
         properties = schema.get("properties", {})
         required = schema.get("required", [])
@@ -54,7 +44,6 @@ def get() -> Page:
 
         tools_by_category[category].append(enriched_tool)
 
-    # Category icons
     category_icons = {
         "backlog": "📋",
         "knowledge": "🔍",
@@ -67,7 +56,8 @@ def get() -> Page:
         "tools/page.html",
         "content",
         current_page="tools",
-        title="Tool Inspector",
+        page_title="Tool Inspector - Sunwell Studio",
+        breadcrumb_label="Tools",
         total_tools=len(tools),
         tools_by_category=dict(tools_by_category),
         categories=list(tools_by_category.keys()),

@@ -33,9 +33,9 @@ async def post(tool_name: str, request: Request) -> Response:
         # Format result - tool returns dict directly
         result_data = result if isinstance(result, dict) else {"result": str(result)}
         result_html = f"""
-        <div class="test-result-success">
-            <h4>✅ Success</h4>
-            <pre><code>{json.dumps(result_data, indent=2)}</code></pre>
+        <div class="chirpui-alert chirpui-alert--success">
+            <h4>Success</h4>
+            <pre class="chirpui-font-mono chirpui-ui-sm"><code>{json.dumps(result_data, indent=2)}</code></pre>
         </div>
         """
 
@@ -45,9 +45,9 @@ async def post(tool_name: str, request: Request) -> Response:
         )
     except Exception as e:
         error_html = f"""
-        <div class="test-result-error">
-            <h4>❌ Error</h4>
-            <pre><code>{str(e)}</code></pre>
+        <div class="chirpui-alert chirpui-alert--error">
+            <h4>Error</h4>
+            <pre class="chirpui-font-mono chirpui-ui-sm"><code>{str(e)}</code></pre>
         </div>
         """
 

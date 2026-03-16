@@ -36,5 +36,6 @@ def get(memory_svc: MemoryService, request: Request) -> Page:
         memories=memories,
         current_type=memory_type or "all",
         search_query=search_query,
-        title="Memory",
+        page_title="Memory - Sunwell Studio",
+        breadcrumb_label="Memory",
     )

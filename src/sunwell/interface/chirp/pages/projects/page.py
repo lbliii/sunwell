@@ -65,5 +65,6 @@ def get(project_svc: ProjectService) -> Page:
         current_page="projects",
         projects=projects_data,
         has_default=has_default,
-        title="Projects",
+        page_title="Projects - Sunwell Studio",
+        breadcrumb_label="Projects",
     )

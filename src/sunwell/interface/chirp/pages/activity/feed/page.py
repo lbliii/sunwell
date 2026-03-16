@@ -17,9 +17,7 @@ async def get(app: App) -> EventStream:
             # Determine category from tool name
             tool_name = event.tool_name
             category = "unknown"
-            if "backlog" in tool_name or "goal" in tool_name:
-                category = "backlog"
-            elif "search" in tool_name or "ask" in tool_name or "codebase" in tool_name:
+            if "search" in tool_name or "ask" in tool_name or "codebase" in tool_name:
                 category = "knowledge"
             elif "recall" in tool_name or "briefing" in tool_name or "lineage" in tool_name:
                 category = "memory"

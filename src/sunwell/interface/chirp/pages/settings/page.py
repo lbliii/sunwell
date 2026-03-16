@@ -45,5 +45,6 @@ def get(config_svc: ConfigService) -> Page:
         "content",
         current_page="settings",
         settings=settings,
-        title="Settings",
+        page_title="Settings - Sunwell Studio",
+        breadcrumb_label="Settings",
     )

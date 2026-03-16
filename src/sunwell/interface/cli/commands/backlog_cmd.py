@@ -26,7 +26,7 @@ from sunwell.interface.cli.core.theme import create_sunwell_console
 
 if TYPE_CHECKING:
     from sunwell.agent.execution import ExecutionManager, ExecutionResult
-    from sunwell.features.backlog.goals import Goal
+    from sunwell.agent.execution.backlog_stub import Goal
     from sunwell.planning.naaru.planners import ArtifactPlanner
     from sunwell.quality.guardrails import GuardrailSystem
     from sunwell.tools.execution import ToolExecutor

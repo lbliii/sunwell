@@ -9,5 +9,6 @@ def get() -> Page:
         "activity/page.html",
         "content",
         current_page="activity",
-        title="Activity Monitor",
+        page_title="Activity Monitor - Sunwell Studio",
+        breadcrumb_label="Activity",
     )

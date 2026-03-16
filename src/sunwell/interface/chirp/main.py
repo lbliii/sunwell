@@ -162,13 +162,10 @@ def register_providers(app: App) -> None:
     """
     from sunwell.interface.chirp.services import (
         ConfigService,
-        ProjectService,
-        SkillService,
-        BacklogService,
-        WriterService,
         MemoryService,
-        CoordinatorService,
+        ProjectService,
         SessionService,
+        SkillService,
     )
 
     # Create service instances once (true singletons)
@@ -176,20 +173,14 @@ def register_providers(app: App) -> None:
     _config_service = ConfigService()
     _project_service = ProjectService()
     _skill_service = SkillService()
-    _backlog_service = BacklogService()
-    _writer_service = WriterService()
     _memory_service = MemoryService()
-    _coordinator_service = CoordinatorService()
     _session_service = SessionService()
 
     # Register service singletons
     app.provide(ConfigService, lambda: _config_service)
     app.provide(ProjectService, lambda: _project_service)
     app.provide(SkillService, lambda: _skill_service)
-    app.provide(BacklogService, lambda: _backlog_service)
-    app.provide(WriterService, lambda: _writer_service)
     app.provide(MemoryService, lambda: _memory_service)
-    app.provide(CoordinatorService, lambda: _coordinator_service)
     app.provide(SessionService, lambda: _session_service)
 
 

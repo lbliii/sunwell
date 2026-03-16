@@ -37,5 +37,10 @@ def get(project_id: str) -> Page:
             "root": str(project.root),
         },
         memories=memories,
-        title=f"{project.name} - Memory",
+        page_title=f"{project.name} Memory - Sunwell Studio",
+        breadcrumb_label="Memory",
+        breadcrumb_prefix=[
+            {"label": "Projects", "href": "/projects"},
+            {"label": project.name, "href": f"/projects/{project_id}"},
+        ],
     )

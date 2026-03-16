@@ -35,5 +35,6 @@ def get(project_svc: ProjectService, session_svc: SessionService) -> Page:
         recent_projects=recent_projects,
         running_sessions=running_sessions,
         project_count=len(projects),
-        title="Home",
+        page_title="Home - Sunwell Studio",
+        breadcrumb_label="Home",
     )

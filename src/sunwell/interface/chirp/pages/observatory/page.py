@@ -32,5 +32,6 @@ def get(session_svc: SessionService) -> Page:
         "content",
         current_page="observatory",
         runs=runs,
-        title="Observatory",
+        page_title="Observatory - Sunwell Studio",
+        breadcrumb_label="Observatory",
     )
