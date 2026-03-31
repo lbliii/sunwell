@@ -303,6 +303,20 @@ class LoopConfig:
     Example: {"main": 2, "subagent": 4} for lower parallelism.
     """
 
+    # Deferred tool schemas (large JSON surfaces)
+    deferred_tool_schema_threshold: int = 500
+    """Per-tool estimated token threshold above which schemas may be deferred."""
+
+    max_tool_surface_tokens: int = 8000
+    """Total estimated token budget for all tools on the surface (deferral)."""
+
+    enable_deferred_tool_schemas: bool = False
+    """When True (or when tool count exceeds 30), apply deferred schema stubs + discover_tools.
+
+    For CI or constrained pipelines, pair with ``ToolPolicy`` using ``ToolProfile.MINIMAL`` or
+    ``ToolProfile.READ_ONLY`` to limit tool exposure.
+    """
+
     def get_lane_concurrency(self, lane: ExecutionLane) -> int:
         """Get concurrency limit for a lane."""
         if self.lane_concurrency and lane.value in self.lane_concurrency:

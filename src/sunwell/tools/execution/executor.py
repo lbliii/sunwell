@@ -16,6 +16,7 @@ Features:
 
 import asyncio
 import json
+import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
@@ -23,35 +24,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# Callback type for file write hooks
-FileWriteHook = Callable[[Path], Awaitable[None]]
+from sunwell.models import Tool, ToolCall
 
-from sunwell.models import ToolCall
-from sunwell.tools.core.types import (
-    ToolAuditEntry,
-    ToolPolicy,
-    ToolRateLimits,
-    ToolResult,
-    ToolUsageTracker,
-)
-from sunwell.tools.handlers import PathSecurityError
-
-if TYPE_CHECKING:
-    from sunwell.features.mirror.handler import MirrorHandler
-    from sunwell.knowledge.project import Project
-    from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
-    from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
-    from sunwell.models import Tool
-    from sunwell.skills.runtime import SkillExecutor
-    from sunwell.tools.providers.expertise import ExpertiseToolHandler
-    from sunwell.tools.providers.web_search import WebSearchHandler
-    from sunwell.tools.registry import DynamicToolRegistry
-    from sunwell.tools.sunwell.handlers import SunwellToolHandlers
-
-# =============================================================================
-# Tool Category Constants (O(1) lookup, no per-instance rebuilding)
-# =============================================================================
-
+# Tool category constants (O(1) lookup, no per-instance rebuilding)
 from sunwell.tools.core.constants import (
     EXPERTISE_TOOLS as _EXPERTISE_TOOLS,
 )
@@ -70,6 +45,32 @@ from sunwell.tools.core.constants import (
 from sunwell.tools.core.constants import (
     WEB_TOOLS as _WEB_TOOLS,
 )
+from sunwell.tools.core.types import (
+    ToolAuditEntry,
+    ToolPolicy,
+    ToolRateLimits,
+    ToolResult,
+    ToolUsageTracker,
+)
+from sunwell.tools.handlers import PathSecurityError
+from sunwell.tools.observability.events import log_tool_materialized
+from sunwell.tools.surface import DISCOVER_TOOLS_NAME, assemble_tools_for_model
+
+if TYPE_CHECKING:
+    from sunwell.features.mirror.handler import MirrorHandler
+    from sunwell.knowledge.project import Project
+    from sunwell.memory.simulacrum.manager import SimulacrumToolHandler
+    from sunwell.memory.simulacrum.memory_tools import MemoryToolHandler
+    from sunwell.skills.runtime import SkillExecutor
+    from sunwell.tools.providers.expertise import ExpertiseToolHandler
+    from sunwell.tools.providers.web_search import WebSearchHandler
+    from sunwell.tools.registry import DynamicToolRegistry
+    from sunwell.tools.sunwell.handlers import SunwellToolHandlers
+
+logger = logging.getLogger(__name__)
+
+# Callback type for file write hooks
+FileWriteHook = Callable[[Path], Awaitable[None]]
 
 
 @dataclass(slots=True)
@@ -123,6 +124,15 @@ class ToolExecutor:
 
     _usage_tracker: ToolUsageTracker | None = field(default=None, init=False)
     """Tool usage tracker for idle expiry."""
+
+    _materialized_deferred: set[str] = field(default_factory=set, init=False)
+    """Tool names materialized via discover_tools(select=…); full schema next assembly."""
+
+    _surface_full_tool_cache: dict[str, Tool] = field(default_factory=dict, init=False)
+    """Full Tool definitions before stub replacement (for discover_tools materialization)."""
+
+    _deferred_search_index: list[tuple[str, str]] = field(default_factory=list, init=False)
+    """(name, description) rows for discover_tools query mode."""
 
     def __post_init__(self) -> None:
         """Initialize dynamic tool registry."""
@@ -223,20 +233,13 @@ class ToolExecutor:
         return base
 
     def get_tool_definitions(self) -> tuple[Tool, ...]:
-        """Get Tool definitions for active tools.
+        """Get Tool definitions for active tools (policy + merge; no deferred stubs).
 
         Returns Tool objects with name, description, and JSON Schema parameters.
-        Use this when passing tools to model.generate(tools=...).
+        Prefer :func:`sunwell.tools.surface.assemble_tools_for_model` when the agent
+        loop needs role filtering or deferred schemas.
         """
-        base = tuple(self._registry.get_active_schemas()) if self._registry else ()
-        if self.skill_executor:
-            skill_tools = self.skill_executor.get_tool_definitions()
-            base_names = {t.name for t in base}
-            for t in skill_tools:
-                if t.name not in base_names:
-                    base = (*base, t)
-                    base_names.add(t.name)
-        return base
+        return assemble_tools_for_model(self, self.policy, None).tools
 
     async def execute(self, tool_call: ToolCall) -> ToolResult:
         """Execute a single tool call.
@@ -248,6 +251,9 @@ class ToolExecutor:
             ToolResult with success status, output, and metadata
         """
         start = time.monotonic()
+
+        if tool_call.name == DISCOVER_TOOLS_NAME:
+            return await self._execute_discover_tools(tool_call, start)
 
         # RFC-014: Route memory tools to memory handler
         if tool_call.name in _MEMORY_TOOLS:
@@ -583,6 +589,67 @@ class ToolExecutor:
                 success=False,
                 output=f"Error: {type(e).__name__}: {e}",
             )
+
+    async def _execute_discover_tools(
+        self,
+        tool_call: ToolCall,
+        start: float,
+    ) -> ToolResult:
+        """Handle discover_tools(select=|query=) for deferred tool schemas."""
+        args = tool_call.arguments or {}
+        q = args.get("query")
+        sel = args.get("select")
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        if sel is not None and str(sel).strip():
+            name = str(sel).strip()
+            full = self._surface_full_tool_cache.get(name)
+            if full is None:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    success=False,
+                    output=f"Unknown or not on current tool surface: {name}",
+                    execution_time_ms=elapsed_ms,
+                )
+            self._materialized_deferred.add(name)
+            if self._registry and self._registry.is_known(name):
+                self._registry.enable(name)
+            log_tool_materialized(name, "discover_tools_select")
+            payload = {
+                "materialized": name,
+                "tool": {
+                    "name": full.name,
+                    "description": full.description,
+                    "parameters": full.parameters,
+                },
+            }
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=True,
+                output=json.dumps(payload),
+                execution_time_ms=elapsed_ms,
+            )
+
+        if q is not None and str(q).strip():
+            qlow = str(q).lower()
+            matches: list[dict[str, str]] = []
+            for row_name, desc in self._deferred_search_index:
+                blob = f"{row_name} {desc}".lower()
+                if qlow in blob or row_name.lower() == qlow:
+                    matches.append({"name": row_name, "snippet": desc[:200]})
+            return ToolResult(
+                tool_call_id=tool_call.id,
+                success=True,
+                output=json.dumps({"matches": matches[:20]}),
+                execution_time_ms=elapsed_ms,
+            )
+
+        return ToolResult(
+            tool_call_id=tool_call.id,
+            success=False,
+            output="Provide query= or select= to discover_tools",
+            execution_time_ms=elapsed_ms,
+        )
 
     async def execute_batch(
         self,

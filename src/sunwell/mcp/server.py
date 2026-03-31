@@ -44,6 +44,7 @@ def create_server(
     from sunwell.mcp.tools import register_tools
 
     runtime = MCPRuntime(workspace=workspace)
+    runtime.warm_subsystems()
 
     mcp = FastMCP("sunwell", instructions=SUNWELL_INSTRUCTIONS)
 

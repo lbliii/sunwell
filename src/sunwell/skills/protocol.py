@@ -122,9 +122,18 @@ class SkillRegistry:
 
     def __init__(self) -> None:
         self._skills: dict[str, Skill] = {}
+        self._seen_source_paths: set[str] = set()
 
     def register(self, skill: Skill) -> None:
         """Register a skill instance."""
+        try:
+            src = Path(inspect.getfile(skill.__class__)).resolve()
+            key = str(src)
+            if key in self._seen_source_paths:
+                logger.warning("Duplicate skill registration for resolved path %s", key)
+            self._seen_source_paths.add(key)
+        except (TypeError, OSError):
+            pass
         name = skill.name or skill.__class__.__name__
         self._skills[name] = skill
         logger.debug("Registered skill: %s", name)
@@ -138,10 +147,11 @@ class SkillRegistry:
         return list(self._skills)
 
     def get_all_tools(self) -> list[Tool]:
-        """Get all Tool definitions from all skills."""
+        """Get all Tool definitions from all skills (stable order by tool name)."""
         tools: list[Tool] = []
         for skill in self._skills.values():
             tools.extend(skill.to_tools())
+        tools.sort(key=lambda t: t.name)
         return tools
 
     def get_tool_names(self) -> frozenset[str]:

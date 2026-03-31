@@ -1,6 +1,6 @@
 """Tool constants and trust level mappings."""
 
-from sunwell.tools.core.types import ToolTrust
+from sunwell.tools.core.types import ExecutionRole, ToolTrust
 
 # Tools allowed at each trust level (RFC-024 expanded)
 TRUST_LEVEL_TOOLS: dict[ToolTrust, frozenset[str]] = {
@@ -284,3 +284,21 @@ SUNWELL_TOOLS: frozenset[str] = frozenset(
         "sunwell_workflow_route",
     }
 )
+
+# Execution-role deny sets (subtract from merged tool surface; see surface.assemble_tools_for_model)
+ROLE_DENIED_TOOLS: dict[ExecutionRole, frozenset[str]] = {
+    ExecutionRole.MAIN: frozenset(),
+    ExecutionRole.SUBAGENT: frozenset(
+        {
+            "delegate_task",
+            "spawn_subagent",
+        }
+    ),
+    ExecutionRole.COORDINATOR: frozenset(),
+    ExecutionRole.DELEGATED: frozenset(
+        {
+            "delegate_task",
+            "spawn_subagent",
+        }
+    ),
+}

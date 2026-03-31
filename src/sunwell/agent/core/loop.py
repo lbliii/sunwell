@@ -80,6 +80,13 @@ from sunwell.agent.loop.routing import (
 from sunwell.agent.reliability.circuit_breaker import CircuitBreaker
 from sunwell.agent.validation.introspection import introspect_tool_call
 from sunwell.models import GenerateOptions, GenerateResult, Message, Tool, ToolCall
+from sunwell.tools.core.types import ExecutionRole
+from sunwell.tools.observability.events import log_generate_tool_surface_tokens
+from sunwell.tools.surface import (
+    assemble_tools_for_model,
+    compute_tool_surface_fingerprint,
+    estimate_total_surface_tokens,
+)
 
 if TYPE_CHECKING:
     from sunwell.agent.learning import LearningStore, RoutingOutcomeStore
@@ -262,6 +269,14 @@ class AgentLoop:
 
         return composer
 
+    def _resolve_execution_role(self) -> ExecutionRole:
+        """Map loop state to execution role for tool surface deny-sets."""
+        if self._subagent_run_id:
+            return ExecutionRole.SUBAGENT
+        if self._in_delegation:
+            return ExecutionRole.DELEGATED
+        return ExecutionRole.MAIN
+
     def _emit_heartbeat(
         self,
         turn: int,
@@ -314,13 +329,21 @@ class AgentLoop:
         # Emit goal analyzing event (before signal extraction and routing)
         yield goal_analyzing_event(goal=task_description)
 
-        # Get tools from executor if not provided
+        # Get tools from executor if not provided (policy + role + optional deferral)
         if tools is None:
-            tools = self.executor.get_tool_definitions()
+            surface = assemble_tools_for_model(
+                self.executor,
+                self.executor.policy,
+                self._resolve_execution_role(),
+                loop_config=self.config,
+            )
+            raw_tools = surface.tools
+        else:
+            raw_tools = tools
 
         # DIFFERENTIATOR: Enhance tools with lens expertise
         tools = loop_expertise.enhance_tools_with_expertise(
-            tools, self.lens, self.config.enable_expertise_injection
+            raw_tools, self.lens, self.config.enable_expertise_injection
         )
 
         # RFC-134: Initialize progressive tool policy if enabled
@@ -409,7 +432,7 @@ class AgentLoop:
                 task=task_description,
                 workspace=self.workspace or Path.cwd(),
                 turn=0,
-                tools=tools or (),
+                tools=raw_tools,
             )
 
             composed = await self._trinket_composer.compose(trinket_ctx)
@@ -444,7 +467,7 @@ class AgentLoop:
         differentiators_active = []
         if self._trinket_composer:
             differentiators_active.append("trinket_composition")
-        if tools != self.executor.get_tool_definitions():
+        if tools != raw_tools:
             differentiators_active.append("expertise_injection")
         if learnings_injected:
             differentiators_active.append("learning_injection")
@@ -901,6 +924,10 @@ class AgentLoop:
         from sunwell.agent.events import emit
 
         options = GenerateOptions(temperature=self.config.temperature)
+
+        surf_tok = estimate_total_surface_tokens(tools)
+        surf_fp = compute_tool_surface_fingerprint(tools)
+        log_generate_tool_surface_tokens(surf_tok, surf_fp)
 
         # Skip routing if disabled
         if not self.config.enable_confidence_routing:

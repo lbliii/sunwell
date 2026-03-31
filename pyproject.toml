@@ -38,7 +38,7 @@ dependencies = [
     "rosettes>=0.1.0",
     "bengal-chirp[ui,markdown]>=0.1.9",
     "chirp-ui>=0.1.6",
-    "kida-templates>=0.2.7",
+    "kida-templates>=0.2.9",
     "anthropic>=0.76.0",
 ]
 

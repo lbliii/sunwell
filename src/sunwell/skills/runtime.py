@@ -1,6 +1,7 @@
 """SkillExecutor - wires skills into agent tool loop as callable tools."""
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,23 @@ if TYPE_CHECKING:
     from sunwell.tools.providers.web_search import WebSearchHandler
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class SkillToolSummary:
+    """Per-skill-tool token estimate for debugging catalog cost."""
+
+    name: str
+    estimated_tokens: int
+
+
+@dataclass(frozen=True, slots=True)
+class SkillCatalogSummary:
+    """Aggregated skill tool catalog for observability."""
+
+    total_tools: int
+    total_estimated_tokens: int
+    tools: tuple[SkillToolSummary, ...]
 
 
 class SkillExecutor:
@@ -32,6 +50,20 @@ class SkillExecutor:
     def get_tool_definitions(self) -> tuple[Tool, ...]:
         """Get Tool definitions for all registered skill actions."""
         return tuple(self._registry.get_all_tools())
+
+    def get_catalog_summary(self) -> SkillCatalogSummary:
+        """Summarize skill tool count and estimated definition tokens."""
+        from sunwell.tools.surface import estimate_definition_tokens
+
+        defs = self.get_tool_definitions()
+        summaries = tuple(
+            SkillToolSummary(t.name, estimate_definition_tokens(t)) for t in defs
+        )
+        return SkillCatalogSummary(
+            total_tools=len(summaries),
+            total_estimated_tokens=sum(s.estimated_tokens for s in summaries),
+            tools=summaries,
+        )
 
     def get_tool_names(self) -> frozenset[str]:
         """Get set of tool names from skill actions."""

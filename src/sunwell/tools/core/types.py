@@ -72,6 +72,18 @@ TOOL_GROUPS: dict[str, frozenset[str]] = {
 """Tool groups for logical grouping. Use in allowed_tools or also_allow."""
 
 
+class ExecutionRole(Enum):
+    """Who is executing tools (main agent vs subagent vs delegated work).
+
+    Used with ROLE_DENIED_TOOLS to subtract capabilities without per-role allowlists.
+    """
+
+    MAIN = "main"
+    SUBAGENT = "subagent"
+    COORDINATOR = "coordinator"
+    DELEGATED = "delegated"
+
+
 class ToolProfile(Enum):
     """Named tool profiles that compose groups.
 

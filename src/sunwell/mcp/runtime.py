@@ -205,6 +205,32 @@ class MCPRuntime:
             "graph": self.graph is not None,
         }
 
+    def warm_subsystems(self) -> None:
+        """Load memory, backlog, and graph caches in parallel on the MCP event loop.
+
+        Reduces sequential latency from first-touch property access (availability).
+        """
+        import time
+
+        t0 = time.perf_counter()
+
+        async def _parallel() -> tuple[Any, Any, Any]:
+            return await asyncio.gather(
+                asyncio.to_thread(self._load_memory),
+                asyncio.to_thread(self._load_backlog),
+                asyncio.to_thread(self._load_graph),
+            )
+
+        mem, bg, gr = self.run(_parallel(), timeout=120.0)
+        self._memory = mem
+        self._backlog = bg
+        self._graph = gr
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.info(
+            "mcp_subsystems_warmed",
+            extra={"event": "mcp_subsystems_warmed", "elapsed_ms": elapsed_ms},
+        )
+
     # ------------------------------------------------------------------
     # Private loaders
     # ------------------------------------------------------------------
