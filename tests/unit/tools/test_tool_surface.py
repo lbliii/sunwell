@@ -8,6 +8,7 @@ import pytest
 
 from sunwell.agent.loop.config import LoopConfig
 from sunwell.models import Tool
+from sunwell.tools.core.constants import ROLE_DENIED_TOOLS
 from sunwell.tools.core.types import ExecutionRole, ToolPolicy, ToolTrust
 from sunwell.tools.surface import (
     DISCOVER_TOOLS_NAME,
@@ -52,6 +53,51 @@ def test_policy_filters_tools() -> None:
     )
     surf = assemble_tools_for_model(ex, policy, None)
     assert {t.name for t in surf.tools} == {"keep"}
+    assert surf.filtered_count == 1
+    assert surf.tool_count == len(surf.tools) == 1
+
+
+def test_no_policy_returns_full_merged_set() -> None:
+    ex = MagicMock()
+    ex.registry.get_active_schemas.return_value = (_tool("a"), _tool("b"))
+    ex.skill_executor = None
+    ex._materialized_deferred = set()
+    surf = assemble_tools_for_model(ex, None, None)
+    assert {t.name for t in surf.tools} == {"a", "b"}
+    assert surf.filtered_count == 0
+
+
+def test_fingerprint_changes_when_tool_added_or_removed() -> None:
+    t_a = _tool("only_a")
+    t_b = _tool("only_b")
+    fp_one = compute_tool_surface_fingerprint((t_a,))
+    fp_two = compute_tool_surface_fingerprint((t_a, t_b))
+    assert fp_one != fp_two
+
+
+def test_subagent_surface_is_strict_subset_of_main() -> None:
+    ex = MagicMock()
+    ex.registry.get_active_schemas.return_value = (
+        _tool("read_file"),
+        _tool("spawn_subagent"),
+        _tool("delegate_task"),
+    )
+    ex.skill_executor = None
+    ex._materialized_deferred = set()
+    main = assemble_tools_for_model(ex, None, ExecutionRole.MAIN)
+    sub = assemble_tools_for_model(ex, None, ExecutionRole.SUBAGENT)
+    main_names = {t.name for t in main.tools}
+    sub_names = {t.name for t in sub.tools}
+    assert sub_names < main_names
+    denied = ROLE_DENIED_TOOLS[ExecutionRole.SUBAGENT]
+    assert sub_names == main_names - denied
+
+
+def test_role_deny_sets_only_target_delegation_tools() -> None:
+    """New arbitrary tools are not listed in deny sets; only delegation entrypoints are."""
+    assert "read_file" not in ROLE_DENIED_TOOLS[ExecutionRole.SUBAGENT]
+    assert "delegate_task" in ROLE_DENIED_TOOLS[ExecutionRole.SUBAGENT]
+    assert "spawn_subagent" in ROLE_DENIED_TOOLS[ExecutionRole.SUBAGENT]
 
 
 def test_subagent_role_removes_denied_tools() -> None:

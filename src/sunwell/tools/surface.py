@@ -36,10 +36,11 @@ _STUB_PARAMETERS: dict[str, object] = {
 
 
 def estimate_definition_tokens(tool: Tool) -> int:
-    """Rough token estimate for description plus JSON Schema (chars / 4 heuristic)."""
+    """Rough token estimate for name, description, and JSON Schema (chars / 4 heuristic)."""
+    name = len(tool.name) // 4
     desc = len(tool.description) // 4
     schema = len(json.dumps(tool.parameters, sort_keys=True)) // 4
-    return desc + schema
+    return name + desc + schema
 
 
 def estimate_total_surface_tokens(tools: tuple[Tool, ...]) -> int:
@@ -184,6 +185,12 @@ class ToolSurface:
 
     tools: tuple[Tool, ...]
     fingerprint: str
+    tool_count: int
+    """Number of tools in ``tools`` (after policy, role, and optional deferral)."""
+
+    filtered_count: int
+    """Tools removed from the merged registry+skills set by policy and/or role."""
+
     total_estimated_tokens: int
     deferred_count: int
 
@@ -207,8 +214,10 @@ def assemble_tools_for_model(
         else ()
     )
     merged = _merge_registry_and_skills(reg_tools, skill_tup)
+    merged_count = len(merged)
     filtered = _apply_policy(merged, policy)
     filtered = _apply_role(filtered, role)
+    filtered_count = merged_count - len(filtered)
 
     full_by_name: dict[str, Tool] = {t.name: t for t in filtered}
     executor._surface_full_tool_cache = full_by_name
@@ -230,6 +239,8 @@ def assemble_tools_for_model(
         return ToolSurface(
             tools=tools,
             fingerprint=fp,
+            tool_count=len(tools),
+            filtered_count=filtered_count,
             total_estimated_tokens=tok,
             deferred_count=0,
         )
@@ -281,6 +292,8 @@ def assemble_tools_for_model(
     return ToolSurface(
         tools=tools_out,
         fingerprint=fp,
+        tool_count=len(tools_out),
+        filtered_count=filtered_count,
         total_estimated_tokens=tok,
         deferred_count=deferred_n,
     )
