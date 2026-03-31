@@ -89,7 +89,7 @@ class LoopConfig:
     enable_progressive_tools: bool = False
     """Start with read-only tools and unlock write tools as trust builds."""
 
-    # RFC-XXX: Multi-signal tool selection
+    # RFC-134: Multi-signal tool selection
     enable_tool_selection: bool = True
     """Use DAG-based progressive tool disclosure for better small model accuracy."""
 

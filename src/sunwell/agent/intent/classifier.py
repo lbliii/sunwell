@@ -8,7 +8,6 @@ instead of binary "chat vs task".
 """
 
 import logging
-import re
 from typing import TYPE_CHECKING
 
 from sunwell.agent.intent.dag import (
@@ -27,6 +26,7 @@ from sunwell.agent.intent.dag import (
     IntentPath,
     build_path_to,
 )
+from sunwell.foundation.errors import ErrorCode, SunwellError
 
 if TYPE_CHECKING:
     from sunwell.models import ModelProtocol
@@ -505,7 +505,10 @@ Respond with ONLY the category name (e.g., EXPLAIN or MODIFY):"""
             )
 
         except Exception as e:
-            logger.exception("LLM classification failed")
+            if isinstance(e, SunwellError) and e.code == ErrorCode.CONFIG_ENV_MISSING:
+                logger.warning("LLM classification skipped (missing credentials): %s", e)
+            else:
+                logger.exception("LLM classification failed")
             return IntentClassification(
                 path=heuristic_result.path,
                 confidence=heuristic_result.confidence,

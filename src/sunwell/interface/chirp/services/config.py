@@ -1,6 +1,7 @@
 """Configuration service for Chirp interface."""
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,15 @@ from sunwell.channels.telegram.config import (
 from sunwell.foundation.config import SunwellConfig, get_config, reset_config
 
 logger = logging.getLogger(__name__)
+
+
+def _api_key_configured_for_provider(provider: str) -> bool:
+    """Whether the environment has credentials for the given provider."""
+    if provider == "anthropic":
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    if provider == "openai":
+        return bool(os.environ.get("OPENAI_API_KEY"))
+    return True
 
 
 @dataclass
@@ -89,13 +99,12 @@ class ConfigService:
             Dict with provider settings (model, api_key, etc.)
         """
         config = get_config()
-
-        # Extract provider info from config
-        # TODO: Update based on actual config structure
+        provider = config.model.default_provider
+        default_model = config.model.default_model
         return {
-            "default_model": getattr(config, "default_model", "claude-sonnet-4-5"),
-            "provider": "anthropic",  # Default to Anthropic
-            "api_key_configured": True,  # TODO: Check if API key exists
+            "default_model": default_model,
+            "provider": provider,
+            "api_key_configured": _api_key_configured_for_provider(provider),
             "ollama": {
                 "base_url": config.ollama.base_url
                 if hasattr(config, "ollama")
@@ -152,6 +161,9 @@ class ConfigService:
     ) -> bool:
         """Update provider configuration.
 
+        Cloud API keys are not written to YAML (use environment variables or a
+        future keyring integration). Passing ``api_key`` logs intent only.
+
         Args:
             provider: Provider name (ollama, anthropic, openai)
             api_key: Optional API key to set
@@ -180,11 +192,14 @@ class ConfigService:
                 config_dict["ollama"] = {}
             config_dict["ollama"]["base_url"] = ollama_base
 
-        # TODO: Securely store API keys (use keyring or encrypted storage)
-        # For now, just log that we would save them
         if api_key:
             logger.info(
-                "API key update requested for provider: %s (not persisted - use keyring)", provider
+                "API key update requested for provider %s — set %s in the environment "
+                "or shell profile; keys are not persisted to config.yaml",
+                provider,
+                "ANTHROPIC_API_KEY"
+                if provider == "anthropic"
+                else ("OPENAI_API_KEY" if provider == "openai" else "N/A"),
             )
 
         return self._save_config_dict(config_dict)
@@ -280,7 +295,8 @@ class ConfigService:
             or "show_token_counts" in preferences
         ):
             logger.info(
-                "UI preferences (theme, auto_save, show_token_counts) not persisted yet - need studio config"
+                "UI preferences (theme, auto_save, show_token_counts) not persisted yet; "
+                "need studio config"
             )
 
         return self._save_config_dict(config_dict)

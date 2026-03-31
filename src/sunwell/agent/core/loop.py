@@ -146,7 +146,7 @@ class AgentLoop:
     progressive_policy: ProgressivePolicy | None = field(default=None, init=False)
     """Dynamic tool availability based on turn/trust (RFC-134)."""
 
-    # RFC-XXX: Multi-signal tool selector (set during run if enabled)
+    # RFC-134: Multi-signal tool selector (set during run if enabled)
     tool_selector: MultiSignalToolSelector | None = field(default=None, init=False)
     """DAG-based intelligent tool selection for small model accuracy."""
 
@@ -362,7 +362,7 @@ class AgentLoop:
                 len(self.progressive_policy.get_available_tools()),
             )
 
-        # RFC-XXX: Initialize multi-signal tool selector if enabled
+        # RFC-134: Initialize multi-signal tool selector if enabled
         if self.config.enable_tool_selection:
             from sunwell.agent.learning import classify_task_type
             from sunwell.tools.selection import MultiSignalToolSelector
@@ -552,18 +552,21 @@ class AgentLoop:
                 break
 
             # Reliability: Check budget before each turn
-            if self.config.enable_budget_enforcement and self.config.max_tokens > 0:
-                if self._tokens_spent >= self.config.max_tokens:
-                    logger.warning(
-                        "Budget EXHAUSTED: %d/%d tokens spent, stopping execution",
-                        self._tokens_spent,
-                        self.config.max_tokens,
-                    )
-                    yield tool_loop_budget_exhausted_event(
-                        spent=self._tokens_spent,
-                        budget=self.config.max_tokens,
-                    )
-                    break
+            if (
+                self.config.enable_budget_enforcement
+                and self.config.max_tokens > 0
+                and self._tokens_spent >= self.config.max_tokens
+            ):
+                logger.warning(
+                    "Budget EXHAUSTED: %d/%d tokens spent, stopping execution",
+                    self._tokens_spent,
+                    self.config.max_tokens,
+                )
+                yield tool_loop_budget_exhausted_event(
+                    spent=self._tokens_spent,
+                    budget=self.config.max_tokens,
+                )
+                break
 
             # Emit heartbeat periodically if running as subagent
             if self._subagent_run_id and state.turn % self._heartbeat_interval == 0:
@@ -610,7 +613,7 @@ class AgentLoop:
                         state.turn,
                     )
 
-            # RFC-XXX: Multi-signal tool selection (DAG + learned patterns + project)
+            # RFC-134: Multi-signal tool selection (DAG + learned patterns + project)
             if self.tool_selector:
                 used_tools = frozenset(state.tool_sequence)
                 available_tools = self.tool_selector.select(
@@ -809,7 +812,8 @@ class AgentLoop:
                                 validation_passes=self.progressive_policy.validation_passes,
                             )
                             logger.info(
-                                "Progressive unlock: %s category unlocked (%d tools) after validation",
+                                "Progressive unlock: %s category unlocked (%d tools) "
+                                "after validation",
                                 category,
                                 len(newly_unlocked),
                             )

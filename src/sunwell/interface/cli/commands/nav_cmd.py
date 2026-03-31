@@ -264,9 +264,9 @@ async def _find_code(
             console.print("[dim]Using keyword fallback (no LLM)[/dim]\n")
     else:
         try:
-            from sunwell.models.providers import create_model
+            from sunwell.interface.cli.helpers.models import resolve_model
 
-            model = create_model()
+            model = resolve_model()
         except Exception as e:
             if json_output:
                 print(

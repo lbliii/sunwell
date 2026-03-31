@@ -31,19 +31,19 @@ def run_async[T](coro: Coroutine[Any, Any, T]) -> T:
     Raises:
         Any exception raised by the coroutine is propagated
     """
+    # Avoid `except RuntimeError: return asyncio.run(...)` — that chains the
+    # RuntimeError as __context__ on errors raised inside asyncio.run (noisy logs).
     try:
-        # Check if we're already in an async context
         asyncio.get_running_loop()
-        # If we get here, there's a running loop - this shouldn't happen
-        # in normal CLI usage, but handle it gracefully
+    except RuntimeError:
+        pass
+    else:
         import nest_asyncio
 
         nest_asyncio.apply()
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(coro)
-    except RuntimeError:
-        # No running loop - this is the normal case for CLI commands
-        return asyncio.run(coro)
+    return asyncio.run(coro)
 
 
 def async_command[T, **P](

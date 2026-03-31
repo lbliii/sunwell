@@ -13,9 +13,12 @@ Replaces WebSocket connections with SSE for simpler architecture:
 import asyncio
 import json
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Any
 
 from chirp import EventStream
+
+from sunwell.planning.naaru.session_store import SessionStore
 
 
 class EventBatcher:
@@ -86,72 +89,42 @@ async def create_run_event_stream(
         """Generate SSE-formatted events."""
         start_seq = 0
         if last_event_id:
-            try:
+            with suppress(ValueError, TypeError):
                 start_seq = int(last_event_id) + 1
-            except (ValueError, TypeError):
-                pass
 
         batcher = EventBatcher() if batch_events else None
 
         # Send connection confirmation
-        yield f"event: connected\nid: 0\ndata: {json.dumps({'run_id': run_id, 'replay_from': start_seq})}\n\n"
+        connected = json.dumps({"run_id": run_id, "replay_from": start_seq})
+        yield f"event: connected\nid: 0\ndata: {connected}\n\n"
 
-        # TODO: Integrate with actual run manager
-        # This is where we would:
-        # 1. Get run from run_manager.get_run(run_id)
-        # 2. Replay buffered events from start_seq
-        # 3. Subscribe to live events
-        # 4. Handle run completion
+        store = SessionStore()
+        session = store.load(run_id)
+        if session is None:
+            yield (
+                "event: error\nid: 1\n"
+                f"data: {json.dumps({'error': 'session_not_found', 'run_id': run_id})}\n\n"
+            )
+            return
 
-        # from sunwell.agent.background.manager import get_background_manager
-        # manager = get_background_manager()
-        # session = manager.get_session(run_id)
-        #
-        # if not session:
-        #     yield f"event: error\ndata: {json.dumps({'error': 'Run not found'})}\n\n"
-        #     return
-        #
-        # # Replay buffered events
-        # for event in session.get_events_since(start_seq):
-        #     if batcher:
-        #         msg = await batcher.add_event(event.to_dict())
-        #         if msg:
-        #             yield msg
-        #     else:
-        #         yield f"event: {event.type}\nid: {event.seq}\ndata: {json.dumps(event.data)}\n\n"
-        #
-        # # Stream live events
-        # async for event in session.subscribe_events():
-        #     if batcher:
-        #         msg = await batcher.add_event(event.to_dict())
-        #         if msg:
-        #             yield msg
-        #     else:
-        #         yield f"event: {event.type}\nid: {event.seq}\ndata: {json.dumps(event.data)}\n\n"
-        #
-        #     if event.type in ("run_complete", "run_failed", "run_cancelled"):
-        #         break
-        #
-        # # Flush any remaining batched events
-        # if batcher:
-        #     final = batcher.flush()
-        #     if final:
-        #         yield final
+        summary = {
+            "session_id": session.session_id,
+            "status": session.status.value,
+            "goals": list(session.config.goals),
+            "started_at": session.started_at.isoformat(),
+            "stop_reason": session.stop_reason,
+        }
+        payload = {"session": summary}
+        if batcher:
+            msg = await batcher.add_event({"type": "session_snapshot", "data": payload})
+            if msg:
+                yield msg
+            final = batcher.flush()
+            if final:
+                yield final
+        else:
+            yield f"event: session_snapshot\nid: 1\ndata: {json.dumps(payload)}\n\n"
 
-        # Placeholder: emit sample events for development
-        sample_events = [
-            ("task_start", {"task_id": "t1", "description": "Reading files"}),
-            ("model_thinking", {"content": "Analyzing structure..."}),
-            ("task_complete", {"task_id": "t1", "status": "done"}),
-        ]
-
-        for seq, (event_type, data) in enumerate(sample_events, start=1):
-            yield f"event: {event_type}\nid: {seq}\ndata: {json.dumps(data)}\n\n"
-            await asyncio.sleep(1.0)
-
-        # Keep connection alive with heartbeat
-        while True:
-            await asyncio.sleep(30)
-            yield ": heartbeat\n\n"
+        yield ": heartbeat\n\n"
 
     return EventStream(event_generator())

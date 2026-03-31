@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 def create_model(provider: str, model_name: str) -> ModelProtocol:
     """Create model instance based on provider."""
     from sunwell.interface.cli.core.theme import console
+    from sunwell.models.cloud_credentials import require_cloud_provider_env
 
     if provider == "mock":
         from sunwell.models import MockModel
@@ -17,6 +18,7 @@ def create_model(provider: str, model_name: str) -> ModelProtocol:
         return MockModel()
 
     elif provider == "anthropic":
+        require_cloud_provider_env("anthropic")
         from sunwell.models import AnthropicModel
 
         return AnthropicModel(
@@ -25,6 +27,7 @@ def create_model(provider: str, model_name: str) -> ModelProtocol:
         )
 
     elif provider == "openai":
+        require_cloud_provider_env("openai")
         from sunwell.models import OpenAIModel
 
         return OpenAIModel(

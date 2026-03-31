@@ -1,0 +1,10 @@
+# Copy to .dev-sources.toml (gitignored) and adjust paths for your machine.
+# Then run: uv run python scripts/dev_sync.py --all-extras
+#
+# Injects [tool.uv.sources] into pyproject.toml so local b-stack checkouts are used.
+# Before committing, restore PyPI-only metadata: git checkout pyproject.toml uv.lock && uv sync
+
+[tool.uv.sources]
+bengal-chirp = { path = "../b-stack/chirp", editable = true }
+chirp-ui = { path = "../chirp-ui", editable = true }
+kida-templates = { path = "../b-stack/kida", editable = true }

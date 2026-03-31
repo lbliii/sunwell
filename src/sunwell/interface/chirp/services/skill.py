@@ -43,23 +43,22 @@ class SkillService:
     def list_spells(self) -> list[dict]:
         """List all available spells.
 
+        Spells are derived from registered skill actions (executable shortcuts).
+
         Returns:
             List of spell dicts with id, name, category, description
         """
-        # TODO: Integrate with actual spell registry
-        return [
-            {
-                "id": "quick-fix",
-                "name": "Quick Fix",
-                "category": "bug",
-                "tags": ["bug", "fix"],
-                "description": "Quick bug fix workflow",
-            },
-            {
-                "id": "feature-add",
-                "name": "Add Feature",
-                "category": "feature",
-                "tags": ["feature", "development"],
-                "description": "Full feature implementation workflow",
-            },
-        ]
+        spells: list[dict] = []
+        for skill in self._registry._skills.values():
+            skill_id = skill.name or skill.__class__.__name__.lower()
+            for action in skill.get_actions():
+                spells.append(
+                    {
+                        "id": f"{skill_id}:{action.name}",
+                        "name": action.name.replace("_", " ").title(),
+                        "category": "executable",
+                        "tags": [skill_id],
+                        "description": action.description or "",
+                    }
+                )
+        return spells

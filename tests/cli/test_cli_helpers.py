@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from sunwell.foundation.errors import ErrorCode, SunwellError
+
 
 def get_model_name(model) -> str:
     """Extract model name from any model type."""
@@ -19,6 +21,12 @@ def get_model_name(model) -> str:
 
 class TestCreateModel:
     """Tests for create_model() helper."""
+
+    @pytest.fixture(autouse=True)
+    def _cloud_api_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Tests that construct Anthropic/OpenAI models need dummy env keys."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
     def test_create_model_mock(self) -> None:
         """create_model('mock', ...) returns MockModel."""
@@ -62,9 +70,25 @@ class TestCreateModel:
         with pytest.raises(SystemExit):
             create_model("unknown_provider", "some-model")
 
+    def test_create_model_anthropic_requires_api_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Cloud providers require API keys at construction time."""
+        from sunwell.interface.cli.helpers import create_model
+
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(SunwellError) as exc_info:
+            create_model("anthropic", "claude-sonnet-4-20250514")
+        assert exc_info.value.code == ErrorCode.CONFIG_ENV_MISSING
+
 
 class TestResolveModel:
     """Tests for resolve_model() helper."""
+
+    @pytest.fixture(autouse=True)
+    def _cloud_api_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
     def test_resolve_model_cli_override_takes_precedence(self) -> None:
         """CLI override takes precedence over config defaults."""
@@ -154,6 +178,11 @@ class TestResolveModel:
 
 class TestProviderDefaults:
     """Tests for provider-specific default models."""
+
+    @pytest.fixture(autouse=True)
+    def _cloud_api_keys(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
     @pytest.mark.parametrize(
         "provider,expected_model",

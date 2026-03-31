@@ -126,7 +126,5 @@ skip_covered = false
 # Install with: uv venv --python python3.14t
 python-preference = "managed"
 
-[tool.uv.sources]
-bengal-chirp = { path = "../b-stack/chirp", editable = true }
-chirp-ui = { path = "../chirp-ui", editable = true }
-kida-templates = { path = "../b-stack/kida", editable = true }
+# Local monorepo path overrides: use .dev-sources.toml (gitignored) + scripts/dev_sync.py
+# — do not commit [tool.uv.sources] here (breaks pip/uv install from PyPI for end users).
