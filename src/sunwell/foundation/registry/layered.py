@@ -9,15 +9,11 @@ Lenses from higher layers override lower layers. All sources are tracked
 for collision detection and qualified access (e.g., builtin::coder).
 """
 
-from __future__ import annotations
-
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from sunwell.foundation.core.lens import Lens
+from sunwell.foundation.core.lens import Lens
 
 # Layer priority (higher number = higher priority)
 LAYER_PRIORITY = {
@@ -135,9 +131,7 @@ class LayeredLensRegistry:
             builtin_dir=Path(__file__).parent.parent.parent / "lenses",
         )
 
-    def _load_layer(
-        self, lenses_dir: Path, layer: str, collection: str | None
-    ) -> None:
+    def _load_layer(self, lenses_dir: Path, layer: str, collection: str | None) -> None:
         """Load lenses from a directory into a specific layer."""
         from sunwell.foundation.schema.loader import LensLoader
 
@@ -355,6 +349,4 @@ class LayeredLensRegistry:
 
     def summary(self) -> dict[str, int]:
         """Get summary of lenses by layer."""
-        return {
-            layer: len(entries) for layer, entries in self.layers.items()
-        }
+        return {layer: len(entries) for layer, entries in self.layers.items()}

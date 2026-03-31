@@ -16,7 +16,9 @@ from sunwell.memory.core.entities.store import EntityStore
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sunwell.agent.learning.learning import Learning  # layer-exempt: TYPE_CHECKING only, no runtime dependency
+    from sunwell.agent.learning.learning import (
+        Learning,  # layer-exempt: TYPE_CHECKING only, no runtime dependency
+    )
     from sunwell.knowledge.embedding.protocol import EmbeddingProtocol
 
 logger = logging.getLogger(__name__)

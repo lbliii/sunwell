@@ -7,7 +7,6 @@ Provides unified workspace resolution logic for both CLI and Desktop:
 - Confirmation prompts for ambiguous situations
 """
 
-
 import os
 import re
 from dataclasses import dataclass

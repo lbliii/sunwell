@@ -134,10 +134,14 @@ async def discover_with_recovery(
         artifacts = await discover(model, effective_goal, context, project_schema)
 
         # RFC-059: Emit parsing progress
-        events.emit_event(event_callback, "plan_discovery_progress", {
-            "artifacts_discovered": len(artifacts),
-            "phase": "parsing",
-        })
+        events.emit_event(
+            event_callback,
+            "plan_discovery_progress",
+            {
+                "artifacts_discovered": len(artifacts),
+                "phase": "parsing",
+            },
+        )
 
         # Check for empty graph
         if not artifacts:
@@ -177,11 +181,15 @@ async def discover_with_recovery(
             continue
 
         # RFC-059: Emit building graph progress
-        events.emit_event(event_callback, "plan_discovery_progress", {
-            "artifacts_discovered": len(artifacts),
-            "phase": "building_graph",
-            "total_estimated": len(artifacts),
-        })
+        events.emit_event(
+            event_callback,
+            "plan_discovery_progress",
+            {
+                "artifacts_discovered": len(artifacts),
+                "phase": "building_graph",
+                "total_estimated": len(artifacts),
+            },
+        )
 
         # Build graph
         graph = ArtifactGraph()
@@ -190,18 +198,24 @@ async def discover_with_recovery(
 
             # RFC-059: Emit progress every 5 artifacts or at milestones
             if (i + 1) % 5 == 0 or i == len(artifacts) - 1:
-                events.emit_event(event_callback, "plan_discovery_progress", {
-                    "artifacts_discovered": i + 1,
-                    "phase": "building_graph",
-                    "total_estimated": len(artifacts),
-                })
+                events.emit_event(
+                    event_callback,
+                    "plan_discovery_progress",
+                    {
+                        "artifacts_discovered": i + 1,
+                        "phase": "building_graph",
+                        "total_estimated": len(artifacts),
+                    },
+                )
 
         # Check for cycles
         cycle = graph.detect_cycle()
         if cycle:
             if attempt < max_retries - 1:
                 # Try to break cycle with LLM
-                artifacts = await dependencies.break_cycle(model, goal, artifacts, cycle, project_schema)
+                artifacts = await dependencies.break_cycle(
+                    model, goal, artifacts, cycle, project_schema
+                )
                 graph = ArtifactGraph()
                 for artifact in artifacts:
                     graph.add(artifact)
@@ -249,14 +263,18 @@ async def discover_with_recovery(
                     "orphan_count": len(orphans),
                     "orphan_ids": orphan_ids,
                     "phase": "discovery",
-                }
+                },
             )
 
         # RFC-059: Emit discovery complete
-        events.emit_event(event_callback, "plan_discovery_progress", {
-            "artifacts_discovered": len(graph),
-            "phase": "complete",
-        })
+        events.emit_event(
+            event_callback,
+            "plan_discovery_progress",
+            {
+                "artifacts_discovered": len(graph),
+                "phase": "complete",
+            },
+        )
 
         return graph
 
@@ -286,9 +304,7 @@ async def discover_root(
     Returns:
         Root artifact specification
     """
-    artifacts_desc = "\n".join(
-        f"- {a.id}: {a.description}" for a in artifacts
-    )
+    artifacts_desc = "\n".join(f"- {a.id}: {a.description}" for a in artifacts)
 
     prompt = f"""GOAL: {goal}
 
@@ -341,14 +357,14 @@ Output a SINGLE artifact JSON object (not an array):
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "response_preview": content[:300],
-            }
+            },
         )
 
     # Fallback: create generic root
     artifact_ids = [a.id for a in artifacts]
     logger.info(
         f"Creating generic root artifact as fallback, integrating {len(artifact_ids)} artifacts",
-        extra={"artifact_count": len(artifact_ids), "artifact_ids": artifact_ids}
+        extra={"artifact_count": len(artifact_ids), "artifact_ids": artifact_ids},
     )
     return ArtifactSpec(
         id="Goal",
@@ -382,9 +398,7 @@ async def discover_new_artifacts(
     Returns:
         List of new artifacts to add (empty if none needed)
     """
-    completed_desc = "\n".join(
-        f"- {aid}: completed" for aid in completed
-    )
+    completed_desc = "\n".join(f"- {aid}: completed" for aid in completed)
 
     prompt = f"""GOAL: {goal}
 

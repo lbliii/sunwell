@@ -1,14 +1,8 @@
 """MCP Tool definitions for Sunwell."""
 
-from __future__ import annotations
+from mcp.server.fastmcp import FastMCP
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
-
+from sunwell.mcp.runtime import MCPRuntime
 from sunwell.mcp.tools.backlog import register_backlog_tools
 from sunwell.mcp.tools.context import register_context_tools
 from sunwell.mcp.tools.delegation import register_delegation_tools

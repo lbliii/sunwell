@@ -17,7 +17,6 @@ Example:
     >>> status = await git_ops.git_status({})
 """
 
-
 from pathlib import Path
 from typing import TYPE_CHECKING
 

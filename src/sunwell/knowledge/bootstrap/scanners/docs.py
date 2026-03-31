@@ -3,7 +3,6 @@
 Extract context from README and other documentation files.
 """
 
-
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -96,16 +95,12 @@ class DocScanner:
                                 source_file=doc_path.relative_to(self.root),
                                 heading=section.heading,
                                 content=section.content[:2000],  # Limit content size
-                                mentions_modules=self._extract_module_mentions(
-                                    section.content
-                                ),
+                                mentions_modules=self._extract_module_mentions(section.content),
                             )
                         )
 
                     if self._is_decision_section(section):
-                        decision_sections.append(
-                            self._extract_decision(doc_path, section)
-                        )
+                        decision_sections.append(self._extract_decision(doc_path, section))
             except (OSError, UnicodeDecodeError):
                 continue
 
@@ -147,11 +142,13 @@ class DocScanner:
             if line.startswith("#"):
                 # Save previous section
                 if current_heading:
-                    sections.append(MarkdownSection(
-                        level=current_level,
-                        heading=current_heading,
-                        content="\n".join(current_content).strip(),
-                    ))
+                    sections.append(
+                        MarkdownSection(
+                            level=current_level,
+                            heading=current_heading,
+                            content="\n".join(current_content).strip(),
+                        )
+                    )
 
                 # Parse new heading
                 match = re.match(r"^(#+)\s*(.+)$", line)
@@ -164,11 +161,13 @@ class DocScanner:
 
         # Save last section
         if current_heading:
-            sections.append(MarkdownSection(
-                level=current_level,
-                heading=current_heading,
-                content="\n".join(current_content).strip(),
-            ))
+            sections.append(
+                MarkdownSection(
+                    level=current_level,
+                    heading=current_heading,
+                    content="\n".join(current_content).strip(),
+                )
+            )
 
         return sections
 
@@ -293,9 +292,11 @@ class DocScanner:
                         found_title = True
                         continue
                     is_content = (
-                        found_title and line and
-                        not line.startswith("#") and
-                        "![" not in line and "[!" not in line
+                        found_title
+                        and line
+                        and not line.startswith("#")
+                        and "![" not in line
+                        and "[!" not in line
                     )
                     if is_content:
                         return line[:200]  # Limit length
@@ -354,14 +355,12 @@ class DocScanner:
 
         # Check for PR/issue templates
         github_dir = self.root / ".github"
-        has_pr_template = (
-            (github_dir / "pull_request_template.md").exists() or
-            (github_dir / "PULL_REQUEST_TEMPLATE.md").exists()
-        )
-        has_issue_template = (
-            (github_dir / "ISSUE_TEMPLATE").exists() or
-            (github_dir / "ISSUE_TEMPLATE.md").exists()
-        )
+        has_pr_template = (github_dir / "pull_request_template.md").exists() or (
+            github_dir / "PULL_REQUEST_TEMPLATE.md"
+        ).exists()
+        has_issue_template = (github_dir / "ISSUE_TEMPLATE").exists() or (
+            github_dir / "ISSUE_TEMPLATE.md"
+        ).exists()
 
         return ContributionGuidelines(
             has_contributing=has_contributing,

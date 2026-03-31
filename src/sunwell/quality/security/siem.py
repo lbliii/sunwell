@@ -10,7 +10,6 @@ Supports multiple SIEM and log aggregation formats:
 - Datadog - Datadog Log Management
 """
 
-
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
@@ -194,10 +193,7 @@ class LEEFFormatter(SIEMFormatter):
 
         kv_str = "\t".join(kv_pairs)
 
-        return (
-            f"LEEF:2.0|{self.vendor}|{self.product}|{self.version}|"
-            f"{event_id}|{kv_str}"
-        )
+        return f"LEEF:2.0|{self.vendor}|{self.product}|{self.version}|{event_id}|{kv_str}"
 
     def _get_severity(self, action: str) -> int:
         """Map action to LEEF severity (1-10)."""

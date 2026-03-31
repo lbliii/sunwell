@@ -32,10 +32,20 @@ logger = logging.getLogger(__name__)
 # MODULE-LEVEL CONSTANTS
 # ═══════════════════════════════════════════════════════════════
 
-_SKIP_FUNCS: frozenset[str] = frozenset({
-    "print", "len", "str", "int", "float",
-    "list", "dict", "set", "range", "open",
-})
+_SKIP_FUNCS: frozenset[str] = frozenset(
+    {
+        "print",
+        "len",
+        "str",
+        "int",
+        "float",
+        "list",
+        "dict",
+        "set",
+        "range",
+        "open",
+    }
+)
 
 # ═══════════════════════════════════════════════════════════════
 # PRE-COMPILED REGEX PATTERNS
@@ -43,15 +53,11 @@ _SKIP_FUNCS: frozenset[str] = frozenset({
 
 # Pattern 1: Inline code with parentheses (function calls)
 # `auth.login()`, `User.create()`
-_RE_INLINE_FUNC = re.compile(
-    r"`([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\([^)]*\)`"
-)
+_RE_INLINE_FUNC = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\([^)]*\)`")
 
 # Pattern 2: Inline code that looks like class/module reference
 # `User`, `AuthService`, `auth.token`
-_RE_INLINE_CLASS = re.compile(
-    r"`([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`"
-)
+_RE_INLINE_CLASS = re.compile(r"`([A-Z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`")
 
 # Pattern 3: Python-style imports mentioned in text
 # "from auth import login"
@@ -64,9 +70,7 @@ _RE_CODE_BLOCK = re.compile(
 )
 
 # Function calls within code blocks
-_RE_FUNC_CALL = re.compile(
-    r"([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\("
-)
+_RE_FUNC_CALL = re.compile(r"([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\(")
 
 # Pattern 5: Sphinx/MyST roles that reference code
 # :func:`auth.login`, :class:`User`, :meth:`User.save`
@@ -255,9 +259,7 @@ class DriftProbe:
 
         return list(refs)
 
-    def _check_reference(
-        self, ref: str, doc_path: Path, content: str
-    ) -> DriftResult | None:
+    def _check_reference(self, ref: str, doc_path: Path, content: str) -> DriftResult | None:
         """Check a single code reference against source.
 
         Args:
@@ -291,7 +293,8 @@ class DriftProbe:
                     confidence=0.95,
                     suggested_fix=(
                         f"Update to use {found_symbol.replacement}"
-                        if found_symbol.replacement else None
+                        if found_symbol.replacement
+                        else None
                     ),
                 )
             # Symbol exists and is not deprecated - no drift

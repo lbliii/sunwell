@@ -11,13 +11,15 @@ RFC-052 adds:
 - UnifiedIntelligence for team + personal + project
 """
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from sunwell.features.team import TeamKnowledgeStore, UnifiedIntelligence  # layer-exempt: pre-existing
+    from sunwell.features.team import (  # layer-exempt: pre-existing
+        TeamKnowledgeStore,
+        UnifiedIntelligence,
+    )
     from sunwell.knowledge.bootstrap.ownership import OwnershipMap
     from sunwell.knowledge.bootstrap.types import BootstrapStatus
     from sunwell.knowledge.codebase.codebase import CodebaseGraph
@@ -82,8 +84,13 @@ class ProjectContext:
         Returns:
             ProjectContext with all intelligence loaded
         """
-        from sunwell.features.team import TeamKnowledgeStore, UnifiedIntelligence  # layer-exempt: pre-existing
-        from sunwell.features.team.gitignore_template import ensure_sunwell_structure  # layer-exempt: pre-existing
+        from sunwell.features.team import (  # layer-exempt: pre-existing
+            TeamKnowledgeStore,
+            UnifiedIntelligence,
+        )
+        from sunwell.features.team.gitignore_template import (
+            ensure_sunwell_structure,  # layer-exempt: pre-existing
+        )
         from sunwell.knowledge.bootstrap.ownership import OwnershipMap
         from sunwell.knowledge.codebase.codebase import CodebaseGraph
         from sunwell.knowledge.codebase.decisions import DecisionMemory

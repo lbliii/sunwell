@@ -26,13 +26,13 @@ from sunwell.interface.cli.core.render_context import reset_render_context
 from sunwell.interface.cli.core.theme import (
     CHARS_DIAMONDS,
     CHARS_STARS,
+    Sparkle,
     console,
     print_banner,
     render_collapsible,
     render_error,
     render_separator,
     should_reduce_motion,
-    Sparkle,
 )
 from sunwell.interface.cli.helpers import resolve_model
 from sunwell.interface.cli.helpers.project import extract_project_name
@@ -110,12 +110,17 @@ def _update_session_status(
 @click.option("--time", "-t", default=300)
 @click.option("--trust", default="workspace")
 @click.option("--workspace", "-w", default=None)
-@click.option("--converge/--no-converge", default=False,
-              help="Enable convergence loops (iterate until lint/types pass)")
-@click.option("--converge-gates", default="lint,type",
-              help="Gates for convergence (comma-separated: lint,type,test)")
-@click.option("--converge-max", default=5, type=int,
-              help="Maximum convergence iterations")
+@click.option(
+    "--converge/--no-converge",
+    default=False,
+    help="Enable convergence loops (iterate until lint/types pass)",
+)
+@click.option(
+    "--converge-gates",
+    default="lint,type",
+    help="Gates for convergence (comma-separated: lint,type,test)",
+)
+@click.option("--converge-max", default=5, type=int, help="Maximum convergence iterations")
 @async_command
 async def run_goal(
     goal: str,
@@ -134,7 +139,7 @@ async def run_goal(
 ) -> None:
     """Execute a goal (single-turn through unified loop)."""
     workspace_path = Path(workspace) if workspace else None
-    
+
     await run_goal_unified(
         goal=goal,
         workspace_path=workspace_path,
@@ -159,15 +164,15 @@ async def run_goal_unified(
     show_status: bool = False,
 ) -> None:
     """Execute a goal through the unified chat loop (single turn).
-    
+
     This is the main entry point for goal execution. It delegates to
     UnifiedChatLoop with auto_confirm=True for a single-turn execution.
-    
+
     Session tracking:
     - Creates a SessionState at start (status=RUNNING)
     - Saves as PAUSED on KeyboardInterrupt (resume with `sunwell resume`)
     - Sets COMPLETED/FAILED on exit
-    
+
     Args:
         goal: The goal to execute
         workspace_path: Explicit workspace path
@@ -211,16 +216,14 @@ async def run_goal_unified(
     )
 
     # Check workspace readiness for parallel isolation
-    from sunwell.agent.isolation import check_workspace_readiness, WorkspaceIsolationMode
-    
+    from sunwell.agent.isolation import WorkspaceIsolationMode, check_workspace_readiness
+
     readiness = check_workspace_readiness(workspace)
     if not readiness.is_git_repo and readiness.warning and not json_output:
         # Emit workspace readiness warning
         console.print(f"  [neutral.dim]{CHARS_DIAMONDS['inset']} {readiness.warning}[/]")
         if verbose:
-            console.print(
-                f"  [neutral.dim]  Isolation mode: {readiness.isolation_mode.value}[/]"
-            )
+            console.print(f"  [neutral.dim]  Isolation mode: {readiness.isolation_mode.value}[/]")
 
     # Create session for tracking (enables `sunwell resume`)
     session_id: str | None = None
@@ -276,34 +279,38 @@ async def run_goal_unified(
 
     # Create renderer based on output mode
     from sunwell.agent import create_renderer
+
     renderer_mode = "json" if json_output else "interactive"
-    
+
     # For JSON output, use JSONRenderer directly
     if json_output:
         from sunwell.agent.utils.renderer import JSONRenderer
-        
+
         async def run_json():
             gen = loop.run()
             await gen.asend(None)  # Initialize
             result = await gen.asend(goal)
-            
+
             # Process all results
             while result is not None:
                 if isinstance(result, AgentEvent):
                     import json
+
                     print(json.dumps(result.to_dict()))
                     result = await gen.asend(None)
                 elif isinstance(result, ChatCheckpoint):
                     # Auto-confirm checkpoints
                     from sunwell.agent.chat import CheckpointResponse
+
                     result = await gen.asend(CheckpointResponse("y"))
                 elif isinstance(result, str):
                     import json
+
                     print(json.dumps({"type": "response", "data": {"text": result}}))
                     result = None
                 else:
                     result = None
-        
+
         try:
             await run_json()
             if session_id:
@@ -316,43 +323,50 @@ async def run_goal_unified(
 
     # Interactive mode - use RichRenderer for events
     from rich.markdown import Markdown
-    
+
     goal_completed = False
     goal_failed = False
-    
+
     # Wrap execution with optional live status display
     with live_session(console, enable_status=show_status):
         try:
             gen = loop.run()
             await gen.asend(None)  # Initialize
             result = await gen.asend(goal)
-            
+
             # Process results until completion
             while result is not None:
                 if isinstance(result, str):
                     # Conversational response (for UNDERSTAND intents)
                     console.print()
-                    console.print(f"[holy.radiant]{CHARS_STARS['complete']} Sunwell:[/holy.radiant]")
+                    console.print(
+                        f"[holy.radiant]{CHARS_STARS['complete']} Sunwell:[/holy.radiant]"
+                    )
                     console.print(Markdown(result))
                     render_separator(console, style="mote")
                     # Send completion notification
                     await notifier.send_complete("Response generated")
                     goal_completed = True
                     result = None
-                    
+
                 elif isinstance(result, ChatCheckpoint):
                     # Handle checkpoint (should auto-confirm, but handle display)
                     if result.type == ChatCheckpointType.COMPLETION:
                         # Show completion summary with Holy Light styling
                         console.print()
-                        console.print(f"  [holy.success]{CHARS_STARS['complete']} {result.message}[/holy.success]")
+                        console.print(
+                            f"  [holy.success]{CHARS_STARS['complete']} {result.message}[/holy.success]"
+                        )
                         if result.summary:
                             console.print(f"  [neutral.dim]{result.summary}[/neutral.dim]")
                         if result.files_changed:
-                            console.print(f"  [neutral.dim]Files: {', '.join(result.files_changed[:5])}[/neutral.dim]")
+                            console.print(
+                                f"  [neutral.dim]Files: {', '.join(result.files_changed[:5])}[/neutral.dim]"
+                            )
                         # Sparkle celebration
                         if not should_reduce_motion():
                             import asyncio
+
                             asyncio.create_task(Sparkle.burst("", duration=0.3))
                         await notifier.send_complete(result.summary or result.message)
                         goal_completed = True
@@ -367,24 +381,27 @@ async def run_goal_unified(
                         await notifier.send_error(result.message, details=result.error or "")
                         goal_failed = True
                         if session_id:
-                            _update_session_status(session_id, "failed", result.error or result.message)
+                            _update_session_status(
+                                session_id, "failed", result.error or result.message
+                            )
                         result = None
                     else:
                         # Auto-confirm other checkpoints
                         from sunwell.agent.chat import CheckpointResponse
+
                         result = await gen.asend(CheckpointResponse("y"))
-                        
+
                 elif isinstance(result, AgentEvent):
                     # Render event using the event helpers
                     render_agent_event(result, console, verbose)
                     result = await gen.asend(None)
                 else:
                     result = None
-            
+
             # Mark session as completed if we got here without failure
             if session_id and goal_completed and not goal_failed:
                 _update_session_status(session_id, "completed")
-                    
+
         except KeyboardInterrupt:
             # Save session as PAUSED so it can be resumed
             if session_id:
@@ -396,6 +413,7 @@ async def run_goal_unified(
                 _update_session_status(session_id, "failed", str(e))
             if verbose:
                 import traceback
+
                 trace_lines = traceback.format_exc().strip().split("\n")
                 render_error(console, str(e))
                 render_collapsible(
@@ -407,5 +425,3 @@ async def run_goal_unified(
                 )
             else:
                 render_error(console, str(e))
-
-

@@ -4,10 +4,9 @@ Provides tools for running goals through the agent pipeline,
 running validators, and reporting task completion.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -15,11 +14,7 @@ from sunwell.mcp.formatting import (
     omit_empty,
     resolve_format,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
@@ -84,19 +79,26 @@ def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
                 tasks = []
                 if plan.task_graph and hasattr(plan.task_graph, "tasks"):
                     tasks = [
-                        omit_empty({
-                            "id": getattr(t, "id", None),
-                            "title": getattr(t, "title", str(t)),
-                        })
+                        omit_empty(
+                            {
+                                "id": getattr(t, "id", None),
+                                "title": getattr(t, "title", str(t)),
+                            }
+                        )
                         for t in plan.task_graph.tasks
                     ]
 
-                return mcp_json(omit_empty({
-                    "mode": "dry_run",
-                    "goal": goal,
-                    "tasks": tasks,
-                    "estimated_seconds": plan.estimated_seconds,
-                }), fmt)
+                return mcp_json(
+                    omit_empty(
+                        {
+                            "mode": "dry_run",
+                            "goal": goal,
+                            "tasks": tasks,
+                            "estimated_seconds": plan.estimated_seconds,
+                        }
+                    ),
+                    fmt,
+                )
 
             # Full execution
             lens_obj = None
@@ -143,15 +145,17 @@ def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
 
             runtime.run(run_and_collect())
 
-            data = omit_empty({
-                "mode": "executed",
-                "goal": goal,
-                "tasks_completed": tasks_completed,
-                "tasks_failed": tasks_failed,
-                "validation_passed": validation_passed,
-                "files_modified": list(session.files_modified),
-                "artifacts_created": list(session.artifacts_created),
-            })
+            data = omit_empty(
+                {
+                    "mode": "executed",
+                    "goal": goal,
+                    "tasks_completed": tasks_completed,
+                    "tasks_failed": tasks_failed,
+                    "validation_passed": validation_passed,
+                    "files_modified": list(session.files_modified),
+                    "artifacts_created": list(session.artifacts_created),
+                }
+            )
 
             return mcp_json(data, fmt)
         except Exception as e:
@@ -295,22 +299,23 @@ def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
                     except Exception as e:
                         results.append({"validator": name, "status": "error", "error": str(e)})
 
-            all_passed = all(
-                r.get("passed", True)
-                for r in results
-                if r.get("status") != "skipped"
-            )
+            all_passed = all(r.get("passed", True) for r in results if r.get("status") != "skipped")
 
             if fmt == "summary":
                 return mcp_json({"file_path": file_path, "all_passed": all_passed}, fmt)
 
-            return mcp_json(omit_empty({
-                "file_path": file_path,
-                "domain": domain,
-                "all_passed": all_passed,
-                "results": results,
-                "total_validators": len(results),
-            }), fmt)
+            return mcp_json(
+                omit_empty(
+                    {
+                        "file_path": file_path,
+                        "domain": domain,
+                        "all_passed": all_passed,
+                        "results": results,
+                        "total_validators": len(results),
+                    }
+                ),
+                fmt,
+            )
         except Exception as e:
             return mcp_json({"error": str(e), "file_path": file_path}, fmt)
 
@@ -347,17 +352,20 @@ def register_execution_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             modified = [f.strip() for f in files_modified.split(",") if f.strip()]
             reviewed = [f.strip() for f in files_reviewed.split(",") if f.strip()]
 
-            recorded: dict = omit_empty({
-                "goal": goal,
-                "success": success,
-                "files_modified": modified,
-                "files_reviewed": reviewed,
-            })
+            recorded: dict = omit_empty(
+                {
+                    "goal": goal,
+                    "success": success,
+                    "files_modified": modified,
+                    "files_reviewed": reviewed,
+                }
+            )
 
             # Record learnings if provided
             if learnings and memory.simulacrum:

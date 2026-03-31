@@ -8,7 +8,6 @@ It provides four strategies for selecting the best candidate:
 - judge: Full LLM evaluation (expensive, ~1000 tokens per candidate)
 """
 
-
 import asyncio
 from collections import Counter
 from typing import TYPE_CHECKING
@@ -76,25 +75,25 @@ def select_heuristic(
             s += 1.5  # Slightly penalize very long
 
         # Structure
-        s += text.count('\n\n') * 0.3  # Paragraph breaks
-        s += min(text.count('```'), 3) * 1.0  # Code blocks (cap at 3)
-        s += min(text.count('- '), 10) * 0.2  # Bullet points
-        s += min(text.count('1.'), 5) * 0.2  # Numbered lists
+        s += text.count("\n\n") * 0.3  # Paragraph breaks
+        s += min(text.count("```"), 3) * 1.0  # Code blocks (cap at 3)
+        s += min(text.count("- "), 10) * 0.2  # Bullet points
+        s += min(text.count("1."), 5) * 0.2  # Numbered lists
 
         # Quality signals
-        if '```python' in text or '```' in text:
+        if "```python" in text or "```" in text:
             s += 1.0  # Has code
-        if task_type == "code" and ('def ' in text or 'class ' in text):
+        if task_type == "code" and ("def " in text or "class " in text):
             s += 2.0  # Has function/class definition
 
         # Negative signals
-        s -= text.count('TODO') * 0.5
-        s -= text.count('...') * 0.3
-        s -= text.lower().count('i think') * 0.2  # Hedging
-        s -= text.lower().count('maybe') * 0.2
+        s -= text.count("TODO") * 0.5
+        s -= text.count("...") * 0.3
+        s -= text.lower().count("i think") * 0.2  # Hedging
+        s -= text.lower().count("maybe") * 0.2
 
         # Completion signals
-        if text.strip().endswith(('.', '```', ')')):
+        if text.strip().endswith((".", "```", ")")):
             s += 0.5  # Ends cleanly
 
         return s
@@ -148,7 +147,7 @@ async def select_voting(
 
 {vote_prompt}
 
-Respond with ONLY the number (0-{len(candidates)-1}) of the best candidate."""
+Respond with ONLY the number (0-{len(candidates) - 1}) of the best candidate."""
 
         result = await model.generate(
             vote_request,
@@ -164,10 +163,9 @@ Respond with ONLY the number (0-{len(candidates)-1}) of the best candidate."""
         # Fallback: return 0 if parsing fails
         return 0
 
-    votes = await asyncio.gather(*[
-        get_vote(name, prompt_text)
-        for name, (prompt_text, _) in personas.items()
-    ])
+    votes = await asyncio.gather(
+        *[get_vote(name, prompt_text) for name, (prompt_text, _) in personas.items()]
+    )
 
     # Majority vote
     vote_counts = Counter(votes)
@@ -222,7 +220,8 @@ Respond with ONLY a number between 0 and 10."""
         try:
             # Try to extract number
             import re
-            match = re.search(r'\d+\.?\d*', text)
+
+            match = re.search(r"\d+\.?\d*", text)
             if match:
                 score = float(match.group())
                 return candidate, min(max(score, 0.0), 10.0)
@@ -239,8 +238,7 @@ Respond with ONLY a number between 0 and 10."""
 def _build_vote_prompt(prompt: str, candidates: list[Candidate]) -> str:
     """Build a prompt for voting on candidates."""
     candidate_texts = "\n\n".join(
-        f"--- Candidate {i} ({c.source}) ---\n{c.text[:1000]}"
-        for i, c in enumerate(candidates)
+        f"--- Candidate {i} ({c.source}) ---\n{c.text[:1000]}" for i, c in enumerate(candidates)
     )
 
     return f"""Original task: {prompt[:500]}
@@ -249,4 +247,4 @@ Here are {len(candidates)} candidate responses:
 
 {candidate_texts}
 
-Which candidate is best? Respond with ONLY the number (0-{len(candidates)-1})."""
+Which candidate is best? Respond with ONLY the number (0-{len(candidates) - 1})."""

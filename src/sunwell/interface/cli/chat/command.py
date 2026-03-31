@@ -3,7 +3,6 @@
 Holy Light aesthetic (RFC-131): Golden accents radiating from the void.
 """
 
-
 import asyncio
 import sys
 from pathlib import Path
@@ -49,12 +48,8 @@ console = create_sunwell_console()
     help="Override tool trust level",
 )
 @click.option("--smart", is_flag=True, help="Enable Adaptive Model Selection")
-@click.option(
-    "--mirror", is_flag=True, help="Enable Mirror Neurons (self-introspection)"
-)
-@click.option(
-    "--model-routing", is_flag=True, help="Enable Model-Aware Task Routing"
-)
+@click.option("--mirror", is_flag=True, help="Enable Mirror Neurons (self-introspection)")
+@click.option("--model-routing", is_flag=True, help="Enable Model-Aware Task Routing")
 @click.option("--router-model", default=None, help="Tiny LLM for cognitive routing")
 @click.option(
     "--naaru/--no-naaru",
@@ -156,7 +151,7 @@ def chat(
 
     # Import and run chat loop
     from sunwell.interface.cli.chat.loop import chat_loop
-    
+
     asyncio.run(
         chat_loop(
             dag=dag,
@@ -233,11 +228,17 @@ def _resolve_binding(
             if trust_level is None:
                 trust_level = binding.trust_level
         else:
-            console.print(f"[void.indigo]{CHARS_STARS['progress']} No binding specified and no default set.[/void.indigo]")
+            console.print(
+                f"[void.indigo]{CHARS_STARS['progress']} No binding specified and no default set.[/void.indigo]"
+            )
             console.print()
             console.print("[neutral.text]Options:[/neutral.text]")
-            console.print(f"  1. Run [holy.radiant]sunwell setup[/holy.radiant] to create default bindings")
-            console.print(f"  2. Specify a lens: [holy.radiant]sunwell chat path/to/lens.lens[/holy.radiant]")
+            console.print(
+                f"  1. Run [holy.radiant]sunwell setup[/holy.radiant] to create default bindings"
+            )
+            console.print(
+                f"  2. Specify a lens: [holy.radiant]sunwell chat path/to/lens.lens[/holy.radiant]"
+            )
             console.print(
                 f"  3. Create a binding: [holy.radiant]sunwell bind create my-chat --lens my.lens[/holy.radiant]"
             )
@@ -284,16 +285,24 @@ def _init_session(store: SimulacrumStore, session: str | None) -> object:
     if session:
         try:
             dag = store.load_session(session)
-            console.print(f"[holy.success]{CHARS_STARS['complete']} Resumed session:[/holy.success] {session}")
-            console.print(f"[neutral.dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/neutral.dim]")
+            console.print(
+                f"[holy.success]{CHARS_STARS['complete']} Resumed session:[/holy.success] {session}"
+            )
+            console.print(
+                f"[neutral.dim]  {len(dag.turns)} turns, {len(dag.learnings)} learnings[/neutral.dim]"
+            )
         except FileNotFoundError:
             store.new_session(session)
             dag = store.get_dag()
-            console.print(f"[holy.success]{CHARS_STARS['complete']} Created new session:[/holy.success] {session}")
+            console.print(
+                f"[holy.success]{CHARS_STARS['complete']} Created new session:[/holy.success] {session}"
+            )
     else:
         session = store.new_session()
         dag = store.get_dag()
-        console.print(f"[holy.success]{CHARS_STARS['complete']} New session:[/holy.success] {session}")
+        console.print(
+            f"[holy.success]{CHARS_STARS['complete']} New session:[/holy.success] {session}"
+        )
 
     return dag
 

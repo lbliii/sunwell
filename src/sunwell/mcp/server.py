@@ -4,15 +4,12 @@ Exposes Sunwell's full intelligence to MCP hosts (Cursor, Claude Desktop, etc.):
 lenses, memory, knowledge, planning, backlog, introspection, execution, and delegation.
 """
 
-from __future__ import annotations
-
 import argparse
 import asyncio
 import contextlib
 import signal
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 # MCP imports - optional dependency
 try:
@@ -25,14 +22,11 @@ except ImportError:
 
 from sunwell.mcp.instructions import SUNWELL_INSTRUCTIONS
 
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP as FastMCPType
-
 
 def create_server(
     lenses_dir: str | None = None,
     workspace: str | None = None,
-) -> FastMCPType:
+) -> FastMCP:
     """Create MCP server with all Sunwell tools and resources.
 
     Args:
@@ -43,15 +37,14 @@ def create_server(
         Configured FastMCP server instance
     """
     if not MCP_AVAILABLE:
-        raise ImportError(
-            "MCP package not installed. Install with: pip install 'sunwell[mcp]'"
-        )
+        raise ImportError("MCP package not installed. Install with: pip install 'sunwell[mcp]'")
 
     from sunwell.mcp.resources import register_resources
     from sunwell.mcp.runtime import MCPRuntime
     from sunwell.mcp.tools import register_tools
 
     runtime = MCPRuntime(workspace=workspace)
+    runtime.warm_subsystems()
 
     mcp = FastMCP("sunwell", instructions=SUNWELL_INSTRUCTIONS)
 
@@ -69,7 +62,7 @@ def create_server(
     return mcp
 
 
-async def run_server_async(mcp: FastMCPType) -> None:
+async def run_server_async(mcp: FastMCP) -> None:
     """Run MCP server with graceful shutdown support.
 
     Args:

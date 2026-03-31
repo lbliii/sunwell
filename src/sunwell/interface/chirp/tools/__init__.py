@@ -22,13 +22,9 @@ Architecture:
     - Support tool event emission for monitoring
 """
 
-from __future__ import annotations
-
 import logging
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from chirp import App
+from chirp import App
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +33,6 @@ def register_all_tools(app: App) -> None:
     """Register all Sunwell tools with the Chirp app.
 
     This registers tools from all categories:
-    - Backlog (goals, tasks)
     - Knowledge (search, codebase)
     - Memory (recall, briefing)
     - Planning (plan, classify)
@@ -47,7 +42,6 @@ def register_all_tools(app: App) -> None:
     Args:
         app: Chirp application instance
     """
-    from sunwell.interface.chirp.tools.backlog import register_backlog_tools
     from sunwell.interface.chirp.tools.knowledge import register_knowledge_tools
     from sunwell.interface.chirp.tools.lens import register_lens_tools
     from sunwell.interface.chirp.tools.memory import register_memory_tools
@@ -55,7 +49,6 @@ def register_all_tools(app: App) -> None:
     logger.info("Registering Sunwell MCP tools with Chirp app")
 
     # Register tool categories
-    register_backlog_tools(app)
     register_knowledge_tools(app)
     register_lens_tools(app)
     register_memory_tools(app)

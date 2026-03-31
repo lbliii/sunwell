@@ -164,17 +164,17 @@ def _looks_like_code(text: str) -> bool:
 
     # Check for common code patterns
     code_indicators = [
-        "def ",       # Python function
-        "class ",     # Python/JS class
-        "import ",    # Python import
-        "from ",      # Python from import
+        "def ",  # Python function
+        "class ",  # Python/JS class
+        "import ",  # Python import
+        "from ",  # Python from import
         "function ",  # JS function
-        "const ",     # JS const
-        "let ",       # JS let
-        "export ",    # JS/TS export
-        "async ",     # Async function
+        "const ",  # JS const
+        "let ",  # JS let
+        "export ",  # JS/TS export
+        "async ",  # Async function
         "if __name__",  # Python main guard
-        "#!/",        # Shebang
+        "#!/",  # Shebang
     ]
 
     # Check first 500 chars for code patterns
@@ -187,7 +187,7 @@ def _extract_code_from_markdown(text: str) -> str:
     content = text.strip()
 
     # Match ```language\ncode\n``` pattern
-    fence_pattern = re.compile(r'^```\w*\n(.*?)```', re.DOTALL)
+    fence_pattern = re.compile(r"^```\w*\n(.*?)```", re.DOTALL)
     match = fence_pattern.match(content)
     if match:
         return match.group(1).strip()

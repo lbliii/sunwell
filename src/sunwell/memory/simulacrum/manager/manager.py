@@ -120,12 +120,8 @@ class SimulacrumManager:
         """Save simulacrum registry to disk with atomic write."""
         registry_path = self.base_path / "registry.json"
         data = {
-            "simulacrums": {
-                name: meta.to_dict() for name, meta in self._metadata.items()
-            },
-            "archived": {
-                name: meta.to_dict() for name, meta in self._archived.items()
-            },
+            "simulacrums": {name: meta.to_dict() for name, meta in self._metadata.items()},
+            "archived": {name: meta.to_dict() for name, meta in self._archived.items()},
             "updated_at": datetime.now().isoformat(),
         }
         if not safe_json_dump(data, registry_path):
@@ -228,6 +224,7 @@ class SimulacrumManager:
 
         # Remove from disk
         import shutil
+
         store_path = self.base_path / name
         if store_path.exists():
             shutil.rmtree(store_path)
@@ -379,7 +376,11 @@ class SimulacrumManager:
         if not self.spawn_policy.enabled:
             # Spawning disabled, just use best match if any
             if suggestions and activate:
-                return self.activate(suggestions[0][0].name), False, "Using closest match (spawning disabled)"
+                return (
+                    self.activate(suggestions[0][0].name),
+                    False,
+                    "Using closest match (spawning disabled)",
+                )
             return None, False, "No matching simulacrum (spawning disabled)"
 
         # 3. Track as unmatched and check for spawn conditions
@@ -393,7 +394,11 @@ class SimulacrumManager:
 
         # 4. Not ready to spawn yet - use best available or none
         if suggestions and suggestions[0][1] >= 0.2 and activate:
-            return self.activate(suggestions[0][0].name), False, f"Using closest match: {suggestions[0][0].name}"
+            return (
+                self.activate(suggestions[0][0].name),
+                False,
+                f"Using closest match: {suggestions[0][0].name}",
+            )
 
         return None, False, "Query tracked; waiting for more context before spawning"
 
@@ -507,16 +512,18 @@ class SimulacrumManager:
         """
         pending_info = []
         for i, domain in enumerate(self._pending_domains):
-            pending_info.append({
-                "index": i,
-                "query_count": len(domain.queries),
-                "top_keywords": domain.top_keywords(5),
-                "coherence": round(domain.coherence_score(), 2),
-                "ready_to_spawn": (
-                    len(domain.queries) >= self.spawn_policy.min_queries_before_spawn
-                    and domain.coherence_score() >= self.spawn_policy.domain_coherence_threshold
-                ),
-            })
+            pending_info.append(
+                {
+                    "index": i,
+                    "query_count": len(domain.queries),
+                    "top_keywords": domain.top_keywords(5),
+                    "coherence": round(domain.coherence_score(), 2),
+                    "ready_to_spawn": (
+                        len(domain.queries) >= self.spawn_policy.min_queries_before_spawn
+                        and domain.coherence_score() >= self.spawn_policy.domain_coherence_threshold
+                    ),
+                }
+            )
 
         return {
             "spawn_enabled": self.spawn_policy.enabled,
@@ -620,8 +627,7 @@ class SimulacrumManager:
             for node in source_store.unified_store._nodes.values():
                 # Check for duplicates by content hash
                 exists = any(
-                    n.content == node.content
-                    for n in target_store.unified_store._nodes.values()
+                    n.content == node.content for n in target_store.unified_store._nodes.values()
                 )
                 if not exists:
                     target_store.unified_store.add_node(node)
@@ -638,10 +644,7 @@ class SimulacrumManager:
 
         for learning in source_dag.get_active_learnings():
             # Check for duplicates
-            exists = any(
-                l.fact == learning.fact
-                for l in target_dag.get_active_learnings()
-            )
+            exists = any(l.fact == learning.fact for l in target_dag.get_active_learnings())
             if not exists:
                 target_dag.add_learning(learning)
                 merged_count += 1
@@ -706,18 +709,23 @@ class SimulacrumManager:
                 if days_old < self.lifecycle_policy.protect_recently_spawned_days:
                     continue  # Protected
 
-            if (meta.node_count < self.lifecycle_policy.min_useful_nodes and
-                meta.learning_count < self.lifecycle_policy.min_useful_learnings):
+            if (
+                meta.node_count < self.lifecycle_policy.min_useful_nodes
+                and meta.learning_count < self.lifecycle_policy.min_useful_learnings
+            ):
                 empty.append(name)
 
         # Find merge candidates
         merge_candidates: list[tuple[str, str, float]] = []
         names = list(self._metadata.keys())
         for i, name1 in enumerate(names):
-            for name2 in names[i+1:]:
+            for name2 in names[i + 1 :]:
                 related = self.find_related_simulacrums(name1)
                 for rel_name, similarity in related:
-                    if rel_name == name2 and similarity >= self.lifecycle_policy.merge_similarity_threshold:
+                    if (
+                        rel_name == name2
+                        and similarity >= self.lifecycle_policy.merge_similarity_threshold
+                    ):
                         merge_candidates.append((name1, name2, similarity))
 
         return {
@@ -764,7 +772,6 @@ class SimulacrumManager:
         if source_dir.exists():
             import io
             import tarfile
-
             from compression import zstd
 
             archive_path = archive_dir / f"{archive_name}.tar.zst"
@@ -820,7 +827,6 @@ class SimulacrumManager:
         """
         import io
         import tarfile
-
         from compression import zstd
 
         if name not in self._archived:
@@ -955,6 +961,7 @@ class SimulacrumManager:
 
         if store.unified_store:
             from datetime import timedelta
+
             cutoff = datetime.now() - timedelta(days=keep_recent_days)
             cutoff_str = cutoff.isoformat()
 
@@ -968,6 +975,7 @@ class SimulacrumManager:
                 # Keep if high-confidence facets
                 if node.facets and node.facets.confidence:
                     from sunwell.memory.simulacrum.topology.facets import ConfidenceLevel
+
                     if node.facets.confidence in (ConfidenceLevel.HIGH, ConfidenceLevel.VERY_HIGH):
                         continue
 
@@ -983,9 +991,7 @@ class SimulacrumManager:
                 stats["nodes_removed"] += 1
 
             # Prune weak edges
-            stats["edges_pruned"] = store.unified_store._concept_graph.prune(
-                min_confidence=0.3
-            )
+            stats["edges_pruned"] = store.unified_store._concept_graph.prune(min_confidence=0.3)
 
             # Save
             store.unified_store.save()

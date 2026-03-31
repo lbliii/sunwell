@@ -25,11 +25,6 @@ from .base import (
     TaskStartData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
-from .contract import (
-    ContractVerifyFailData,
-    ContractVerifyPassData,
-    ContractVerifyStartData,
-)
 from .constellation import (
     AutonomousActionBlockedData,
     CheckpointFoundData,
@@ -38,6 +33,11 @@ from .constellation import (
     PhaseCompleteData,
     SpecialistCompletedData,
     SpecialistSpawnedData,
+)
+from .contract import (
+    ContractVerifyFailData,
+    ContractVerifyPassData,
+    ContractVerifyStartData,
 )
 from .convergence import (
     ConvergenceBudgetExceededData,
@@ -115,6 +115,12 @@ from .recovery import (
     RecoveryResolvedData,
     RecoverySavedData,
 )
+from .refinement import (
+    PlanRefineAttemptData,
+    PlanRefineCompleteData,
+    PlanRefineFinalData,
+    PlanRefineStartData,
+)
 from .reliability import (
     BudgetExhaustedData,
     BudgetWarningData,
@@ -124,12 +130,6 @@ from .reliability import (
     ReliabilityHallucinationData,
     ReliabilityWarningData,
     TimeoutData,
-)
-from .refinement import (
-    PlanRefineAttemptData,
-    PlanRefineCompleteData,
-    PlanRefineFinalData,
-    PlanRefineStartData,
 )
 from .security import (
     AuditLogEntryData,
@@ -496,7 +496,12 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     # Convergence events - updated to match factories
     EventType.CONVERGENCE_START: {"files", "gates", "max_iterations"},
     EventType.CONVERGENCE_ITERATION_START: {"iteration", "files"},
-    EventType.CONVERGENCE_ITERATION_COMPLETE: {"iteration", "all_passed", "total_errors", "gate_results"},
+    EventType.CONVERGENCE_ITERATION_COMPLETE: {
+        "iteration",
+        "all_passed",
+        "total_errors",
+        "gate_results",
+    },
     EventType.CONVERGENCE_FIXING: {"iteration", "error_count"},
     EventType.CONVERGENCE_STABLE: {"iterations", "duration_ms"},
     EventType.CONVERGENCE_TIMEOUT: {"iterations"},
@@ -507,48 +512,70 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     EventType.PLAN_DISCOVERY_PROGRESS: {"artifacts_discovered", "phase"},
     # Integration verification events (RFC-067)
     EventType.INTEGRATION_CHECK_START: {
-        "edge_id", "check_type", "source_artifact", "target_artifact"
+        "edge_id",
+        "check_type",
+        "source_artifact",
+        "target_artifact",
     },
     EventType.INTEGRATION_CHECK_PASS: {"edge_id", "check_type", "verification_method"},
     EventType.INTEGRATION_CHECK_FAIL: {"edge_id", "check_type", "expected", "actual"},
     EventType.STUB_DETECTED: {"artifact_id", "file_path", "stub_type", "location"},
     EventType.ORPHAN_DETECTED: {"artifact_id", "file_path"},
     EventType.WIRE_TASK_GENERATED: {
-        "task_id", "source_artifact", "target_artifact", "integration_type"
+        "task_id",
+        "source_artifact",
+        "target_artifact",
+        "integration_type",
     },
     # Contract verification events
     EventType.CONTRACT_VERIFY_START: {
-        "task_id", "protocol_name", "implementation_file", "contract_file"
+        "task_id",
+        "protocol_name",
+        "implementation_file",
+        "contract_file",
     },
-    EventType.CONTRACT_VERIFY_PASS: {
-        "task_id", "protocol_name", "final_tier"
-    },
-    EventType.CONTRACT_VERIFY_FAIL: {
-        "task_id", "protocol_name", "final_tier", "error_message"
-    },
+    EventType.CONTRACT_VERIFY_PASS: {"task_id", "protocol_name", "final_tier"},
+    EventType.CONTRACT_VERIFY_FAIL: {"task_id", "protocol_name", "final_tier", "error_message"},
     # Skill graph events (RFC-087)
-    EventType.SKILL_GRAPH_RESOLVED: {
-        "lens_name", "skill_count", "wave_count", "content_hash"
-    },
+    EventType.SKILL_GRAPH_RESOLVED: {"lens_name", "skill_count", "wave_count", "content_hash"},
     EventType.SKILL_WAVE_START: {"wave_index", "total_waves", "skills"},
     EventType.SKILL_WAVE_COMPLETE: {"wave_index", "duration_ms", "succeeded", "failed"},
     EventType.SKILL_CACHE_HIT: {"skill_name", "cache_key", "saved_ms"},
     EventType.SKILL_EXECUTE_START: {
-        "skill_name", "wave_index", "requires", "context_keys_available"
+        "skill_name",
+        "wave_index",
+        "requires",
+        "context_keys_available",
     },
     EventType.SKILL_EXECUTE_COMPLETE: {
-        "skill_name", "duration_ms", "produces", "cached", "success"
+        "skill_name",
+        "duration_ms",
+        "produces",
+        "cached",
+        "success",
     },
     # Security events (RFC-089)
     EventType.SECURITY_APPROVAL_REQUESTED: {
-        "dag_id", "dag_name", "skill_count", "risk_level", "risk_score", "flags"
+        "dag_id",
+        "dag_name",
+        "skill_count",
+        "risk_level",
+        "risk_score",
+        "flags",
     },
     EventType.SECURITY_APPROVAL_RECEIVED: {"dag_id", "approved"},
     EventType.SECURITY_VIOLATION: {
-        "skill_name", "violation_type", "evidence", "detection_method", "action_taken"
+        "skill_name",
+        "violation_type",
+        "evidence",
+        "detection_method",
+        "action_taken",
     },
     EventType.SECURITY_SCAN_COMPLETE: {
-        "output_length", "violations_found", "scan_duration_ms", "method"
+        "output_length",
+        "violations_found",
+        "scan_duration_ms",
+        "method",
     },
     EventType.AUDIT_LOG_ENTRY: {"skill_name", "action", "risk_level"},
     # Tool calling events (RFC-134)
@@ -567,7 +594,10 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     # Delegation events (RFC-137)
     EventType.DELEGATION_STARTED: {"task_description", "smart_model", "delegation_model", "reason"},
     EventType.EPHEMERAL_LENS_CREATED: {
-        "task_scope", "heuristics_count", "patterns_count", "generated_by"
+        "task_scope",
+        "heuristics_count",
+        "patterns_count",
+        "generated_by",
     },
     # Constellation events (RFC-130)
     EventType.SPECIALIST_SPAWNED: {"specialist_id", "task_id", "parent_id", "role", "focus"},
@@ -575,9 +605,7 @@ REQUIRED_FIELDS: dict[EventType, set[str]] = {
     EventType.CHECKPOINT_FOUND: {"phase", "checkpoint_at", "goal"},
     EventType.CHECKPOINT_SAVED: {"phase", "summary"},
     EventType.PHASE_COMPLETE: {"phase", "duration_seconds"},
-    EventType.AUTONOMOUS_ACTION_BLOCKED: {
-        "action_type", "reason", "blocking_rule", "risk_level"
-    },
+    EventType.AUTONOMOUS_ACTION_BLOCKED: {"action_type", "reason", "blocking_rule", "risk_level"},
     EventType.GUARD_EVOLUTION_SUGGESTED: {"guard_id", "evolution_type", "reason", "confidence"},
     # RFC-MEMORY: Unified memory events
     EventType.ORIENT: {"learnings", "constraints", "dead_ends"},

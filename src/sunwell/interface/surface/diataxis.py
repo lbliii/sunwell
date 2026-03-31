@@ -4,7 +4,6 @@ Detects Diataxis content type (TUTORIAL, HOW_TO, EXPLANATION, REFERENCE)
 from document content and structure.
 """
 
-
 import re
 from dataclasses import dataclass
 from pathlib import Path

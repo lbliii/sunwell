@@ -4,7 +4,8 @@ Handles response generation and message building for conversational mode.
 """
 
 import logging
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +24,7 @@ def build_system_prompt(workspace: Path) -> str:
     Returns:
         System prompt string
     """
-    now = datetime.now(timezone.utc).astimezone()
+    now = datetime.now(UTC).astimezone()
     current_time = now.strftime("%A, %B %d, %Y at %H:%M %Z")
 
     return f"""You are Sunwell, an AI assistant for software development.
@@ -93,6 +94,7 @@ async def generate_response(
     conversation_history: list[dict[str, str]],
     workspace: Path,
     execution_context: dict[str, Any] | None = None,
+    token_callback: Callable[[str], None] | None = None,
 ) -> str:
     """Generate conversational response.
 
@@ -102,6 +104,7 @@ async def generate_response(
         conversation_history: Conversation history
         workspace: Current workspace path
         execution_context: Optional context during execution
+        token_callback: Optional callback invoked per streaming chunk (side-channel)
 
     Returns:
         Generated response string
@@ -113,15 +116,16 @@ async def generate_response(
 
     if execution_context:
         # Add execution context for mid-execution questions
-        messages.insert(-1, {
-            "role": "system",
-            "content": f"Current execution context: {execution_context}",
-        })
+        messages.insert(
+            -1,
+            {
+                "role": "system",
+                "content": f"Current execution context: {execution_context}",
+            },
+        )
 
     # Convert to message tuples for model
-    structured = tuple(
-        Message(role=m["role"], content=m["content"]) for m in messages
-    )
+    structured = tuple(Message(role=m["role"], content=m["content"]) for m in messages)
 
     logger.debug(
         "Calling model.generate with %d messages (model=%s)",
@@ -135,6 +139,8 @@ async def generate_response(
         response_parts: list[str] = []
         async for chunk in model.generate_stream(structured):
             response_parts.append(chunk)
+            if token_callback:
+                token_callback(chunk)
         response = "".join(response_parts)
         logger.debug("Streaming complete: %d chars", len(response))
         return response

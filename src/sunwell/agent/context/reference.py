@@ -20,14 +20,20 @@ Examples:
     @env:PATH          → environment variable (allowlist only)
 """
 
-
 import re
 from dataclasses import dataclass
 
 # Valid reference types (module-level constant)
-_VALID_TYPES: frozenset[str] = frozenset({
-    "file", "dir", "selection", "clipboard", "git", "env",
-})
+_VALID_TYPES: frozenset[str] = frozenset(
+    {
+        "file",
+        "dir",
+        "selection",
+        "clipboard",
+        "git",
+        "env",
+    }
+)
 
 # Pattern to match @ references (module-level constant)
 # Matches @word or @word:modifier (modifier can include paths with /, ~, etc.)
@@ -74,11 +80,13 @@ class ContextReference:
 
             # Only include valid reference types
             if ref_type in _VALID_TYPES:
-                refs.append(cls(
-                    ref_type=ref_type,
-                    modifier=modifier,
-                    raw=raw,
-                ))
+                refs.append(
+                    cls(
+                        ref_type=ref_type,
+                        modifier=modifier,
+                        raw=raw,
+                    )
+                )
 
         return refs
 

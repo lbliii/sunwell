@@ -11,7 +11,6 @@ This separation ensures:
 See: RFC-075 (original), this refactor improves on it.
 """
 
-
 import json
 import re
 from dataclasses import dataclass, field
@@ -33,7 +32,7 @@ _JSON_EXTRACT_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL
 # CLASSIFICATION PROMPT — Structured output only, no response generation
 # =============================================================================
 
-_CLASSIFIER_PROMPT = '''Classify this user intent. Return ONLY a JSON routing decision.
+_CLASSIFIER_PROMPT = """Classify this user intent. Return ONLY a JSON routing decision.
 
 ## User Goal
 "{goal}"
@@ -91,7 +90,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   "conversation_mode": "informational|empathetic|collaborative" or null,
   "auxiliary_panels": [{{"panel_type": "...", "data": {{...}}}}] or [],
   "suggested_tools": ["upload", "camera", ...] or []
-}}'''
+}}"""
 
 
 # =============================================================================

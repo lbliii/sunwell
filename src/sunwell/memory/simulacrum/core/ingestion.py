@@ -71,7 +71,7 @@ async def ingest_document(
     if extract_topology and len(nodes) > 1:
         topology_extractor = TopologyExtractor()
         for i, node in enumerate(nodes):
-            candidates = nodes[:i] + nodes[i+1:]  # All other nodes
+            candidates = nodes[:i] + nodes[i + 1 :]  # All other nodes
             if len(candidates) > 10:
                 candidates = candidates[:10]  # Limit for performance
 

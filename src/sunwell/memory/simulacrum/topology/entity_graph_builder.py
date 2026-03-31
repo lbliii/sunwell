@@ -307,9 +307,7 @@ class EntityGraphBuilder:
         """
         # Count entity nodes
         entity_nodes = [
-            node
-            for node in self.unified_store._nodes.values()
-            if isinstance(node, EntityNode)
+            node for node in self.unified_store._nodes.values() if isinstance(node, EntityNode)
         ]
 
         # Count edges by type

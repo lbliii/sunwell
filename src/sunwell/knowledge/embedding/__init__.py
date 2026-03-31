@@ -49,8 +49,7 @@ def create_embedder(
         return HashEmbedding()
 
     raise RuntimeError(
-        "No embedding provider available. "
-        "Install an embedding model: ollama pull all-minilm"
+        "No embedding provider available. Install an embedding model: ollama pull all-minilm"
     )
 
 

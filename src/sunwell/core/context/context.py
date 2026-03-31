@@ -6,7 +6,6 @@ AppContext holds all dependencies needed by CLI commands and core logic,
 enabling easy swapping for testing or alternative implementations.
 """
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -62,6 +61,7 @@ class AppContext:
         """Initialize defaults after construction."""
         if self.console is None:
             from rich.console import Console
+
             self.console = Console()
 
     @classmethod
@@ -136,6 +136,7 @@ class AppContext:
 
         # In-memory embedder (hash-based, no API calls)
         from sunwell.knowledge.embedding.simple import HashEmbedding as HashEmbedder
+
         embedder = HashEmbedder()
 
         # In-memory memory store (no disk I/O)
@@ -174,4 +175,5 @@ class AppContext:
             ModelProtocol instance
         """
         from sunwell.interface.cli.helpers import create_model  # layer-exempt: pre-existing
+
         return create_model(provider, model)

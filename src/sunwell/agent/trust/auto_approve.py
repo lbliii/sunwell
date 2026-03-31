@@ -9,7 +9,7 @@ Storage: .sunwell/trust/auto-approve.yaml
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -45,7 +45,7 @@ class AutoApproveRule:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "AutoApproveRule":
+    def from_dict(cls, data: dict) -> AutoApproveRule:
         """Deserialize from dictionary."""
         return cls(
             intent_path=tuple(data["intent_path"]),
@@ -75,9 +75,7 @@ class AutoApproveConfig:
     workspace: Path
     """Workspace root directory."""
 
-    _rules: dict[tuple[str, ...], AutoApproveRule] = field(
-        default_factory=dict, init=False
-    )
+    _rules: dict[tuple[str, ...], AutoApproveRule] = field(default_factory=dict, init=False)
     """In-memory rule cache."""
 
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
@@ -130,7 +128,7 @@ class AutoApproveConfig:
 
             data = {
                 "version": 1,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(UTC).isoformat(),
                 "rules": [rule.to_dict() for rule in self._rules.values()],
             }
 
@@ -163,7 +161,7 @@ class AutoApproveConfig:
 
         rule = AutoApproveRule(
             intent_path=key,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             approval_count_at_creation=approval_count,
             enabled=True,
         )

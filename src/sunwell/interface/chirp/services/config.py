@@ -1,15 +1,29 @@
 """Configuration service for Chirp interface."""
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from sunwell.channels.telegram.config import (
+    get_telegram_config_from_dict,
+    resolve_telegram_token,
+)
 from sunwell.foundation.config import SunwellConfig, get_config, reset_config
 
 logger = logging.getLogger(__name__)
+
+
+def _api_key_configured_for_provider(provider: str) -> bool:
+    """Whether the environment has credentials for the given provider."""
+    if provider == "anthropic":
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    if provider == "openai":
+        return bool(os.environ.get("OPENAI_API_KEY"))
+    return True
 
 
 @dataclass
@@ -85,15 +99,16 @@ class ConfigService:
             Dict with provider settings (model, api_key, etc.)
         """
         config = get_config()
-
-        # Extract provider info from config
-        # TODO: Update based on actual config structure
+        provider = config.model.default_provider
+        default_model = config.model.default_model
         return {
-            "default_model": getattr(config, "default_model", "claude-sonnet-4-5"),
-            "provider": "anthropic",  # Default to Anthropic
-            "api_key_configured": True,  # TODO: Check if API key exists
+            "default_model": default_model,
+            "provider": provider,
+            "api_key_configured": _api_key_configured_for_provider(provider),
             "ollama": {
-                "base_url": config.ollama.base_url if hasattr(config, "ollama") else "http://localhost:11434",
+                "base_url": config.ollama.base_url
+                if hasattr(config, "ollama")
+                else "http://localhost:11434",
                 "enabled": True,
             },
         }
@@ -146,6 +161,9 @@ class ConfigService:
     ) -> bool:
         """Update provider configuration.
 
+        Cloud API keys are not written to YAML (use environment variables or a
+        future keyring integration). Passing ``api_key`` logs intent only.
+
         Args:
             provider: Provider name (ollama, anthropic, openai)
             api_key: Optional API key to set
@@ -174,10 +192,57 @@ class ConfigService:
                 config_dict["ollama"] = {}
             config_dict["ollama"]["base_url"] = ollama_base
 
-        # TODO: Securely store API keys (use keyring or encrypted storage)
-        # For now, just log that we would save them
         if api_key:
-            logger.info("API key update requested for provider: %s (not persisted - use keyring)", provider)
+            logger.info(
+                "API key update requested for provider %s — set %s in the environment "
+                "or shell profile; keys are not persisted to config.yaml",
+                provider,
+                "ANTHROPIC_API_KEY"
+                if provider == "anthropic"
+                else ("OPENAI_API_KEY" if provider == "openai" else "N/A"),
+            )
+
+        return self._save_config_dict(config_dict)
+
+    def get_telegram_config(self) -> dict[str, Any]:
+        """Get Telegram channel config for Settings page."""
+        config_dict = self._load_config_dict()
+        return get_telegram_config_from_dict(config_dict)
+
+    def get_telegram_token_for_runtime(self) -> str | None:
+        """Resolve Telegram token for runtime (start bot). Returns None if disabled."""
+        config_dict = self._load_config_dict()
+        channels = config_dict.get("channels", {})
+        tg = channels.get("telegram", {}) or {}
+        if not isinstance(tg, dict) or not tg.get("enabled", False):
+            return None
+        return resolve_telegram_token(config_dict)
+
+    def update_telegram_config(
+        self,
+        enabled: bool,
+        token: str = "",
+    ) -> bool:
+        """Update Telegram channel config.
+
+        Args:
+            enabled: Enable/disable the channel
+            token: Bot token (empty string clears stored token)
+
+        Returns:
+            True if successful
+        """
+        config_dict = self._load_config_dict()
+        if "channels" not in config_dict:
+            config_dict["channels"] = {}
+        if "telegram" not in config_dict["channels"]:
+            config_dict["channels"]["telegram"] = {}
+
+        config_dict["channels"]["telegram"]["enabled"] = enabled
+        if token.strip():
+            config_dict["channels"]["telegram"]["token"] = token.strip()
+        else:
+            config_dict["channels"]["telegram"].pop("token", None)
 
         return self._save_config_dict(config_dict)
 
@@ -196,7 +261,11 @@ class ConfigService:
         # Theme, auto_save, show_token_counts go to root or appropriate sections
 
         # Simulacrum preferences
-        if "auto_archive" in preferences or "spawn_enabled" in preferences or "max_simulacrums" in preferences:
+        if (
+            "auto_archive" in preferences
+            or "spawn_enabled" in preferences
+            or "max_simulacrums" in preferences
+        ):
             if "simulacrum" not in config_dict:
                 config_dict["simulacrum"] = {}
 
@@ -213,12 +282,21 @@ class ConfigService:
             if "max_simulacrums" in preferences:
                 if "spawn" not in config_dict["simulacrum"]:
                     config_dict["simulacrum"]["spawn"] = {}
-                config_dict["simulacrum"]["spawn"]["max_simulacrums"] = preferences["max_simulacrums"]
+                config_dict["simulacrum"]["spawn"]["max_simulacrums"] = preferences[
+                    "max_simulacrums"
+                ]
 
         # Note: theme, auto_save, show_token_counts are UI-only preferences
         # They don't map to Sunwell core config, so we'd need a separate
         # studio config file for these. For now, acknowledge but don't persist.
-        if "theme" in preferences or "auto_save" in preferences or "show_token_counts" in preferences:
-            logger.info("UI preferences (theme, auto_save, show_token_counts) not persisted yet - need studio config")
+        if (
+            "theme" in preferences
+            or "auto_save" in preferences
+            or "show_token_counts" in preferences
+        ):
+            logger.info(
+                "UI preferences (theme, auto_save, show_token_counts) not persisted yet; "
+                "need studio config"
+            )
 
         return self._save_config_dict(config_dict)

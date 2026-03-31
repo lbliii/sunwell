@@ -3,7 +3,6 @@
 RFC-035 adds SchemaValidator for lens-provided schema artifact validation.
 """
 
-
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any

@@ -132,7 +132,7 @@ Respond with JSON:
                     "artifact_id": artifact.id,
                     "error": str(e),
                     "attempted_json": json_match.group()[:300],
-                }
+                },
             )
 
     # CRITICAL FIX: Fail-safe behavior - reject unparseable verifications
@@ -145,7 +145,7 @@ Respond with JSON:
             "artifact_id": artifact.id,
             "response_length": len(content),
             "response_preview": content[:500],
-        }
+        },
     )
     return VerificationResult(
         passed=False,

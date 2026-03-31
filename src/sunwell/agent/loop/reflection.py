@@ -70,8 +70,7 @@ async def run_self_reflection(
             if seq.get("count", 0) >= 3:
                 tool_pair = seq.get("sequence", [])
                 suggestions.append(
-                    f"Repetitive pattern detected: {' → '.join(tool_pair)}. "
-                    "Breaking may be needed."
+                    f"Repetitive pattern detected: {' → '.join(tool_pair)}. Breaking may be needed."
                 )
 
         # Emit reflection event if we have suggestions

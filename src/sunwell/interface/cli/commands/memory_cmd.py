@@ -95,6 +95,7 @@ async def _inspect_async(query: str, limit: int, as_json: bool) -> None:
     # Try to set up embedder if available
     try:
         from sunwell.knowledge.embedding import create_embedder
+
         embedder = create_embedder()
         store.set_embedder(embedder)
     except Exception:
@@ -184,8 +185,7 @@ async def _inspect_async(query: str, limit: int, as_json: bool) -> None:
         for ep in episodes:
             relevance_color = "green" if ep["relevance"] == "high" else "yellow"
             console.print(
-                f"  • [{relevance_color}]{ep['outcome']}[/{relevance_color}]: "
-                f"{ep['summary']}"
+                f"  • [{relevance_color}]{ep['outcome']}[/{relevance_color}]: {ep['summary']}"
             )
 
 
@@ -280,9 +280,13 @@ def health(as_json: bool) -> None:
         if checks.get("hot_tier", {}).get("status") in ("warning", "critical"):
             console.print("  • Hot tier is full. Run: [cyan]sunwell memory compact[/cyan]")
         if checks.get("embeddings", {}).get("status") == "warning":
-            console.print("  • Embeddings not available. Install sentence-transformers for semantic search.")
+            console.print(
+                "  • Embeddings not available. Install sentence-transformers for semantic search."
+            )
         if checks.get("chunks", {}).get("status") == "missing":
-            console.print("  • Chunk manager not initialized. Memory system may not be fully functional.")
+            console.print(
+                "  • Chunk manager not initialized. Memory system may not be fully functional."
+            )
 
 
 # =============================================================================
@@ -319,8 +323,10 @@ def compact(older_than: int | None, dry_run: bool) -> None:
 
     # Show current state
     stats_before = store.stats()
-    console.print(f"Before: HOT={stats_before['hot_turns']} WARM={stats_before['warm_files']} "
-                  f"COLD={stats_before['cold_files']}")
+    console.print(
+        f"Before: HOT={stats_before['hot_turns']} WARM={stats_before['warm_files']} "
+        f"COLD={stats_before['cold_files']}"
+    )
 
     if dry_run:
         console.print("\n[yellow]DRY RUN - No changes will be made[/yellow]")
@@ -332,8 +338,10 @@ def compact(older_than: int | None, dry_run: bool) -> None:
         archived = store.move_to_archived(older_than_hours=older_than)
 
     stats_after = store.stats()
-    console.print(f"After:  HOT={stats_after['hot_turns']} WARM={stats_after['warm_files']} "
-                  f"COLD={stats_after['cold_files']}")
+    console.print(
+        f"After:  HOT={stats_after['hot_turns']} WARM={stats_after['warm_files']} "
+        f"COLD={stats_after['cold_files']}"
+    )
 
     if archived > 0:
         console.print(f"\n[green]✓ Archived {archived} warm chunks to cold storage[/green]")

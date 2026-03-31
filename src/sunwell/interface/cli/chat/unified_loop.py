@@ -23,6 +23,7 @@ from sunwell.interface.cli.core.theme import (
     CHARS_DIAMONDS,
     CHARS_MISC,
     CHARS_STARS,
+    Sparkle,
     create_sunwell_console,
     render_alert,
     render_countdown,
@@ -30,7 +31,6 @@ from sunwell.interface.cli.core.theme import (
     render_quote,
     render_separator,
     should_reduce_motion,
-    Sparkle,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ async def run_unified_loop(
 
     # Create notifier with history and optional batching (from config)
     notifier = create_notifier(workspace)
-    
+
     # Set module-level notifier for checkpoint handlers
     global _notifier
     _notifier = notifier
@@ -136,7 +136,7 @@ async def run_unified_loop(
     )
 
     # Set notifier on background manager for completion notifications
-    if hasattr(loop, '_background_manager') and loop._background_manager is not None:
+    if hasattr(loop, "_background_manager") and loop._background_manager is not None:
         loop._background_manager.notifier = notifier
 
     # Start the generator
@@ -150,10 +150,18 @@ async def run_unified_loop(
                 # Get user input with Holy Light styling
                 state_indicator = ""
                 if loop.is_executing:
-                    state_indicator = f" [holy.gold]({CHARS_STARS['progress']} executing)[/holy.gold]"
-                user_input = console.input(f"\n[holy.radiant]{CHARS_STARS['radiant']} You:{state_indicator}[/holy.radiant] ").strip()
+                    state_indicator = (
+                        f" [holy.gold]({CHARS_STARS['progress']} executing)[/holy.gold]"
+                    )
+                user_input = console.input(
+                    f"\n[holy.radiant]{CHARS_STARS['radiant']} You:{state_indicator}[/holy.radiant] "
+                ).strip()
 
-                logger.debug("CLI received input: %r (len=%d)", user_input[:50] if user_input else "", len(user_input) if user_input else 0)
+                logger.debug(
+                    "CLI received input: %r (len=%d)",
+                    user_input[:50] if user_input else "",
+                    len(user_input) if user_input else 0,
+                )
 
                 if not user_input:
                     logger.debug("Empty input, prompting again")
@@ -177,14 +185,18 @@ async def run_unified_loop(
                                     project = create_project_from_workspace(workspace)
                                 policy = ToolPolicy(trust_level=ToolTrust.from_string(trust_level))
                                 loop.tool_executor = ToolExecutor(project=project, policy=policy)
-                                console.print(f"[holy.success]{CHARS_STARS['complete']} Tools enabled[/holy.success]")
+                                console.print(
+                                    f"[holy.success]{CHARS_STARS['complete']} Tools enabled[/holy.success]"
+                                )
                             else:
                                 console.print("[neutral.dim]Tools already enabled[/neutral.dim]")
                             continue
                         elif parts[1] == "off":
                             if loop.tool_executor is not None:
                                 loop.tool_executor = None
-                                console.print(f"[holy.gold]{CHARS_STARS['progress']} Tools disabled[/holy.gold]")
+                                console.print(
+                                    f"[holy.gold]{CHARS_STARS['progress']} Tools disabled[/holy.gold]"
+                                )
                             else:
                                 console.print("[neutral.dim]Tools already disabled[/neutral.dim]")
                             continue
@@ -194,7 +206,11 @@ async def run_unified_loop(
                 # Send input to the loop
                 logger.debug("Sending to generator: %r", user_input[:50])
                 result = await gen.asend(user_input)
-                logger.debug("Generator returned: type=%s, value=%r", type(result).__name__, str(result)[:100] if result else None)
+                logger.debug(
+                    "Generator returned: type=%s, value=%r",
+                    type(result).__name__,
+                    str(result)[:100] if result else None,
+                )
 
                 # Process results until we need more input
                 while result is not None:
@@ -213,7 +229,11 @@ async def run_unified_loop(
 
                     elif isinstance(result, ChatCheckpoint):
                         # Handle checkpoint
-                        logger.debug("Handling checkpoint: type=%s, message=%r", result.type, result.message[:50] if result.message else None)
+                        logger.debug(
+                            "Handling checkpoint: type=%s, message=%r",
+                            result.type,
+                            result.message[:50] if result.message else None,
+                        )
                         response = _handle_checkpoint(result)
                         if response is None:
                             # User aborted
@@ -221,7 +241,9 @@ async def run_unified_loop(
                             break
                         logger.debug("Checkpoint response: %r", response)
                         result = await gen.asend(response)
-                        logger.debug("After checkpoint, generator returned: type=%s", type(result).__name__)
+                        logger.debug(
+                            "After checkpoint, generator returned: type=%s", type(result).__name__
+                        )
 
                     elif isinstance(result, AgentEvent):
                         # Render progress event
@@ -236,23 +258,34 @@ async def run_unified_loop(
 
                         # Get next event
                         result = await gen.asend(None)
-                        logger.debug("After event, generator returned: type=%s", type(result).__name__ if result else "None")
+                        logger.debug(
+                            "After event, generator returned: type=%s",
+                            type(result).__name__ if result else "None",
+                        )
 
                     else:
                         # Unknown result type
-                        logger.warning("Unknown result type: %s, value=%r", type(result).__name__, result)
+                        logger.warning(
+                            "Unknown result type: %s, value=%r", type(result).__name__, result
+                        )
                         result = None
 
                 logger.debug("Result loop ended, waiting for next input")
 
         except KeyboardInterrupt:
-            console.print(f"\n[void.indigo]{CHARS_STARS['progress']} Interrupted. Saving session...[/void.indigo]")
+            console.print(
+                f"\n[void.indigo]{CHARS_STARS['progress']} Interrupted. Saving session...[/void.indigo]"
+            )
             # Save immediately on interrupt to capture current state
             if store:
                 store.save_session()
-                console.print(f"[holy.success]{CHARS_STARS['complete']} Session saved[/holy.success]")
+                console.print(
+                    f"[holy.success]{CHARS_STARS['complete']} Session saved[/holy.success]"
+                )
                 session_id = store.session_id
-                console.print(f"  [neutral.dim]Resume with: sunwell chat --resume {session_id}[/neutral.dim]")
+                console.print(
+                    f"  [neutral.dim]Resume with: sunwell chat --resume {session_id}[/neutral.dim]"
+                )
         except EOFError:
             pass
         except GeneratorExit:
@@ -271,6 +304,7 @@ async def run_unified_loop(
             # Extract awareness patterns from session (fire and forget)
             try:
                 from sunwell.awareness.hooks import extract_awareness_end_of_session
+
                 patterns_count = extract_awareness_end_of_session(workspace)
                 if patterns_count > 0:
                     logger.debug("Extracted %d awareness patterns", patterns_count)
@@ -301,7 +335,10 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         if checkpoint.options:
             console.print(f"[neutral.dim]Options: {', '.join(checkpoint.options)}[/neutral.dim]")
         default = checkpoint.default or "Y"
-        choice = console.input(f"[sunwell.heading]Proceed?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(f"[sunwell.heading]Proceed?[/sunwell.heading] [{default}] ").strip()
+            or default
+        )
         resp = CheckpointResponse(choice)
         logger.debug("CONFIRMATION: choice=%r proceed=%s", choice, resp.proceed)
         return resp
@@ -320,18 +357,25 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         # Send error notification
         _send_error_notification(checkpoint.message, checkpoint.error or "")
         default = checkpoint.default or "abort"
-        choice = console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip()
+            or default
+        )
         if choice.lower() in ("q", "quit", "abort"):
             return None
         return CheckpointResponse(choice)
 
     elif checkpoint.type == ChatCheckpointType.COMPLETION:
         # Use sparkle for completion celebration
-        console.print(f"\n[holy.success]{CHARS_STARS['complete']} {checkpoint.message}[/holy.success]")
+        console.print(
+            f"\n[holy.success]{CHARS_STARS['complete']} {checkpoint.message}[/holy.success]"
+        )
         if checkpoint.summary:
             console.print(f"[neutral.dim]{checkpoint.summary}[/neutral.dim]")
         if checkpoint.files_changed:
-            console.print(f"[neutral.dim]Files: {', '.join(checkpoint.files_changed[:5])}[/neutral.dim]")
+            console.print(
+                f"[neutral.dim]Files: {', '.join(checkpoint.files_changed[:5])}[/neutral.dim]"
+            )
         # Sparkle burst animation (fire and forget, respects reduced motion)
         if not should_reduce_motion():
             asyncio.create_task(Sparkle.burst("", duration=0.3))
@@ -340,19 +384,28 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         return CheckpointResponse("done")
 
     elif checkpoint.type == ChatCheckpointType.INTERRUPTION:
-        console.print(f"[holy.gold]{CHARS_STARS['progress']} Paused:[/holy.gold] {checkpoint.message}")
+        console.print(
+            f"[holy.gold]{CHARS_STARS['progress']} Paused:[/holy.gold] {checkpoint.message}"
+        )
         if checkpoint.options:
             console.print(f"[neutral.dim]Options: {', '.join(checkpoint.options)}[/neutral.dim]")
         # Send waiting notification
         _send_waiting_notification(checkpoint.message)
         default = checkpoint.default or "continue"
-        choice = console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip()
+            or default
+        )
         return CheckpointResponse(choice)
 
     elif checkpoint.type == ChatCheckpointType.CLARIFICATION:
         # Waiting state with hollow diamond indicator
-        console.print(f"\n[holy.radiant]{CHARS_DIAMONDS['hollow']} {checkpoint.message}[/holy.radiant]")
-        user_input = console.input(f"[sunwell.heading]{CHARS_MISC['input']} Your response:[/sunwell.heading] ").strip()
+        console.print(
+            f"\n[holy.radiant]{CHARS_DIAMONDS['hollow']} {checkpoint.message}[/holy.radiant]"
+        )
+        user_input = console.input(
+            f"[sunwell.heading]{CHARS_MISC['input']} Your response:[/sunwell.heading] "
+        ).strip()
         # Echo user's response with quote block
         if user_input:
             render_quote(console, user_input, attribution="User")
@@ -368,7 +421,10 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         if checkpoint.options:
             console.print(f"[neutral.dim]Options: {', '.join(checkpoint.options)}[/neutral.dim]")
         default = checkpoint.default or "no"
-        choice = console.input(f"[sunwell.heading]Auto-approve?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(f"[sunwell.heading]Auto-approve?[/sunwell.heading] [{default}] ").strip()
+            or default
+        )
         return CheckpointResponse(choice)
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -379,20 +435,23 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
     elif checkpoint.type == ChatCheckpointType.BACKGROUND_OFFER:
         # RFC: Show plan summary if available (plan-based estimation)
         if checkpoint.plan_summary:
-            console.print(f"[sunwell.info]{CHARS_MISC['insight']} {checkpoint.plan_summary}[/sunwell.info]")
+            console.print(
+                f"[sunwell.info]{CHARS_MISC['insight']} {checkpoint.plan_summary}[/sunwell.info]"
+            )
             console.print()
-        
+
         # Use alert box for long-running task offer
         title = "Long-Running Task"
         if checkpoint.task_count:
             title = f"Long-Running Task ({checkpoint.task_count} tasks)"
         render_alert(console, checkpoint.message, severity="info", title=title)
-        
+
         if checkpoint.estimated_duration_seconds:
             # Show estimate with confidence range if available
             from sunwell.agent.estimation import format_duration
+
             time_str = format_duration(checkpoint.estimated_duration_seconds)
-            
+
             if checkpoint.confidence_range:
                 low, high = checkpoint.confidence_range
                 low_str = format_duration(low)
@@ -405,11 +464,16 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
                 # Fallback to countdown-style for heuristic estimates
                 render_countdown(console, checkpoint.estimated_duration_seconds)
             console.print()  # Clear the line after display
-            
+
         if checkpoint.options:
             console.print(f"[neutral.dim]Options: {', '.join(checkpoint.options)}[/neutral.dim]")
         default = checkpoint.default or "wait"
-        choice = console.input(f"[sunwell.heading]Run in background?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(
+                f"[sunwell.heading]Run in background?[/sunwell.heading] [{default}] "
+            ).strip()
+            or default
+        )
         return CheckpointResponse(choice)
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -420,18 +484,21 @@ def _handle_checkpoint(checkpoint: ChatCheckpoint) -> CheckpointResponse | None:
         # Use render_alert for consistent severity-based display
         severity = checkpoint.severity or "info"
         title = checkpoint.alert_type or "Alert"
-        
+
         # Build message with suggestion if available
         message = checkpoint.message
         if checkpoint.suggested_fix:
             message += f"\n\n{CHARS_MISC['insight']} Suggestion: {checkpoint.suggested_fix}"
-        
+
         render_alert(console, message, severity=severity, title=title)
-        
+
         if checkpoint.options:
             console.print(f"[neutral.dim]Options: {', '.join(checkpoint.options)}[/neutral.dim]")
         default = checkpoint.default or "ignore"
-        choice = console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip() or default
+        choice = (
+            console.input(f"[sunwell.heading]Action?[/sunwell.heading] [{default}] ").strip()
+            or default
+        )
         return CheckpointResponse(choice)
 
     else:
@@ -456,20 +523,20 @@ def _render_response(response: str, lens=None) -> None:
 
 # Module-level notifier (set by run_unified_loop)
 # Can be either Notifier or BatchedNotifier depending on config
-_notifier: "Notifier | BatchedNotifier | None" = None
+_notifier: Notifier | BatchedNotifier | None = None
 
 
 def _send_completion_notification(summary: str) -> None:
     """Send a completion notification (fire and forget).
-    
+
     Args:
         summary: Completion summary message
     """
     import asyncio
-    
+
     if _notifier is None:
         return
-    
+
     try:
         # Fire and forget - don't wait for notification
         asyncio.create_task(_notifier.send_complete(summary))
@@ -480,16 +547,16 @@ def _send_completion_notification(summary: str) -> None:
 
 def _send_error_notification(message: str, details: str = "") -> None:
     """Send an error notification (fire and forget).
-    
+
     Args:
         message: Error message
         details: Additional details
     """
     import asyncio
-    
+
     if _notifier is None:
         return
-    
+
     try:
         asyncio.create_task(_notifier.send_error(message, details=details))
     except Exception:
@@ -498,15 +565,15 @@ def _send_error_notification(message: str, details: str = "") -> None:
 
 def _send_waiting_notification(message: str = "Input needed") -> None:
     """Send a waiting-for-input notification (fire and forget).
-    
+
     Args:
         message: Waiting message
     """
     import asyncio
-    
+
     if _notifier is None:
         return
-    
+
     try:
         asyncio.create_task(_notifier.send_waiting(message))
     except Exception:

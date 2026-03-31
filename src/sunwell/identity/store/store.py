@@ -38,7 +38,7 @@ class IdentityStore:
         Args:
             session_path: Path to session directory (e.g., .sunwell/memory/sessions/xxx)
         """
-        self.session_path = Path(session_path).with_suffix('.identity.yaml')
+        self.session_path = Path(session_path).with_suffix(".identity.yaml")
         self.global_path = Path.home() / ".sunwell" / "global_identity.yaml"
         self.identity = self._load()
         self._recent_observation_count = 0  # For adaptive digest frequency
@@ -83,10 +83,7 @@ class IdentityStore:
             yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)
 
     def add_observation(
-        self,
-        observation: str,
-        confidence: float = 0.8,
-        turn_id: str | None = None
+        self, observation: str, confidence: float = 0.8, turn_id: str | None = None
     ) -> None:
         """Add a behavioral observation.
 
@@ -98,12 +95,14 @@ class IdentityStore:
         if self.identity.paused:
             return
 
-        self.identity.observations.append(Observation(
-            timestamp=datetime.now(),
-            observation=observation,
-            confidence=confidence,
-            turn_id=turn_id,
-        ))
+        self.identity.observations.append(
+            Observation(
+                timestamp=datetime.now(),
+                observation=observation,
+                confidence=confidence,
+                turn_id=turn_id,
+            )
+        )
 
         # Keep only recent N for session
         self.identity.observations = self.identity.observations[-MAX_OBSERVATIONS_PER_SESSION:]
@@ -205,8 +204,7 @@ class IdentityStore:
         global_identity.observations = merged_obs[-MAX_OBSERVATIONS_GLOBAL:]
 
         # Use session prompt if it has higher confidence
-        if (self.identity.is_usable() and
-            self.identity.confidence > global_identity.confidence):
+        if self.identity.is_usable() and self.identity.confidence > global_identity.confidence:
             global_identity.prompt = self.identity.prompt
             global_identity.confidence = self.identity.confidence
             global_identity.tone = self.identity.tone

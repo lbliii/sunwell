@@ -96,7 +96,7 @@ def _sanitize_dict_values(d: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def tool_from_skill(skill: "Skill") -> Tool:
+def tool_from_skill(skill: Skill) -> Tool:
     """Convert a Sunwell skill to a tool definition.
 
     This was previously ``Tool.from_skill()``.  Moved to a standalone
@@ -112,7 +112,9 @@ def tool_from_skill(skill: "Skill") -> Tool:
     return Tool(
         name=skill.name,
         description=skill.description,
-        parameters=skill.parameters_schema if hasattr(skill, 'parameters_schema') and skill.parameters_schema else {
+        parameters=skill.parameters_schema
+        if hasattr(skill, "parameters_schema") and skill.parameters_schema
+        else {
             "type": "object",
             "properties": {
                 "task": {

@@ -1,16 +1,10 @@
 """Project detail page."""
 
-from chirp import FormAction, NotFound, Page, Response
+from chirp import FormAction, NotFound, Response
 
 
-def get(project_id: str) -> Page:
-    """Render project detail page.
-
-    Shows:
-    - Project metadata
-    - Recent runs
-    - Quick actions (run, analyze, etc.)
-    """
+def get(project_id: str) -> dict:
+    """Render project detail page."""
     from sunwell.knowledge import ProjectRegistry
 
     registry = ProjectRegistry()
@@ -19,25 +13,23 @@ def get(project_id: str) -> Page:
     if not project:
         raise NotFound(f"Project not found: {project_id}")
 
-    # Check if valid
     valid = project.root.exists()
-
-    # Check if default
     is_default = registry.default_project_id == project_id
 
-    return Page(
-        "projects/{project_id}/page.html",
-        "content",
-        current_page="projects",
-        project={
+    return {
+        "project": {
             "id": project.id,
             "name": project.name,
             "root": str(project.root),
             "valid": valid,
             "is_default": is_default,
         },
-        title=project.name,
-    )
+        "page_title": f"{project.name} - Sunwell Studio",
+        "breadcrumb_label": project.name,
+        "breadcrumb_prefix": [
+            {"label": "Projects", "href": "/projects"},
+        ],
+    }
 
 
 def delete(project_id: str) -> FormAction | Response:

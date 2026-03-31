@@ -6,17 +6,12 @@ Replaces the previous Svelte + FastAPI dual-stack architecture.
 Uses page convention routing: filesystem structure mirrors URL paths.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import chirp
+from chirp import App
 
 __all__ = ["create_app"]
 
 
-def create_app() -> chirp.App:
+def create_app() -> App:
     """Create and configure the Chirp application."""
     from .main import create_app as _create_app
 

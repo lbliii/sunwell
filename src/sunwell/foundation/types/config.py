@@ -1,6 +1,5 @@
 """Configuration type definitions - single source of truth for all config classes."""
 
-
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal

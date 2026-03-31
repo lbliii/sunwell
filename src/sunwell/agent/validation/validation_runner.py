@@ -12,7 +12,6 @@ Validation levels:
 Key insight: Run validation in parallel with execution to hide latency.
 """
 
-
 import asyncio
 import importlib.util
 import subprocess
@@ -168,7 +167,7 @@ class ValidationRunner:
 
         for step_info in cascade_steps:
             # Build message with error details when available
-            error_count = step_info.get('errors', 0)
+            error_count = step_info.get("errors", 0)
             error_details = step_info.get("error_details", [])
             if error_details:
                 detail_str = "; ".join(error_details[:3])  # Top 3 errors in message
@@ -350,7 +349,7 @@ class ValidationRunner:
         # Run validation command in subprocess
         try:
             result = await self._run_subprocess(
-                f"{runner} -c \"{gate.validation}\"" if runner == "python" else gate.validation,
+                f'{runner} -c "{gate.validation}"' if runner == "python" else gate.validation,
                 timeout=gate.timeout_s,
             )
             if result.returncode == 0:
@@ -478,9 +477,7 @@ class ValidationRunner:
                     f"{artifact.path.name}: FAILED ({result.confidence:.0%}) - {issue_summary}"
                 )
             else:
-                messages.append(
-                    f"{artifact.path.name}: PASSED ({result.confidence:.0%})"
-                )
+                messages.append(f"{artifact.path.name}: PASSED ({result.confidence:.0%})")
 
         avg_confidence = total_confidence / len(artifacts) if artifacts else 0.0
 
@@ -553,19 +550,19 @@ class ValidationRunner:
                 ]
                 # Add TypeScript-specific paths
                 if ext in (".ts", ".tsx"):
-                    possible_paths.extend([
-                        self.cwd / "src" / "types" / "index.ts",
-                        self.cwd / "src" / "interfaces" / "index.ts",
-                    ])
+                    possible_paths.extend(
+                        [
+                            self.cwd / "src" / "types" / "index.ts",
+                            self.cwd / "src" / "interfaces" / "index.ts",
+                        ]
+                    )
                 for p in possible_paths:
                     if p.exists():
                         contract_file = p
                         break
 
             if not contract_file or not contract_file.exists():
-                messages.append(
-                    f"{artifact.path.name}: SKIPPED (contract file not found)"
-                )
+                messages.append(f"{artifact.path.name}: SKIPPED (contract file not found)")
                 continue
 
             try:
@@ -578,18 +575,14 @@ class ValidationRunner:
 
                 if result.passed:
                     tier = result.final_tier.value if result.final_tier else "unknown"
-                    messages.append(
-                        f"{artifact.path.name}: PASSED ({tier})"
-                    )
+                    messages.append(f"{artifact.path.name}: PASSED ({tier})")
                 else:
                     all_passed = False
                     # Include mismatch details
                     mismatch_summary = ""
                     mismatches = result.all_mismatches
                     if mismatches:
-                        mismatch_summary = "; ".join(
-                            m.issue for m in mismatches[:3]
-                        )
+                        mismatch_summary = "; ".join(m.issue for m in mismatches[:3])
                     messages.append(
                         f"{artifact.path.name}: FAILED - {result.summary or mismatch_summary}"
                     )
@@ -734,7 +727,7 @@ class ValidationStage:
                 # If gate failed, stop
                 if event.type == EventType.GATE_FAIL:
                     # Yield detailed error
-                    failed_step = event.data.get('failed_step', 'unknown')
+                    failed_step = event.data.get("failed_step", "unknown")
                     yield validate_error_event(
                         error_type="gate_failure",
                         message=f"Gate {gate.id} failed at step {failed_step}",

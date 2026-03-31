@@ -55,9 +55,7 @@ class SunwellNotes(NotesProvider):
                     )
 
         # Sort by relevance (title match > content match) then by modified
-        results.sort(
-            key=lambda n: (query_lower not in n.title.lower(), -n.modified.timestamp())
-        )
+        results.sort(key=lambda n: (query_lower not in n.title.lower(), -n.modified.timestamp()))
         return results[:limit]
 
     async def get_recent(self, limit: int = 10) -> list[Note]:
@@ -101,9 +99,7 @@ class SunwellNotes(NotesProvider):
             tags=tuple(meta.get("tags", [])),
         )
 
-    async def create(
-        self, title: str, content: str, tags: list[str] | None = None
-    ) -> Note:
+    async def create(self, title: str, content: str, tags: list[str] | None = None) -> Note:
         """Create a new note."""
         index = self._load_index()
 

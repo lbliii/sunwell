@@ -87,7 +87,9 @@ class LoadToolTool(BaseTool):
                 # Simple substring matching for suggestions
                 similar = [t for t in all_tools if name.lower() in t.lower()]
                 if similar:
-                    suggestions.append(f"'{name}' not found, did you mean: {', '.join(similar[:3])}?")
+                    suggestions.append(
+                        f"'{name}' not found, did you mean: {', '.join(similar[:3])}?"
+                    )
                 else:
                     suggestions.append(f"'{name}' not found")
             parts.append("Errors: " + "; ".join(suggestions))

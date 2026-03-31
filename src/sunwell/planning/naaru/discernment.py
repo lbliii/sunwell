@@ -51,7 +51,6 @@ Usage:
     >>>     print("Escalating to Wisdom...")
 """
 
-
 import ast
 from dataclasses import dataclass, field
 from enum import Enum
@@ -63,25 +62,47 @@ from sunwell.planning.reasoning import ClassificationTemplate, FastClassifier
 # Module-Level Constants (avoid rebuilding each call)
 # =============================================================================
 
-_PYTHON_BUILTINS: frozenset[str] = frozenset({
-    'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict',
-    'set', 'tuple', 'True', 'False', 'None', 'open', 'type', 'isinstance',
-    'hasattr', 'getattr', 'setattr', 'super', 'self', 'cls',
-})
+_PYTHON_BUILTINS: frozenset[str] = frozenset(
+    {
+        "print",
+        "len",
+        "range",
+        "str",
+        "int",
+        "float",
+        "list",
+        "dict",
+        "set",
+        "tuple",
+        "True",
+        "False",
+        "None",
+        "open",
+        "type",
+        "isinstance",
+        "hasattr",
+        "getattr",
+        "setattr",
+        "super",
+        "self",
+        "cls",
+    }
+)
 
 _COMMON_MODULES: dict[str, str] = {
-    'json': 'json',
-    'os': 'os',
-    'sys': 'sys',
-    'Path': 'pathlib',
-    'datetime': 'datetime',
-    'asyncio': 'asyncio',
-    're': 're',
+    "json": "json",
+    "os": "os",
+    "sys": "sys",
+    "Path": "pathlib",
+    "datetime": "datetime",
+    "asyncio": "asyncio",
+    "re": "re",
 }
 
 
 class DiscernmentVerdict(Enum):
     """Possible discernment verdicts."""
+
     APPROVE = "approve"
     REJECT = "reject"
     NEEDS_REFINEMENT = "needs_refinement"
@@ -117,7 +138,7 @@ def check_syntax(code: str) -> tuple[bool, str]:
 
 def check_imports(code: str) -> tuple[bool, str]:
     """Check if code has necessary imports.
-    
+
     Uses a single AST walk to collect both imports and names used.
     """
     tree = ast.parse(code)
@@ -129,9 +150,9 @@ def check_imports(code: str) -> tuple[bool, str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                imports.add(alias.name.split('.')[0])
+                imports.add(alias.name.split(".")[0])
         elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.add(node.module.split('.')[0])
+            imports.add(node.module.split(".")[0])
         elif isinstance(node, ast.Name):
             names_used.add(node.id)
 
@@ -160,15 +181,21 @@ def check_docstrings(code: str) -> tuple[bool, str]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             # Skip private/dunder methods
-            if node.name.startswith('_') and not node.name.startswith('__'):
+            if node.name.startswith("_") and not node.name.startswith("__"):
                 continue
             # Check for docstring
-            if not (node.body and isinstance(node.body[0], ast.Expr) and
-                    isinstance(node.body[0].value, ast.Constant)):
+            if not (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+            ):
                 missing_docs.append(f"function '{node.name}'")
         elif isinstance(node, ast.ClassDef):
-            if not (node.body and isinstance(node.body[0], ast.Expr) and
-                    isinstance(node.body[0].value, ast.Constant)):
+            if not (
+                node.body
+                and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+            ):
                 missing_docs.append(f"class '{node.name}'")
 
     if missing_docs and len(missing_docs) <= 3:
@@ -198,9 +225,9 @@ def check_error_handling(code: str) -> tuple[bool, str]:
             dangerous_patterns.append("bare except clause")
         # Check for dangerous patterns
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            if node.func.id == 'eval':
+            if node.func.id == "eval":
                 dangerous_patterns.append("use of eval()")
-            if node.func.id == 'exec':
+            if node.func.id == "exec":
                 dangerous_patterns.append("use of exec()")
 
     if dangerous_patterns:
@@ -239,7 +266,7 @@ def run_structural_checks(code: str) -> dict[str, tuple[bool, str]]:
 # RFC-077: FastClassifier template for code review
 CODE_REVIEW_TEMPLATE = ClassificationTemplate(
     name="code_review",
-    prompt_template='''Review this code change. Respond with ONLY JSON.
+    prompt_template="""Review this code change. Respond with ONLY JSON.
 
 Category: {category}
 Purpose: {description}
@@ -252,7 +279,7 @@ Decide: approve, reject, or refine.
 
 {{"verdict": "approve"|"reject"|"refine", "score": 0-10, "issues": [], "strengths": []}}
 
-JSON:''',
+JSON:""",
     output_key="verdict",
     options=("approve", "reject", "refine"),
     default="refine",
@@ -277,7 +304,7 @@ class Discernment:
 
     # Purity thresholds for escalation
     auto_approve_purity: float = 8.0  # Auto-approve if luminance >= this
-    auto_reject_purity: float = 4.0   # Auto-reject if luminance <= this
+    auto_reject_purity: float = 4.0  # Auto-reject if luminance <= this
 
     # Ollama base URL
     base_url: str = "http://localhost:11434/v1"
@@ -559,7 +586,6 @@ Decide: approve_code, reject_code, or request_refinement."""
         return mapping.get(tool_name, DiscernmentVerdict.UNCERTAIN)
 
 
-
 # =============================================================================
 # Discernment Tools
 # =============================================================================
@@ -696,7 +722,7 @@ def execute_user_code(code_string: str) -> Any:
     ]
 
     for proposal in test_proposals:
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Testing: {proposal['name']}")
         print("-" * 50)
 
@@ -719,4 +745,5 @@ def execute_user_code(code_string: str) -> Any:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(demo())

@@ -3,7 +3,6 @@
 RFC-015: Adaptive Model Selection
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -18,6 +17,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class ModelCapability:
     """Represents the capabilities of a specific model."""
+
     name: str
     tier: Tier
     tools: bool = False
@@ -38,43 +38,70 @@ MODEL_REGISTRY: dict[str, ModelCapability] = {
     # PRIMARY: Recommended Local Stack
     # ==========================================================================
     # Default worker: Best balance of speed and tool accuracy
-    "llama3.1:8b": ModelCapability("llama3.1:8b", Tier.STANDARD, tools=True, context_window=128000, cost_index=0),
-
+    "llama3.1:8b": ModelCapability(
+        "llama3.1:8b", Tier.STANDARD, tools=True, context_window=128000, cost_index=0
+    ),
     # Reasoning model: 100% on all tool shapes, has thinking mode (slower)
-    "qwen3:8b": ModelCapability("qwen3:8b", Tier.DEEP_LENS, tools=True, context_window=32000, cost_index=0),
-
+    "qwen3:8b": ModelCapability(
+        "qwen3:8b", Tier.DEEP_LENS, tools=True, context_window=32000, cost_index=0
+    ),
     # Fast worker: Good for simple tasks, slightly lower tool accuracy
-    "llama3.2:3b": ModelCapability("llama3.2:3b", Tier.FAST_PATH, tools=True, context_window=128000, cost_index=0),
-
+    "llama3.2:3b": ModelCapability(
+        "llama3.2:3b", Tier.FAST_PATH, tools=True, context_window=128000, cost_index=0
+    ),
     # Heavy worker: Large context, tool support
-    "gpt-oss:20b": ModelCapability("gpt-oss:20b", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=0),
-
+    "gpt-oss:20b": ModelCapability(
+        "gpt-oss:20b", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=0
+    ),
     # ==========================================================================
     # CLOUD: For burst capacity or when local unavailable
     # ==========================================================================
     # OpenAI
-    "gpt-4o": ModelCapability("gpt-4o", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=8),
-    "gpt-4o-mini": ModelCapability("gpt-4o-mini", Tier.STANDARD, tools=True, context_window=128000, cost_index=2),
-    "o1-preview": ModelCapability("o1-preview", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=10),
-
+    "gpt-4o": ModelCapability(
+        "gpt-4o", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=8
+    ),
+    "gpt-4o-mini": ModelCapability(
+        "gpt-4o-mini", Tier.STANDARD, tools=True, context_window=128000, cost_index=2
+    ),
+    "o1-preview": ModelCapability(
+        "o1-preview", Tier.DEEP_LENS, tools=True, context_window=128000, cost_index=10
+    ),
     # Anthropic
-    "claude-3-5-sonnet-20240620": ModelCapability("claude-3-5-sonnet", Tier.DEEP_LENS, tools=True, context_window=200000, cost_index=7),
-    "claude-3-opus-20240229": ModelCapability("claude-3-opus", Tier.DEEP_LENS, tools=True, context_window=200000, cost_index=9),
-    "claude-3-haiku-20240307": ModelCapability("claude-3-haiku", Tier.STANDARD, tools=True, context_window=200000, cost_index=1),
-
+    "claude-3-5-sonnet-20240620": ModelCapability(
+        "claude-3-5-sonnet", Tier.DEEP_LENS, tools=True, context_window=200000, cost_index=7
+    ),
+    "claude-3-opus-20240229": ModelCapability(
+        "claude-3-opus", Tier.DEEP_LENS, tools=True, context_window=200000, cost_index=9
+    ),
+    "claude-3-haiku-20240307": ModelCapability(
+        "claude-3-haiku", Tier.STANDARD, tools=True, context_window=200000, cost_index=1
+    ),
     # ==========================================================================
     # LIMITED: No native Ollama tool support (need text parsing)
     # ==========================================================================
     # qwen2.5 outputs tool calls as JSON text, not native tool_calls
-    "qwen2.5:1.5b": ModelCapability("qwen2.5:1.5b", Tier.FAST_PATH, tools=False, context_window=32000, cost_index=0),
-    "qwen2.5:3b": ModelCapability("qwen2.5:3b", Tier.STANDARD, tools=False, context_window=32000, cost_index=0),
-    "qwen2.5:7b": ModelCapability("qwen2.5:7b", Tier.STANDARD, tools=False, context_window=32000, cost_index=0),
-
+    "qwen2.5:1.5b": ModelCapability(
+        "qwen2.5:1.5b", Tier.FAST_PATH, tools=False, context_window=32000, cost_index=0
+    ),
+    "qwen2.5:3b": ModelCapability(
+        "qwen2.5:3b", Tier.STANDARD, tools=False, context_window=32000, cost_index=0
+    ),
+    "qwen2.5:7b": ModelCapability(
+        "qwen2.5:7b", Tier.STANDARD, tools=False, context_window=32000, cost_index=0
+    ),
     # Gemma models don't support native tool calling in Ollama
-    "gemma3:1b": ModelCapability("gemma3:1b", Tier.FAST_PATH, tools=False, context_window=8192, cost_index=0),
-    "gemma3:4b": ModelCapability("gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0),
-    "gemma3:12b": ModelCapability("gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0),
-    "gemma2:9b": ModelCapability("gemma2:9b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0),
+    "gemma3:1b": ModelCapability(
+        "gemma3:1b", Tier.FAST_PATH, tools=False, context_window=8192, cost_index=0
+    ),
+    "gemma3:4b": ModelCapability(
+        "gemma3:4b", Tier.STANDARD, tools=False, context_window=128000, cost_index=0
+    ),
+    "gemma3:12b": ModelCapability(
+        "gemma3:12b", Tier.DEEP_LENS, tools=False, context_window=128000, cost_index=0
+    ),
+    "gemma2:9b": ModelCapability(
+        "gemma2:9b", Tier.STANDARD, tools=False, context_window=8192, cost_index=0
+    ),
 }
 
 # Pre-built prefix index for O(1) lookups of model families
@@ -169,7 +196,9 @@ class ModelRouter:
     stupid_model: ModelProtocol | None = None
     lens: Lens | None = None
 
-    async def route(self, prompt: str, tier: Tier | None = None, requires_tools: bool = False) -> str:
+    async def route(
+        self, prompt: str, tier: Tier | None = None, requires_tools: bool = False
+    ) -> str:
         """Determines the best model name for the task.
 
         Args:
@@ -188,10 +217,7 @@ class ModelRouter:
         available = await self.primary_model.list_models()
 
         # 3. Filter registry to only available models that meet tool requirements
-        candidates = [
-            MODEL_REGISTRY[m] for m in available
-            if m in MODEL_REGISTRY
-        ]
+        candidates = [MODEL_REGISTRY[m] for m in available if m in MODEL_REGISTRY]
 
         if requires_tools:
             candidates = [c for c in candidates if c.tools]

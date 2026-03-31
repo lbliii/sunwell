@@ -273,7 +273,9 @@ class QueryExpander:
             "avg_synonyms_per_term": round(
                 sum(len(syns) for syns in self._synonyms.values()) / len(self._synonyms),
                 2,
-            ) if self._synonyms else 0,
+            )
+            if self._synonyms
+            else 0,
         }
 
 

@@ -12,7 +12,6 @@ A single unit of memory with:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -110,12 +109,20 @@ class MemoryNode:
                 "scope_depth": self.spatial.scope_depth,
                 "url": self.spatial.url,
                 "anchor": self.spatial.anchor,
-            } if self.spatial else None,
+            }
+            if self.spatial
+            else None,
             # Facets
             "facets": {
-                "diataxis_type": self.facets.diataxis_type.value if self.facets and self.facets.diataxis_type else None,
-                "primary_persona": self.facets.primary_persona.value if self.facets and self.facets.primary_persona else None,
-                "secondary_personas": [p.value for p in self.facets.secondary_personas] if self.facets else [],
+                "diataxis_type": self.facets.diataxis_type.value
+                if self.facets and self.facets.diataxis_type
+                else None,
+                "primary_persona": self.facets.primary_persona.value
+                if self.facets and self.facets.primary_persona
+                else None,
+                "secondary_personas": [p.value for p in self.facets.secondary_personas]
+                if self.facets
+                else [],
                 "verification_state": self.facets.verification_state.value if self.facets else None,
                 "confidence": self.facets.confidence.value if self.facets else None,
                 "domain_tags": list(self.facets.domain_tags) if self.facets else [],
@@ -123,7 +130,9 @@ class MemoryNode:
                 "last_verified": self.facets.last_verified if self.facets else None,
                 "source_type": self.facets.source_type if self.facets else None,
                 "source_authority": self.facets.source_authority if self.facets else 1.0,
-            } if self.facets else None,
+            }
+            if self.facets
+            else None,
             # Embedding
             "embedding": list(self.embedding) if self.embedding else None,
         }
@@ -163,11 +172,21 @@ class MemoryNode:
         if data.get("facets"):
             f_data = data["facets"]
             facets = ContentFacets(
-                diataxis_type=DiataxisType(f_data["diataxis_type"]) if f_data.get("diataxis_type") else None,
-                primary_persona=PersonaType(f_data["primary_persona"]) if f_data.get("primary_persona") else None,
-                secondary_personas=tuple(PersonaType(p) for p in f_data.get("secondary_personas", [])),
-                verification_state=VerificationState(f_data["verification_state"]) if f_data.get("verification_state") else VerificationState.UNVERIFIED,
-                confidence=ConfidenceLevel(f_data["confidence"]) if f_data.get("confidence") else ConfidenceLevel.MODERATE,
+                diataxis_type=DiataxisType(f_data["diataxis_type"])
+                if f_data.get("diataxis_type")
+                else None,
+                primary_persona=PersonaType(f_data["primary_persona"])
+                if f_data.get("primary_persona")
+                else None,
+                secondary_personas=tuple(
+                    PersonaType(p) for p in f_data.get("secondary_personas", [])
+                ),
+                verification_state=VerificationState(f_data["verification_state"])
+                if f_data.get("verification_state")
+                else VerificationState.UNVERIFIED,
+                confidence=ConfidenceLevel(f_data["confidence"])
+                if f_data.get("confidence")
+                else ConfidenceLevel.MODERATE,
                 domain_tags=tuple(f_data.get("domain_tags", [])),
                 is_time_sensitive=f_data.get("is_time_sensitive", False),
                 last_verified=f_data.get("last_verified"),

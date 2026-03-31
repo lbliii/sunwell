@@ -32,33 +32,26 @@ dependencies = [
     "click>=8.1",
     "httpx>=0.25",
     "rich>=13.0",
-    # RFC-113: HTTP server for Studio UI
-    "fastapi>=0.109",
-    "uvicorn>=0.27",
     "websockets>=16.0",
     # Ollama is default provider, uses OpenAI client for /v1 endpoint
     "openai>=1.0",
     "rosettes>=0.1.0",
-    # Chirp migration: HTML-over-the-wire framework
-    "bengal-chirp>=0.1.0",
-    "kida-templates>=0.2.0",
+    "bengal-chirp[ui,markdown]>=0.1.9",
+    "chirp-ui>=0.1.6",
+    "kida-templates>=0.2.9",
+    "anthropic>=0.76.0",
 ]
 
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.18"]
+anthropic = [    "anthropic>=0.18"]
 embeddings = ["sentence-transformers>=2.2"]
 external = [
     "httpx>=0.27.0",       # Async HTTP client for API calls
     "apscheduler>=3.10.0", # Cron scheduling
 ]
 mcp = ["mcp>=1.1.0"]  # Model Context Protocol for Cursor/Claude integration
-all = ["sunwell[anthropic,embeddings,external,mcp]"]
-benchmark = [
-    "tiktoken>=0.5.0", # Accurate token counting
-    "scipy>=1.10.0",   # Statistical tests (Mann-Whitney, Wilcoxon)
-    "ruff>=0.2.0",     # Deterministic linting checks
-    "mypy>=1.8.0",     # Deterministic type checks
-]
+channels = ["python-telegram-bot>=21.0"]
+all = ["sunwell[anthropic,embeddings,external,mcp,channels]"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -133,10 +126,5 @@ skip_covered = false
 # Install with: uv venv --python python3.14t
 python-preference = "managed"
 
-# Note: Environment variables like SUNWELL_NO_GIL_WARNING=1 should be set
-# in your shell profile, not in pyproject.toml (uv doesn't support [tool.uv.env])
-
-[tool.uv.sources]
-# Local editable packages in workspace
-bengal-chirp = { path = "../chirp", editable = true }
-kida-templates = { path = "../kida", editable = true }
+# Local monorepo path overrides: use .dev-sources.toml (gitignored) + scripts/dev_sync.py
+# — do not commit [tool.uv.sources] here (breaks pip/uv install from PyPI for end users).

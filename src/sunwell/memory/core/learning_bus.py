@@ -202,7 +202,7 @@ def reset_learning_bus() -> None:
 # =============================================================================
 
 
-def create_learning_store_subscriber(learning_store: "LearningStore") -> LearningCallback:
+def create_learning_store_subscriber(learning_store: LearningStore) -> LearningCallback:
     """Create a callback that adds learnings to a LearningStore.
 
     Args:
@@ -211,13 +211,16 @@ def create_learning_store_subscriber(learning_store: "LearningStore") -> Learnin
     Returns:
         Callback function for bus subscription
     """
+
     def on_learning(learning: Learning) -> None:
         learning_store.add_learning(learning)
 
     return on_learning
 
 
-def subscribe_learning_store(learning_store: "LearningStore", bus: LearningBus | None = None) -> LearningCallback:
+def subscribe_learning_store(
+    learning_store: LearningStore, bus: LearningBus | None = None
+) -> LearningCallback:
     """Subscribe a LearningStore to receive learnings from a bus.
 
     Convenience function that creates the callback and subscribes it.

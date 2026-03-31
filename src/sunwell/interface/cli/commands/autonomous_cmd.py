@@ -23,7 +23,8 @@ def autonomous() -> None:
 @autonomous.command()
 @click.argument("goal")
 @click.option(
-    "--max-hours", "-t",
+    "--max-hours",
+    "-t",
     default=4.0,
     type=float,
     help="Maximum duration in hours (default: 4)",
@@ -56,7 +57,8 @@ def autonomous() -> None:
     help="Checkpoint interval in minutes (default: 15)",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output",
 )
@@ -86,16 +88,18 @@ def run(
         sunwell autonomous run "Fix CI failures" --trust-level full
         sunwell autonomous run "Implement API" --no-spawn --verbose
     """
-    asyncio.run(_run_autonomous(
-        goal=goal,
-        max_hours=max_hours,
-        trust_level=trust_level,
-        enable_spawn=not no_spawn,
-        enable_memory=not no_memory,
-        enable_guard_learning=not no_guard_learning,
-        checkpoint_interval=checkpoint_interval,
-        verbose=verbose,
-    ))
+    asyncio.run(
+        _run_autonomous(
+            goal=goal,
+            max_hours=max_hours,
+            trust_level=trust_level,
+            enable_spawn=not no_spawn,
+            enable_memory=not no_memory,
+            enable_guard_learning=not no_guard_learning,
+            checkpoint_interval=checkpoint_interval,
+            verbose=verbose,
+        )
+    )
 
 
 async def _run_autonomous(
@@ -126,15 +130,17 @@ async def _run_autonomous(
     spawn_status = "on" if enable_spawn else "off"
     mem_status = "on" if enable_memory else "off"
     guard_status = "on" if enable_guard_learning else "off"
-    console.print(Panel.fit(
-        f"[holy.radiant]✦ Autonomous Execution[/holy.radiant]\n\n"
-        f"[sunwell.heading]Goal:[/] {goal}\n"
-        f"[sunwell.heading]Duration:[/] {max_hours}h | [sunwell.heading]Trust:[/] {trust_level}\n"
-        f"[sunwell.heading]Spawn:[/] {spawn_status} | "
-        f"[sunwell.heading]Memory:[/] {mem_status} | "
-        f"[sunwell.heading]Guards:[/] {guard_status}",
-        title="RFC-130 Agent Constellation",
-    ))
+    console.print(
+        Panel.fit(
+            f"[holy.radiant]✦ Autonomous Execution[/holy.radiant]\n\n"
+            f"[sunwell.heading]Goal:[/] {goal}\n"
+            f"[sunwell.heading]Duration:[/] {max_hours}h | [sunwell.heading]Trust:[/] {trust_level}\n"
+            f"[sunwell.heading]Spawn:[/] {spawn_status} | "
+            f"[sunwell.heading]Memory:[/] {mem_status} | "
+            f"[sunwell.heading]Guards:[/] {guard_status}",
+            title="RFC-130 Agent Constellation",
+        )
+    )
 
     console.print()
 
@@ -157,6 +163,7 @@ async def _run_autonomous(
         console.print(f"\n[void.purple]✗ Error: {e}[/void.purple]")
         if verbose:
             import traceback
+
             console.print(traceback.format_exc())
 
     # Summary (RFC-131: Holy Light styling)
@@ -258,14 +265,16 @@ def _handle_event(event, verbose: bool, stats: dict) -> None:
 @click.argument("goal")
 @click.option(
     "--phase",
-    type=click.Choice([
-        "orient_complete",
-        "exploration_complete",
-        "plan_complete",
-        "design_approved",
-        "implementation_complete",
-        "review_complete",
-    ]),
+    type=click.Choice(
+        [
+            "orient_complete",
+            "exploration_complete",
+            "plan_complete",
+            "design_approved",
+            "implementation_complete",
+            "review_complete",
+        ]
+    ),
     default=None,
     help="Resume from specific phase",
 )
@@ -309,14 +318,16 @@ async def _resume_autonomous(goal: str, phase: str | None) -> None:
             return
 
     # Show checkpoint info (RFC-131: Holy Light styling)
-    console.print(Panel.fit(
-        f"[holy.radiant]◆ Resuming from Checkpoint[/holy.radiant]\n\n"
-        f"[sunwell.heading]Goal:[/sunwell.heading] {checkpoint.goal}\n"
-        f"[sunwell.heading]Phase:[/sunwell.heading] {checkpoint.phase.value}\n"
-        f"[sunwell.heading]Summary:[/sunwell.heading] {checkpoint.phase_summary or 'N/A'}\n"
-        f"[sunwell.heading]Saved:[/sunwell.heading] {checkpoint.checkpoint_at.isoformat()[:19]}",
-        title="RFC-130 Resume",
-    ))
+    console.print(
+        Panel.fit(
+            f"[holy.radiant]◆ Resuming from Checkpoint[/holy.radiant]\n\n"
+            f"[sunwell.heading]Goal:[/sunwell.heading] {checkpoint.goal}\n"
+            f"[sunwell.heading]Phase:[/sunwell.heading] {checkpoint.phase.value}\n"
+            f"[sunwell.heading]Summary:[/sunwell.heading] {checkpoint.phase_summary or 'N/A'}\n"
+            f"[sunwell.heading]Saved:[/sunwell.heading] {checkpoint.checkpoint_at.isoformat()[:19]}",
+            title="RFC-130 Resume",
+        )
+    )
 
     if not click.confirm("\nResume from this checkpoint?"):
         console.print("[neutral.dim]Aborted[/neutral.dim]")

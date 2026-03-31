@@ -4,10 +4,9 @@ Provides tools for self-introspection and team knowledge access:
 learnings, patterns, dead ends, and team decisions.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -16,11 +15,7 @@ from sunwell.mcp.formatting import (
     resolve_format,
     truncate,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
@@ -73,6 +68,7 @@ def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             counts = {
@@ -106,12 +102,16 @@ def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                         all_learnings = dag.get_learnings()
                         result["total_learnings"] = len(all_learnings)
                         result["learnings"] = [
-                            omit_empty({
-                                "fact": truncate(l.fact, trunc_len) if trunc_len else (l.fact if hasattr(l, "fact") else str(l)),
-                                "category": getattr(l, "category", None),
-                                "confidence": getattr(l, "confidence", None),
-                                "use_count": getattr(l, "use_count", 0),
-                            })
+                            omit_empty(
+                                {
+                                    "fact": truncate(l.fact, trunc_len)
+                                    if trunc_len
+                                    else (l.fact if hasattr(l, "fact") else str(l)),
+                                    "category": getattr(l, "category", None),
+                                    "confidence": getattr(l, "confidence", None),
+                                    "use_count": getattr(l, "use_count", 0),
+                                }
+                            )
                             for l in all_learnings[:limit]
                         ]
                     except Exception:
@@ -139,11 +139,15 @@ def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Patterns from pattern profile
             if aspect in ("all", "patterns") and memory.patterns:
                 try:
-                    result["patterns"] = omit_empty({
-                        "naming_conventions": getattr(memory.patterns, "naming_conventions", None),
-                        "docstring_style": getattr(memory.patterns, "docstring_style", None),
-                        "import_style": getattr(memory.patterns, "import_style", None),
-                    })
+                    result["patterns"] = omit_empty(
+                        {
+                            "naming_conventions": getattr(
+                                memory.patterns, "naming_conventions", None
+                            ),
+                            "docstring_style": getattr(memory.patterns, "docstring_style", None),
+                            "import_style": getattr(memory.patterns, "import_style", None),
+                        }
+                    )
                 except Exception as e:
                     result["patterns_error"] = str(e)
 
@@ -211,6 +215,7 @@ def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             if not memory.team:
@@ -227,9 +232,7 @@ def register_mirror_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                 if hasattr(memory.team, "check_approach") and runtime:
                     warnings = runtime.run(memory.team.check_approach(query))
                     if warnings:
-                        result["warnings"] = [
-                            truncate(str(w), 200) for w in warnings[:limit]
-                        ]
+                        result["warnings"] = [truncate(str(w), 200) for w in warnings[:limit]]
             except Exception as e:
                 result["warnings_error"] = str(e)
 

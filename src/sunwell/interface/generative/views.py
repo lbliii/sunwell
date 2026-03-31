@@ -16,12 +16,45 @@ from sunwell.models.providers.registry import ProviderRegistry
 # =============================================================================
 
 _MARKDOWN_EXTS: frozenset[str] = frozenset({"md", "markdown", "mdown", "mkd"})
-_CODE_EXTS: frozenset[str] = frozenset({
-    "py", "js", "ts", "jsx", "tsx", "rs", "go", "java", "c", "cpp",
-    "h", "hpp", "cs", "rb", "php", "swift", "kt", "scala", "sh",
-    "bash", "zsh", "fish", "ps1", "yaml", "yml", "json", "toml",
-    "xml", "html", "css", "scss", "sass", "less", "sql", "graphql",
-})
+_CODE_EXTS: frozenset[str] = frozenset(
+    {
+        "py",
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "rs",
+        "go",
+        "java",
+        "c",
+        "cpp",
+        "h",
+        "hpp",
+        "cs",
+        "rb",
+        "php",
+        "swift",
+        "kt",
+        "scala",
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "ps1",
+        "yaml",
+        "yml",
+        "json",
+        "toml",
+        "xml",
+        "html",
+        "css",
+        "scss",
+        "sass",
+        "less",
+        "sql",
+        "graphql",
+    }
+)
 _IMAGE_EXTS: frozenset[str] = frozenset({"png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp"})
 _PDF_EXTS: frozenset[str] = frozenset({"pdf"})
 
@@ -188,13 +221,15 @@ class ViewRenderer:
                 preview = note.content[:100]
                 if len(note.content) > 100:
                     preview += "..."
-                results.append({
-                    "type": "note",
-                    "id": note.id,
-                    "title": note.title,
-                    "preview": preview,
-                    "modified": note.modified.isoformat(),
-                })
+                results.append(
+                    {
+                        "type": "note",
+                        "id": note.id,
+                        "title": note.title,
+                        "preview": preview,
+                        "modified": note.modified.isoformat(),
+                    }
+                )
 
         # Search lists (search item text)
         if self.providers.has_lists():
@@ -204,13 +239,15 @@ class ViewRenderer:
                 items = await self.providers.lists.get_items(list_name, include_completed=True)
                 for item in items:
                     if query_lower in item.text.lower():
-                        results.append({
-                            "type": "list_item",
-                            "id": item.id,
-                            "text": item.text,
-                            "list": list_name,
-                            "completed": item.completed,
-                        })
+                        results.append(
+                            {
+                                "type": "list_item",
+                                "id": item.id,
+                                "text": item.text,
+                                "list": list_name,
+                                "completed": item.completed,
+                            }
+                        )
 
         # Search calendar events
         if self.providers.has_calendar():
@@ -224,13 +261,15 @@ class ViewRenderer:
                 if query_lower in event.title.lower() or (
                     event.notes and query_lower in event.notes.lower()
                 ):
-                    results.append({
-                        "type": "event",
-                        "id": event.id,
-                        "title": event.title,
-                        "start": event.start.isoformat(),
-                        "end": event.end.isoformat(),
-                    })
+                    results.append(
+                        {
+                            "type": "event",
+                            "id": event.id,
+                            "title": event.title,
+                            "start": event.start.isoformat(),
+                            "end": event.end.isoformat(),
+                        }
+                    )
 
         return {
             "type": "search",
@@ -581,12 +620,14 @@ class ViewRenderer:
             )
             completed_today = sum(e.count for e in today_entries)
 
-            habit_data.append({
-                **habit.to_dict(),
-                "streak": streak,
-                "completed_today": completed_today,
-                "is_complete": completed_today >= habit.target_count,
-            })
+            habit_data.append(
+                {
+                    **habit.to_dict(),
+                    "streak": streak,
+                    "completed_today": completed_today,
+                    "is_complete": completed_today >= habit.target_count,
+                }
+            )
 
         # Calculate summary stats
         complete_count = sum(1 for h in habit_data if h["is_complete"])

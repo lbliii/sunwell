@@ -7,8 +7,6 @@ a State DAG with:
 - Health probes: Test coverage, lint issues, complexity
 """
 
-from __future__ import annotations
-
 import ast
 import json
 import logging
@@ -53,12 +51,28 @@ _EXT_TO_LANG: tuple[tuple[str, str], ...] = (
     (".go", "go"),
 )
 
-_SKIP_DIRS: frozenset[str] = frozenset({
-    ".git", "__pycache__", "node_modules", "dist", "build",
-    ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    "htmlcov", "target", ".next", ".nuxt", "coverage",
-    ".coverage", ".cursor", ".idea", ".vscode",
-})
+_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "__pycache__",
+        "node_modules",
+        "dist",
+        "build",
+        ".tox",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "htmlcov",
+        "target",
+        ".next",
+        ".nuxt",
+        "coverage",
+        ".coverage",
+        ".cursor",
+        ".idea",
+        ".vscode",
+    }
+)
 
 _SKIP_PREFIXES: tuple[str, ...] = (".venv", "venv", ".env", "env")
 
@@ -136,9 +150,7 @@ class CodeScanner(Scanner):
         logger.info(f"CodeScanner found {len(nodes)} nodes")
         return nodes
 
-    async def extract_edges(
-        self, root: Path, nodes: list[StateDagNode]
-    ) -> list[StateDagEdge]:
+    async def extract_edges(self, root: Path, nodes: list[StateDagNode]) -> list[StateDagEdge]:
         """Extract edges between code nodes.
 
         Extracts:
@@ -272,9 +284,7 @@ class CodeScanner(Scanner):
                 return True
         return False
 
-    async def _create_node(
-        self, path: Path, root: Path, project_type: str
-    ) -> StateDagNode:
+    async def _create_node(self, path: Path, root: Path, project_type: str) -> StateDagNode:
         """Create a StateDagNode for a source file."""
         rel_path = path.relative_to(root)
         node_id = str(rel_path).replace("/", "-").replace("\\", "-").replace(".", "-")
@@ -308,9 +318,7 @@ class CodeScanner(Scanner):
             metadata={"project_type": project_type},
         )
 
-    async def _create_package_nodes(
-        self, root: Path, project_type: str
-    ) -> list[StateDagNode]:
+    async def _create_package_nodes(self, root: Path, project_type: str) -> list[StateDagNode]:
         """Create nodes for packages/modules."""
         package_nodes: list[StateDagNode] = []
 
@@ -377,9 +385,7 @@ class CodeScanner(Scanner):
 
         return "module"
 
-    def _build_module_mapping(
-        self, nodes: list[StateDagNode], root: Path
-    ) -> dict[str, str]:
+    def _build_module_mapping(self, nodes: list[StateDagNode], root: Path) -> dict[str, str]:
         """Build mapping from module names to node IDs."""
         mapping: dict[str, str] = {}
 
@@ -495,9 +501,7 @@ class CodeScanner(Scanner):
 
         return imports
 
-    def _resolve_import(
-        self, imp: str, module_to_node: dict[str, str], root: Path
-    ) -> str | None:
+    def _resolve_import(self, imp: str, module_to_node: dict[str, str], root: Path) -> str | None:
         """Resolve an import to a node ID."""
         # Direct match
         if imp in module_to_node:

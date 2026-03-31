@@ -1,6 +1,5 @@
 """Runtime information command."""
 
-
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -28,14 +27,16 @@ def runtime() -> None:
         status = "[yellow]⚠️  GIL ENABLED[/yellow]"
         detail = "Limited parallelism - consider using Python 3.14t"
 
-    console.print(Panel.fit(
-        f"[bold]Sunwell Runtime[/bold]\n\n"
-        f"Python: {info['python_version']}\n"
-        f"Status: {status}\n"
-        f"CPUs:   {info['cpu_count']} cores\n\n"
-        f"[dim]{detail}[/dim]",
-        title="🔧 Runtime Info",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Sunwell Runtime[/bold]\n\n"
+            f"Python: {info['python_version']}\n"
+            f"Status: {status}\n"
+            f"CPUs:   {info['cpu_count']} cores\n\n"
+            f"[dim]{detail}[/dim]",
+            title="🔧 Runtime Info",
+        )
+    )
 
     # Worker table
     table = Table(title="Adaptive Worker Counts")

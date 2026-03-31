@@ -508,7 +508,9 @@ def export_skill(
     if format == "anthropic":
         console.print()
         console.print("[dim]This skill is now compatible with Claude Code and Claude.ai.[/dim]")
-        console.print("[dim]Note: DAG features (depends_on, produces) are preserved as comments.[/dim]")
+        console.print(
+            "[dim]Note: DAG features (depends_on, produces) are preserved as comments.[/dim]"
+        )
 
 
 @skills_group.command(name="export-all")

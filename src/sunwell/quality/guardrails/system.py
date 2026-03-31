@@ -3,7 +3,6 @@
 Main orchestrator that ties all guardrail components together.
 """
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -246,9 +245,7 @@ class GuardrailSystem:
         # Present to user
         return await self.escalation_handler.escalate(escalation)
 
-    async def checkpoint_goal(
-        self, goal: Goal, changes: list[FileChange]
-    ) -> str:
+    async def checkpoint_goal(self, goal: Goal, changes: list[FileChange]) -> str:
         """Create checkpoint commit after goal completion.
 
         Args:
@@ -371,6 +368,7 @@ class GuardrailSystem:
         if classification.risk == ActionRisk.FORBIDDEN:
             if emit_event:
                 from sunwell.agent.events import autonomous_action_blocked_event
+
                 event = autonomous_action_blocked_event(
                     action_type=action.action_type,
                     path=action.path,
@@ -386,6 +384,7 @@ class GuardrailSystem:
             if self.config.trust_level.value in ("conservative", "guarded"):
                 if emit_event:
                     from sunwell.agent.events import autonomous_action_blocked_event
+
                     event = autonomous_action_blocked_event(
                         action_type=action.action_type,
                         path=action.path,
@@ -399,15 +398,19 @@ class GuardrailSystem:
         # Check scope limits
         if action.path:
             from pathlib import Path as PathLib
-            changes = [FileChange(
-                path=PathLib(action.path),
-                lines_added=len(action.content.splitlines()) if action.content else 10,
-                lines_removed=0,
-            )]
+
+            changes = [
+                FileChange(
+                    path=PathLib(action.path),
+                    lines_added=len(action.content.splitlines()) if action.content else 10,
+                    lines_removed=0,
+                )
+            ]
             scope_check = self.scope_tracker.check_goal(changes, "autonomous")
             if not scope_check.passed:
                 if emit_event:
                     from sunwell.agent.events import autonomous_action_blocked_event
+
                     event = autonomous_action_blocked_event(
                         action_type=action.action_type,
                         path=action.path,
@@ -507,8 +510,9 @@ class GuardrailSystem:
 
         # 1. Check source trust
         trusted_sources = getattr(
-            self.config, "trusted_external_sources",
-            frozenset({EventSource.GITHUB, EventSource.GITLAB})
+            self.config,
+            "trusted_external_sources",
+            frozenset({EventSource.GITHUB, EventSource.GITLAB}),
         )
         if event.source not in trusted_sources:
             return False
@@ -609,17 +613,21 @@ class GuardrailSystem:
         ]
 
         if classification.risk != ActionRisk.SAFE:
-            lines.extend([
-                "",
-                f"Risk Level: {classification.risk.value.upper()}",
-                f"Reason: {classification.reason}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"Risk Level: {classification.risk.value.upper()}",
+                    f"Reason: {classification.reason}",
+                ]
+            )
 
         if not scope_check.passed:
-            lines.extend([
-                "",
-                f"Scope Issue: {scope_check.reason}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"Scope Issue: {scope_check.reason}",
+                ]
+            )
 
         return "\n".join(lines)
 

@@ -57,7 +57,7 @@ class ContractVerifier:
     workspace: Path
     """Workspace root directory."""
 
-    model: "ModelProtocol | None" = None
+    model: ModelProtocol | None = None
     """LLM model for semantic verification (Tier 3 fallback)."""
 
     skip_llm: bool = False
@@ -316,7 +316,8 @@ class ContractVerifier:
             # Filter out import-not-found errors - they're not Protocol compliance issues
             # These occur when files are in temp directories without proper package structure
             compliance_errors = [
-                e for e in result.errors
+                e
+                for e in result.errors
                 if "import-not-found" not in e
                 and "Cannot find implementation or library stub" not in e
             ]

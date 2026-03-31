@@ -16,19 +16,37 @@ _SKILL_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     # Testing patterns
     (re.compile(r"test|spec|coverage|assert|pytest|unittest"), ("testing", "pytest", "coverage")),
     # Debugging patterns
-    (re.compile(r"fix|bug|error|debug|broken|issue|crash"), ("debugging", "error_analysis", "logging")),
+    (
+        re.compile(r"fix|bug|error|debug|broken|issue|crash"),
+        ("debugging", "error_analysis", "logging"),
+    ),
     # Refactoring patterns
-    (re.compile(r"refactor|clean|extract|rename|restructure|simplify"), ("refactoring", "code_quality")),
+    (
+        re.compile(r"refactor|clean|extract|rename|restructure|simplify"),
+        ("refactoring", "code_quality"),
+    ),
     # API patterns
-    (re.compile(r"endpoint|route|api|rest|graphql|http|request"), ("api_design", "http", "serialization")),
+    (
+        re.compile(r"endpoint|route|api|rest|graphql|http|request"),
+        ("api_design", "http", "serialization"),
+    ),
     # Security patterns
-    (re.compile(r"auth|security|permission|token|jwt|oauth|encrypt"), ("security", "auth", "crypto")),
+    (
+        re.compile(r"auth|security|permission|token|jwt|oauth|encrypt"),
+        ("security", "auth", "crypto"),
+    ),
     # Performance patterns
-    (re.compile(r"optimi|perf|fast|slow|cache|async|parallel"), ("performance", "profiling", "caching")),
+    (
+        re.compile(r"optimi|perf|fast|slow|cache|async|parallel"),
+        ("performance", "profiling", "caching"),
+    ),
     # Database patterns
     (re.compile(r"database|sql|query|model|migrate|schema"), ("database", "orm", "sql")),
     # Frontend patterns
-    (re.compile(r"ui|frontend|component|style|css|html|react|svelte"), ("frontend", "ui_design", "components")),
+    (
+        re.compile(r"ui|frontend|component|style|css|html|react|svelte"),
+        ("frontend", "ui_design", "components"),
+    ),
     # DevOps patterns
     (re.compile(r"deploy|docker|ci|cd|pipeline|kubernetes|k8s"), ("devops", "deployment", "ci_cd")),
     # Documentation patterns

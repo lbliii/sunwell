@@ -3,14 +3,9 @@
 Provides tools for smart model delegation and routing.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import mcp_json, omit_empty
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
 
 
 def register_delegation_tools(mcp: FastMCP) -> None:
@@ -51,15 +46,29 @@ def register_delegation_tools(mcp: FastMCP) -> None:
             needs_intelligence = any(
                 kw in task_lower
                 for kw in [
-                    "complex", "architect", "design", "reason", "analyze",
-                    "refactor", "plan", "strategy", "debug", "investigate",
+                    "complex",
+                    "architect",
+                    "design",
+                    "reason",
+                    "analyze",
+                    "refactor",
+                    "plan",
+                    "strategy",
+                    "debug",
+                    "investigate",
                 ]
             )
             needs_speed = any(
                 kw in task_lower
                 for kw in [
-                    "simple", "quick", "format", "rename", "trivial",
-                    "lint", "fix typo", "minor",
+                    "simple",
+                    "quick",
+                    "format",
+                    "rename",
+                    "trivial",
+                    "lint",
+                    "fix typo",
+                    "minor",
                 ]
             )
 
@@ -92,20 +101,23 @@ def register_delegation_tools(mcp: FastMCP) -> None:
                     recommended = alias
                     break
 
-            alternatives = [
-                name for name in registered[:5] if name != recommended
-            ]
+            alternatives = [name for name in registered[:5] if name != recommended]
 
-            return mcp_json(omit_empty({
-                "task": task,
-                "constraints": constraints,
-                "recommendation": {
-                    "model": recommended or "default",
-                    "tier": tier,
-                    "reasoning": reasoning,
-                },
-                "alternatives": alternatives,
-                "registered_models": registered,
-            }), "compact")
+            return mcp_json(
+                omit_empty(
+                    {
+                        "task": task,
+                        "constraints": constraints,
+                        "recommendation": {
+                            "model": recommended or "default",
+                            "tier": tier,
+                            "reasoning": reasoning,
+                        },
+                        "alternatives": alternatives,
+                        "registered_models": registered,
+                    }
+                ),
+                "compact",
+            )
         except Exception as e:
             return mcp_json({"error": str(e), "task": task}, "compact")

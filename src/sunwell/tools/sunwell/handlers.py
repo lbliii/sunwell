@@ -12,7 +12,6 @@ from uuid import uuid4
 from sunwell.tools.core.types import ToolResult
 
 if TYPE_CHECKING:
-    from sunwell.features.mirror.self import Self
     from sunwell.knowledge.codebase.context import ProjectContext
     from sunwell.memory.lineage.store import LineageStore
 
@@ -35,7 +34,6 @@ class SunwellToolHandlers:
     # Lazy-loaded dependencies (init=False means they're set after init)
     _intel: ProjectContext | None = field(default=None, init=False)
     _lineage: LineageStore | None = field(default=None, init=False)
-    _self: Self | None = field(default=None, init=False)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Project Intelligence
@@ -275,125 +273,34 @@ class SunwellToolHandlers:
     # ─────────────────────────────────────────────────────────────────────────
 
     async def handle_self_modules(self, pattern: str | None = None) -> ToolResult:
-        """List Sunwell modules."""
-        self_inst = self._get_self()
-        modules = self_inst.source.list_modules()
-
-        if pattern:
-            modules = [m for m in modules if m.startswith(pattern)]
-
-        output = f"Sunwell modules ({len(modules)}):\n\n"
-
-        # Group by top-level package
-        by_package: dict[str, list[str]] = {}
-        for mod in modules:
-            parts = mod.split(".")
-            pkg = ".".join(parts[:2]) if len(parts) > 1 else parts[0]
-            by_package.setdefault(pkg, []).append(mod)
-
-        for pkg, mods in sorted(by_package.items()):
-            output += f"**{pkg}** ({len(mods)} modules)\n"
-            for mod in sorted(mods)[:5]:
-                output += f"  - {mod}\n"
-            if len(mods) > 5:
-                output += f"  - ... and {len(mods) - 5} more\n"
-            output += "\n"
-
-        return _result(True, output)
+        """List Sunwell modules (feature removed)."""
+        return _result(False, "Self/mirror feature removed in Sunwell reboot.")
 
     async def handle_self_search(self, query: str, limit: int = 10) -> ToolResult:
-        """Semantic search in Sunwell source."""
-        self_inst = self._get_self()
-        results = self_inst.source.search(query, limit=limit)
-
-        if not results:
-            return _result(True, f"No matches found in Sunwell source for: {query}")
-
-        output = f"Found {len(results)} match(es) in Sunwell source:\n\n"
-        for r in results:
-            symbol_str = f"::{r.symbol}" if r.symbol else ""
-            output += f"## {r.module}{symbol_str} (score: {r.score:.2f})\n"
-            snippet_preview = r.snippet[:300]
-            if len(r.snippet) > 300:
-                snippet_preview += "..."
-            output += f"```python\n{snippet_preview}\n```\n\n"
-
-        return _result(True, output)
+        """Semantic search in Sunwell source (feature removed)."""
+        return _result(False, "Self/mirror feature removed in Sunwell reboot.")
 
     async def handle_self_read(self, module: str, symbol: str | None = None) -> ToolResult:
-        """Read Sunwell module source."""
-        self_inst = self._get_self()
-
-        try:
-            if symbol:
-                result = self_inst.source.find_symbol(module, symbol)
-                output = f"## {module}::{result.name}\n"
-                output += f"**Kind**: {result.type}\n"
-                output += f"**Line**: {result.start_line}\n"
-                if hasattr(result, "signature") and result.signature:
-                    output += f"**Signature**: `{result.signature}`\n"
-                if result.docstring:
-                    output += f"\n{result.docstring}\n"
-                output += f"\n```python\n{result.source[:2000]}"
-                if len(result.source) > 2000:
-                    output += f"\n... ({len(result.source) - 2000} more characters)\n"
-                output += "```"
-            else:
-                source = self_inst.source.read_module(module)
-                output = f"## {module}\n\n```python\n{source[:3000]}"
-                if len(source) > 3000:
-                    output += f"\n... ({len(source) - 3000} more characters)\n"
-                output += "```"
-
-            return _result(True, output)
-
-        except FileNotFoundError:
-            return _result(False, f"Module not found: {module}")
-        except ValueError as e:
-            return _result(False, str(e))
+        """Read Sunwell module source (feature removed)."""
+        return _result(False, "Self/mirror feature removed in Sunwell reboot.")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Workflow Orchestration
     # ─────────────────────────────────────────────────────────────────────────
 
     async def handle_workflow_chains(self) -> ToolResult:
-        """List available workflow chains."""
-        from sunwell.features.workflow.types import WORKFLOW_CHAINS
-
-        output = "## Available Workflow Chains\n\n"
-
-        for chain in WORKFLOW_CHAINS.values():
-            output += f"### {chain.name}\n"
-            output += f"{chain.description}\n"
-            output += f"**Tier**: {chain.tier.value}\n"
-            output += "**Steps**:\n"
-            for i, step in enumerate(chain.steps, 1):
-                checkpoint = " ✓ checkpoint" if i - 1 in chain.checkpoint_after else ""
-                output += f"  {i}. {step.skill} — {step.purpose}{checkpoint}\n"
-            output += "\n"
-
-        return _result(True, output)
+        """List available workflow chains (feature removed)."""
+        return _result(
+            False,
+            "Workflow chains feature removed in Sunwell reboot.",
+        )
 
     async def handle_workflow_route(self, request: str) -> ToolResult:
-        """Route request to appropriate workflow."""
-        from sunwell.features.workflow.router import IntentRouter
-
-        router = IntentRouter()
-        intent, workflow = router.classify_and_select(request)
-
-        output = "## Workflow Routing\n\n"
-        output += f"**Request**: {request}\n"
-        output += f"**Category**: {intent.category.value}\n"
-        output += f"**Confidence**: {intent.confidence:.0%}\n"
-        output += f"**Signals**: {', '.join(intent.signals) if intent.signals else 'none'}\n"
-
-        if workflow:
-            output += f"\n**Recommended Workflow**: {workflow.name}\n"
-            output += f"{workflow.description}\n"
-        else:
-            output += "\nNo specific workflow recommended — handle directly.\n"
-
-        return _result(True, output)
+        """Route request to workflow (feature removed)."""
+        return _result(
+            False,
+            "Workflow routing feature removed in Sunwell reboot.",
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Lazy Dependency Loading
@@ -414,14 +321,6 @@ class SunwellToolHandlers:
 
             self._lineage = LineageStore(self.workspace)
         return self._lineage
-
-    def _get_self(self) -> Self:
-        """Lazy-load Self singleton."""
-        if self._self is None:
-            from sunwell.features.mirror.self import Self
-
-            self._self = Self.get()
-        return self._self
 
     async def _build_artifact_graph(self, path: str | None = None) -> Any:
         """Build artifact graph for weakness analysis.

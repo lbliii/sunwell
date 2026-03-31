@@ -102,9 +102,7 @@ class ConfidenceCalibrator:
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     """Thread safety lock."""
 
-    _calibration_cache: dict[str, dict[float, float]] = field(
-        default_factory=dict, repr=False
-    )
+    _calibration_cache: dict[str, dict[float, float]] = field(default_factory=dict, repr=False)
     """Cached calibration curves by decision type."""
 
     SCHEMA = """
@@ -200,8 +198,11 @@ class ConfidenceCalibrator:
                 """,
                 [
                     (
-                        r.decision_type, r.predicted_confidence,
-                        int(r.was_correct), r.timestamp, r.context_hash,
+                        r.decision_type,
+                        r.predicted_confidence,
+                        int(r.was_correct),
+                        r.timestamp,
+                        r.context_hash,
                     )
                     for r in self._records
                 ],
@@ -285,9 +286,7 @@ class ConfidenceCalibrator:
                         (decision_type,),
                     ).fetchall()
                 else:
-                    rows = self._conn.execute(
-                        "SELECT * FROM calibration_records"
-                    ).fetchall()
+                    rows = self._conn.execute("SELECT * FROM calibration_records").fetchall()
 
                 for row in rows:
                     records.append(
@@ -468,10 +467,7 @@ class ConfidenceCalibrator:
     def to_dict(self) -> dict:
         """Export calibration data as dictionary."""
         return {
-            "curves": {
-                type_: dict(curve)
-                for type_, curve in self._calibration_cache.items()
-            },
+            "curves": {type_: dict(curve) for type_, curve in self._calibration_cache.items()},
             "stats": {
                 type_: [
                     {
@@ -507,9 +503,7 @@ class ConfidenceCalibrator:
 
             # Restore cached curves
             for type_, curve in data.get("curves", {}).items():
-                calibrator._calibration_cache[type_] = {
-                    float(k): v for k, v in curve.items()
-                }
+                calibrator._calibration_cache[type_] = {float(k): v for k, v in curve.items()}
 
         except (json.JSONDecodeError, OSError):
             pass

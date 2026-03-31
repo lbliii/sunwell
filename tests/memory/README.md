@@ -51,12 +51,6 @@ Comprehensive test suite for Hindsight-inspired memory enhancements (Phases 1-4)
   - Case-insensitive expansion
   - Integration with retrieval
 
-- **`test_benchmarks.py`** - Benchmarking harness
-  - Metrics tracking (accuracy, recall@k, latency)
-  - Synthetic scenarios (auth, database, React, performance)
-  - Regression detection (5% threshold)
-  - LongMemEval adapter
-
 ### Integration
 - **`test_integration_end_to_end.py`** - End-to-end pipeline tests
   - Phase 1 integration (extraction + reranking)
@@ -84,7 +78,7 @@ pytest tests/memory/test_entity_graph.py tests/memory/test_entity_retrieval.py -
 pytest tests/memory/test_reflection.py -v
 
 # Phase 4: Optimization
-pytest tests/memory/test_bm25_optimization.py tests/memory/test_query_expansion.py tests/memory/test_benchmarks.py -v
+pytest tests/memory/test_bm25_optimization.py tests/memory/test_query_expansion.py -v
 
 # Integration
 pytest tests/memory/test_integration_end_to_end.py -v
@@ -157,14 +151,6 @@ pytest tests/memory/ --cov=sunwell.memory --cov-report=html
 - ✅ Multi-term expansion
 - ✅ Project-specific customization
 
-### Phase 4.3: Benchmarking (test_benchmarks.py)
-- ✅ Retrieval metrics (accuracy, recall, precision)
-- ✅ Latency percentiles (p50, p95, p99)
-- ✅ Synthetic scenarios
-- ✅ Regression detection
-- ✅ Baseline tracking
-- ✅ LongMemEval adapter
-
 ### End-to-End Integration (test_integration_end_to_end.py)
 - ✅ Phase 1 integration
 - ✅ Phase 2 integration
@@ -205,7 +191,6 @@ These tests are designed for CI integration:
 - name: Run memory enhancement tests
   run: |
     pytest tests/memory/ -v --cov=sunwell.memory
-    pytest tests/memory/test_benchmarks.py::TestBenchmarkRunner::test_ci_integration_pass
 ```
 
 ## Notes

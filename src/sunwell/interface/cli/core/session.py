@@ -5,7 +5,6 @@ Provides:
 - Session activity summaries (RFC-120)
 """
 
-
 from pathlib import Path
 
 import click
@@ -29,7 +28,9 @@ def sessions() -> None:
 
 
 @sessions.command("list")
-@click.option("--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path")
+@click.option(
+    "--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path"
+)
 def sessions_list(path: str) -> None:
     """List all saved conversation sessions.
 
@@ -65,7 +66,9 @@ def sessions_list(path: str) -> None:
 
 
 @sessions.command("stats")
-@click.option("--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path")
+@click.option(
+    "--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path"
+)
 def sessions_stats(path: str) -> None:
     """Show storage statistics.
 
@@ -99,8 +102,16 @@ def sessions_stats(path: str) -> None:
 
 
 @sessions.command("archive")
-@click.option("--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path")
-@click.option("--older-than", "-o", type=int, default=168, help="Archive turns older than N hours (default: 168 = 1 week)")
+@click.option(
+    "--path", "-p", type=click.Path(), default=".sunwell/memory", help="Memory store path"
+)
+@click.option(
+    "--older-than",
+    "-o",
+    type=int,
+    default=168,
+    help="Archive turns older than N hours (default: 168 = 1 week)",
+)
 def sessions_archive(path: str, older_than: int) -> None:
     """Archive old turns to cold storage (compressed).
 
@@ -195,19 +206,25 @@ def _display_session_summary(summary) -> None:
         duration_str = f"{minutes}m"
 
     header = f"""📊 Session Summary
-Started: {summary.started_at.strftime('%Y-%m-%d %H:%M')}
+Started: {summary.started_at.strftime("%Y-%m-%d %H:%M")}
 Duration: {duration_str}"""
 
     console.print(Panel(header, border_style="blue"))
 
     # Goals section
-    console.print(f"\n[bold]Goals:[/bold] {summary.goals_completed} completed, {summary.goals_failed} failed")
+    console.print(
+        f"\n[bold]Goals:[/bold] {summary.goals_completed} completed, {summary.goals_failed} failed"
+    )
 
     # Files section
-    console.print(f"[bold]Files:[/bold] {summary.files_created} created, {summary.files_modified} modified")
+    console.print(
+        f"[bold]Files:[/bold] {summary.files_created} created, {summary.files_modified} modified"
+    )
 
     # Code changes
-    console.print(f"[bold]Code:[/bold]  +{summary.lines_added} lines, -{summary.lines_removed} lines")
+    console.print(
+        f"[bold]Code:[/bold]  +{summary.lines_added} lines, -{summary.lines_removed} lines"
+    )
 
     # Top files
     if summary.top_files:

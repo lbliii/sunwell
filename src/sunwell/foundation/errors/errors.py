@@ -7,7 +7,6 @@ Provides structured error handling with:
 - Context for debugging
 """
 
-
 from enum import IntEnum
 from typing import Any
 
@@ -224,7 +223,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Try a different model",
         "Report this issue if it persists",
     ],
-
     # =========================================================================
     # 2xxx - Lens Errors
     # =========================================================================
@@ -263,7 +261,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Verify Fount registry URL in config",
         "Use local lenses instead (specify path directly)",
     ],
-
     # =========================================================================
     # 3xxx - Tool/Skill Errors
     # =========================================================================
@@ -317,7 +314,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Add required paths to sandbox allowlist",
         "Use a higher trust level if script is trusted",
     ],
-
     # =========================================================================
     # 4xxx - Validation Errors
     # =========================================================================
@@ -346,7 +342,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Fix the issues identified in the gate output",
         "Use --skip-gate to bypass (use carefully)",
     ],
-
     # =========================================================================
     # 5xxx - Configuration Errors
     # =========================================================================
@@ -365,7 +360,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Add it to your .env file",
         "Use --{flag} command line option instead",
     ],
-
     # =========================================================================
     # 6xxx - Runtime Errors
     # =========================================================================
@@ -384,7 +378,6 @@ RECOVERY_HINTS: dict[ErrorCode, list[str]] = {
         "Reduce parallelism in configuration",
         "Increase concurrent limit if resources allow",
     ],
-
     # =========================================================================
     # 7xxx - Network/IO Errors
     # =========================================================================
@@ -537,6 +530,7 @@ class SunwellError(Exception):
 
 # Convenience factory functions
 
+
 def model_error(
     code: ErrorCode,
     model: str,
@@ -607,6 +601,7 @@ def config_error(
 
 # Error translation from external exceptions
 
+
 def from_openai_error(exc: Exception, model: str, provider: str) -> SunwellError:
     """Translate OpenAI client exceptions to SunwellError."""
     exc_type = type(exc).__name__
@@ -633,7 +628,9 @@ def from_openai_error(exc: Exception, model: str, provider: str) -> SunwellError
             cause=exc,
         )
 
-    if "context" in message.lower() and ("exceeded" in message.lower() or "too long" in message.lower()):
+    if "context" in message.lower() and (
+        "exceeded" in message.lower() or "too long" in message.lower()
+    ):
         return SunwellError(
             code=ErrorCode.MODEL_CONTEXT_EXCEEDED,
             context={"model": model, "provider": provider, "limit": "unknown"},

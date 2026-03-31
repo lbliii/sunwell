@@ -11,6 +11,7 @@ RFC-111: Adds SkillMetadata for progressive disclosure.
 from typing import TYPE_CHECKING
 
 from sunwell.foundation.schema.models.skill import (
+    SKILL_NAME_PATTERN,
     Artifact,
     Resource,
     Script,
@@ -24,7 +25,6 @@ from sunwell.foundation.schema.models.skill import (
     SkillRetryPolicy,
     SkillType,
     SkillValidation,
-    SKILL_NAME_PATTERN,
     Template,
     TrustLevel,
     validate_skill_name,

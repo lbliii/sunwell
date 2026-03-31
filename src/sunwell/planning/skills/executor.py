@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 class ExecutionContext:
     """Execution context for skill execution.
-    
+
     Provides context data (inputs, state) and a snapshot method
     for hashing/caching purposes.
     """
 
     def __init__(self, data: dict[str, Any] | None = None) -> None:
         """Initialize execution context.
-        
+
         Args:
             data: Context data dictionary
         """
@@ -40,7 +40,7 @@ class ExecutionContext:
 
     def snapshot(self) -> dict[str, Any]:
         """Create a snapshot of the context for hashing/caching.
-        
+
         Returns:
             Dictionary representation of the context
         """
@@ -49,7 +49,7 @@ class ExecutionContext:
 
 class IncrementalSkillExecutor(Protocol):
     """Protocol for incremental skill execution with caching.
-    
+
     RFC-110: Skill execution moved to Agent. This protocol defines
     the interface for skill executors that support incremental execution.
     """
@@ -62,13 +62,13 @@ class IncrementalSkillExecutor(Protocol):
         on_skill_complete: Any | None = None,
     ) -> dict[str, SkillOutput]:
         """Execute a skill graph with the given context.
-        
+
         Args:
             graph: Skill graph to execute
             context: Execution context
             on_wave_complete: Optional callback for wave completion
             on_skill_complete: Optional callback for skill completion
-            
+
         Returns:
             Mapping of skill name to output
         """

@@ -225,11 +225,12 @@ class SessionStore:
         """
         all_sessions = self.list_sessions()
         return [
-            s for s in all_sessions
-            if s.status in (SessionStatus.PAUSED, SessionStatus.RUNNING)
+            s for s in all_sessions if s.status in (SessionStatus.PAUSED, SessionStatus.RUNNING)
         ]
 
-    def update_status(self, session_id: str, status: SessionStatus, reason: str | None = None) -> bool:
+    def update_status(
+        self, session_id: str, status: SessionStatus, reason: str | None = None
+    ) -> bool:
         """Update session status without loading full state.
 
         Args:

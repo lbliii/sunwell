@@ -23,7 +23,7 @@ from sunwell.agent.coordination.parallel_executor import (
     TaskResult,
 )
 from sunwell.agent.events import AgentEvent, EventType
-from sunwell.agent.isolation import check_workspace_readiness, WorkspaceIsolationMode
+from sunwell.agent.isolation import WorkspaceIsolationMode, check_workspace_readiness
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
@@ -89,8 +89,8 @@ class TaskDispatcher:
     def __init__(
         self,
         workspace: Path,
-        session: "SessionContext",
-        config: "LoopConfig",
+        session: SessionContext,
+        config: LoopConfig,
         parallel_executor: ParallelExecutor | None = None,
     ) -> None:
         """Initialize the task dispatcher.
@@ -113,8 +113,8 @@ class TaskDispatcher:
 
     async def execute_graph(
         self,
-        graph: "TaskGraph",
-        sequential_fn: Callable[["Task"], AsyncIterator[AgentEvent]],
+        graph: TaskGraph,
+        sequential_fn: Callable[[Task], AsyncIterator[AgentEvent]],
     ) -> AsyncIterator[AgentEvent]:
         """Execute task graph with automatic parallel/sequential routing.
 
@@ -202,12 +202,14 @@ class TaskDispatcher:
                         yield event
                         if event.type == EventType.TASK_COMPLETE:
                             data = event.data
-                            all_results.append(TaskResult(
-                                task_id=task.id,
-                                success=data.get("success", True),
-                                output=data.get("result_text"),
-                                error=data.get("error"),
-                            ))
+                            all_results.append(
+                                TaskResult(
+                                    task_id=task.id,
+                                    success=data.get("success", True),
+                                    output=data.get("result_text"),
+                                    error=data.get("error"),
+                                )
+                            )
                             executed_task_ids.add(task.id)
                 continue
 
@@ -268,12 +270,14 @@ class TaskDispatcher:
                         yield event
                         if event.type == EventType.TASK_COMPLETE:
                             data = event.data
-                            all_results.append(TaskResult(
-                                task_id=task.id,
-                                success=data.get("success", True),
-                                output=data.get("result_text"),
-                                error=data.get("error"),
-                            ))
+                            all_results.append(
+                                TaskResult(
+                                    task_id=task.id,
+                                    success=data.get("success", True),
+                                    output=data.get("result_text"),
+                                    error=data.get("error"),
+                                )
+                            )
                             executed_task_ids.add(task.id)
 
         # Phase 2: Execute remaining sequential tasks
@@ -288,12 +292,14 @@ class TaskDispatcher:
                 if event.type == EventType.TASK_COMPLETE:
                     data = event.data
                     success = data.get("success", True)
-                    all_results.append(TaskResult(
-                        task_id=task.id,
-                        success=success,
-                        output=data.get("result_text"),
-                        error=data.get("error"),
-                    ))
+                    all_results.append(
+                        TaskResult(
+                            task_id=task.id,
+                            success=success,
+                            output=data.get("result_text"),
+                            error=data.get("error"),
+                        )
+                    )
                     executed_task_ids.add(task.id)
                     if not success:
                         all_success = False
@@ -316,8 +322,8 @@ class TaskDispatcher:
 
     async def _execute_sequential_task(
         self,
-        task: "Task",
-        sequential_fn: Callable[["Task"], AsyncIterator[AgentEvent]],
+        task: Task,
+        sequential_fn: Callable[[Task], AsyncIterator[AgentEvent]],
         current_index: int,
         total_tasks: int,
     ) -> AsyncIterator[AgentEvent]:
@@ -362,8 +368,8 @@ class TaskDispatcher:
 
 
 def should_use_parallel_dispatch(
-    graph: "TaskGraph",
-    config: "LoopConfig",
+    graph: TaskGraph,
+    config: LoopConfig,
 ) -> bool:
     """Check if parallel dispatch would be beneficial for this TaskGraph.
 

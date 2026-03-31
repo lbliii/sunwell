@@ -131,11 +131,28 @@ def create_project_entry_from_path(path: Path) -> ProjectEntry | None:
 MAX_PROJECTS_PER_ROOT = 100
 """Maximum projects to discover per root to prevent runaway scans."""
 
-SKIP_DIRECTORIES = frozenset({
-    "node_modules", "vendor", ".venv", "venv", "__pycache__",
-    "dist", "build", ".tox", "target", ".git", ".hg", ".svn",
-    "cache", ".cache", "Cache", ".npm", ".cargo", ".rustup",
-})
+SKIP_DIRECTORIES = frozenset(
+    {
+        "node_modules",
+        "vendor",
+        ".venv",
+        "venv",
+        "__pycache__",
+        "dist",
+        "build",
+        ".tox",
+        "target",
+        ".git",
+        ".hg",
+        ".svn",
+        "cache",
+        ".cache",
+        "Cache",
+        ".npm",
+        ".cargo",
+        ".rustup",
+    }
+)
 """Directories to skip during discovery."""
 
 
@@ -182,9 +199,7 @@ def _find_projects_in_directory(
                 _count[0] += 1
             # Otherwise, recurse if depth allows
             elif max_depth > 1:
-                projects.extend(
-                    _find_projects_in_directory(path, detector, max_depth - 1, _count)
-                )
+                projects.extend(_find_projects_in_directory(path, detector, max_depth - 1, _count))
 
     except (PermissionError, OSError):
         pass  # Skip inaccessible directories

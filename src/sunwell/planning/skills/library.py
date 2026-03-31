@@ -79,13 +79,13 @@ class SkillLibrary:
 
     Usage:
         library = SkillLibrary(Path(".sunwell/skills"))
-        
+
         # Save a learned skill
         path = library.save_skill(skill, source="learned", session_id="123")
-        
+
         # Discover all skills
         skills = library.discover_skills()
-        
+
         # Load a specific skill
         skill = library.load_skill("audit-api-docs")
     """
@@ -282,14 +282,16 @@ class SkillLibrary:
                             with open(meta_file) as f:
                                 meta = yaml.safe_load(f) or {}
 
-                        result.append({
-                            "name": data.get("name", skill_dir.name),
-                            "description": data.get("description", ""),
-                            "source": source,
-                            "created_at": meta.get("created_at"),
-                            "version": meta.get("version", "1.0.0"),
-                            "path": str(skill_dir),
-                        })
+                        result.append(
+                            {
+                                "name": data.get("name", skill_dir.name),
+                                "description": data.get("description", ""),
+                                "source": source,
+                                "created_at": meta.get("created_at"),
+                                "version": meta.get("version", "1.0.0"),
+                                "path": str(skill_dir),
+                            }
+                        )
                     except (yaml.YAMLError, OSError):
                         continue
 
@@ -441,10 +443,7 @@ class SkillLibrary:
             ]
 
         if skill.templates:
-            data["templates"] = [
-                {"name": t.name, "content": t.content}
-                for t in skill.templates
-            ]
+            data["templates"] = [{"name": t.name, "content": t.content} for t in skill.templates]
 
         return data
 
@@ -476,19 +475,23 @@ class SkillLibrary:
         # Parse scripts
         scripts: list[Script] = []
         for s in data.get("scripts", []):
-            scripts.append(Script(
-                name=s.get("name", "script.py"),
-                content=s.get("content", ""),
-                language=s.get("language", "python"),
-            ))
+            scripts.append(
+                Script(
+                    name=s.get("name", "script.py"),
+                    content=s.get("content", ""),
+                    language=s.get("language", "python"),
+                )
+            )
 
         # Parse templates
         templates: list[Template] = []
         for t in data.get("templates", []):
-            templates.append(Template(
-                name=t.get("name", "template"),
-                content=t.get("content", ""),
-            ))
+            templates.append(
+                Template(
+                    name=t.get("name", "template"),
+                    content=t.get("content", ""),
+                )
+            )
 
         # Determine skill type
         skill_type_str = data.get("type", "inline")

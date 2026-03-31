@@ -4,7 +4,6 @@ This module provides a simple enum for classifying models by parameter count,
 used for selecting appropriate configuration presets.
 """
 
-
 from enum import Enum
 
 
@@ -15,10 +14,10 @@ class ModelSize(str, Enum):
     resonance, and other model-size-dependent features.
     """
 
-    TINY = "tiny"      # <1B params (gemma3:1b, phi-3-mini)
-    SMALL = "small"    # 1-4B params (llama3.2:3b, phi-3-small)
+    TINY = "tiny"  # <1B params (gemma3:1b, phi-3-mini)
+    SMALL = "small"  # 1-4B params (llama3.2:3b, phi-3-small)
     MEDIUM = "medium"  # 4-13B params (llama3.1:8b, mistral)
-    LARGE = "large"    # 13B+ params (llama3.1:70b, mixtral, gpt-oss:20b)
+    LARGE = "large"  # 13B+ params (llama3.1:70b, mixtral, gpt-oss:20b)
 
     @classmethod
     def from_param_count(cls, params_billions: float) -> ModelSize:

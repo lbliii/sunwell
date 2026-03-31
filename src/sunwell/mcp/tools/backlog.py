@@ -16,11 +16,10 @@ to completion. They're unaware of the larger system."
 (Cursor self-driving codebases research, Feb 2026)
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -29,11 +28,7 @@ from sunwell.mcp.formatting import (
     resolve_format,
     truncate,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +52,12 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
                 ws = runtime.resolve_workspace(project)
                 if ws != runtime.workspace:
                     from sunwell.features.backlog.manager import BacklogManager
+
                     return BacklogManager(root=ws)
             return runtime.backlog
         # Fallback: no runtime
         from sunwell.features.backlog.manager import BacklogManager
+
         ws = Path(project).expanduser().resolve() if project else Path.cwd()
         return BacklogManager(root=ws)
 
@@ -100,10 +97,11 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
         try:
             manager = _get_manager(project)
 
+            blocked = getattr(manager.backlog, "blocked", {})
             stats = {
                 "total_goals": len(manager.backlog.goals),
                 "completed": len(manager.backlog.completed),
-                "blocked": len(manager.backlog.blocked),
+                "blocked": len(blocked),
                 "in_progress": manager.backlog.in_progress,
             }
 
@@ -113,15 +111,18 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
 
             goals_list = []
             for goal_id, goal in manager.backlog.goals.items():
-                # Derive state
+                # Derive state (stub has no claimed_by/claimed_at; use in_progress)
                 is_completed = goal_id in manager.backlog.completed
-                is_blocked = goal_id in manager.backlog.blocked
-                is_claimed = goal.claimed_by is not None
+                is_blocked = goal_id in blocked
+                is_claimed = goal_id == manager.backlog.in_progress
 
                 goal_state = (
-                    "completed" if is_completed
-                    else "blocked" if is_blocked
-                    else "claimed" if is_claimed
+                    "completed"
+                    if is_completed
+                    else "blocked"
+                    if is_blocked
+                    else "claimed"
+                    if is_claimed
                     else "pending"
                 )
 
@@ -130,22 +131,25 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
                     continue
 
                 desc_limit = 500 if fmt == "compact" else 0
-                entry = omit_empty({
-                    "id": goal.id,
-                    "title": goal.title,
-                    "description": truncate(goal.description, desc_limit) if desc_limit else goal.description,
-                    "priority": goal.priority,
-                    "category": goal.category,
-                    "estimated_complexity": goal.estimated_complexity,
-                    "auto_approvable": goal.auto_approvable,
-                    "claimed_by": goal.claimed_by,
-                    "claimed_at": (
-                        goal.claimed_at.isoformat() if goal.claimed_at else None
-                    ),
-                    "requires": list(goal.requires),
-                    "produces": list(goal.produces),
-                    "state": goal_state,
-                })
+                produces = getattr(goal, "produces", ())
+                entry = omit_empty(
+                    {
+                        "id": goal.id,
+                        "title": goal.title,
+                        "description": truncate(goal.description, desc_limit)
+                        if desc_limit
+                        else goal.description,
+                        "priority": goal.priority,
+                        "category": goal.category,
+                        "estimated_complexity": goal.estimated_complexity,
+                        "auto_approvable": goal.auto_approvable,
+                        "claimed_by": None,  # Stub has no claim tracking
+                        "claimed_at": None,
+                        "requires": list(goal.requires),
+                        "produces": list(produces),
+                        "state": goal_state,
+                    }
+                )
 
                 if fmt == "full":
                     entry["scope"] = {
@@ -159,17 +163,23 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
             goals_list.sort(key=lambda g: g["priority"], reverse=True)
             goals_list = goals_list[:max_results]
 
-            return mcp_json({
-                "goals": goals_list,
-                "total": len(goals_list),
-                "backlog_stats": stats,
-            }, fmt)
+            return mcp_json(
+                {
+                    "goals": goals_list,
+                    "total": len(goals_list),
+                    "backlog_stats": stats,
+                },
+                fmt,
+            )
 
         except Exception as e:
-            return mcp_json({
-                "error": str(e),
-                "hint": "Ensure the workspace has a .sunwell/backlog directory",
-            }, fmt)
+            return mcp_json(
+                {
+                    "error": str(e),
+                    "hint": "Ensure the workspace has a .sunwell/backlog directory",
+                },
+                fmt,
+            )
 
     @mcp.tool()
     def sunwell_goal(
@@ -197,19 +207,26 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
 
             goal = manager.backlog.goals.get(goal_id)
             if goal is None:
-                return mcp_json({
-                    "error": f"Goal '{goal_id}' not found",
-                    "available_goals": list(manager.backlog.goals.keys())[:20],
-                }, fmt)
+                return mcp_json(
+                    {
+                        "error": f"Goal '{goal_id}' not found",
+                        "available_goals": list(manager.backlog.goals.keys())[:20],
+                    },
+                    fmt,
+                )
 
+            blocked = getattr(manager.backlog, "blocked", {})
             is_completed = goal_id in manager.backlog.completed
-            is_blocked = goal_id in manager.backlog.blocked
-            is_claimed = goal.claimed_by is not None
+            is_blocked = goal_id in blocked
+            is_claimed = goal_id == manager.backlog.in_progress
 
             goal_state = (
-                "completed" if is_completed
-                else "blocked" if is_blocked
-                else "claimed" if is_claimed
+                "completed"
+                if is_completed
+                else "blocked"
+                if is_blocked
+                else "claimed"
+                if is_claimed
                 else "pending"
             )
 
@@ -219,27 +236,34 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
                 dep = manager.backlog.goals.get(dep_id)
                 if dep:
                     dep_completed = dep_id in manager.backlog.completed
-                    dependencies.append({
-                        "id": dep_id,
-                        "title": dep.title,
-                        "completed": dep_completed,
-                    })
+                    dependencies.append(
+                        {
+                            "id": dep_id,
+                            "title": dep.title,
+                            "completed": dep_completed,
+                        }
+                    )
                 else:
-                    dependencies.append({
-                        "id": dep_id,
-                        "title": "(unknown)",
-                        "completed": False,
-                    })
+                    dependencies.append(
+                        {
+                            "id": dep_id,
+                            "title": "(unknown)",
+                            "completed": False,
+                        }
+                    )
 
             # Find dependents (goals that require this one)
             dependents = []
             for other_id, other in manager.backlog.goals.items():
                 if goal_id in other.requires:
-                    dependents.append({
-                        "id": other_id,
-                        "title": other.title,
-                    })
+                    dependents.append(
+                        {
+                            "id": other_id,
+                            "title": other.title,
+                        }
+                    )
 
+            produces = getattr(goal, "produces", ())
             result = {
                 "id": goal.id,
                 "title": goal.title,
@@ -249,21 +273,17 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
                 "estimated_complexity": goal.estimated_complexity,
                 "auto_approvable": goal.auto_approvable,
                 "state": goal_state,
-                "claimed_by": goal.claimed_by,
-                "claimed_at": (
-                    goal.claimed_at.isoformat() if goal.claimed_at else None
-                ),
+                "claimed_by": None,  # Stub has no claim tracking
+                "claimed_at": None,
                 "requires": list(goal.requires),
-                "produces": list(goal.produces),
+                "produces": list(produces),
                 "scope": {
                     "max_files": goal.scope.max_files,
                     "max_lines_changed": goal.scope.max_lines_changed,
                 },
                 "dependencies": dependencies,
                 "dependents": dependents,
-                "all_deps_met": all(
-                    d["completed"] for d in dependencies
-                ),
+                "all_deps_met": all(d["completed"] for d in dependencies),
             }
 
             return mcp_json(result, fmt)
@@ -294,44 +314,29 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
             estimated complexity, and recommended priority
         """
         try:
-            from sunwell.features.backlog.decomposer import BacklogDecomposer
-
-            ws = runtime.resolve_workspace(project) if runtime else Path.cwd()
-            decomposer = BacklogDecomposer(root=ws)
-
-            if not runtime:
-                return mcp_json({"error": "Runtime not available for async decomposition"}, "compact")
-
-            suggestions = runtime.run(decomposer.decompose_signal(signal))
-
-            # Format suggestions
-            results = []
-            for s in suggestions[:max_suggestions]:
-                results.append({
-                    "title": getattr(s, "title", str(s)),
-                    "description": getattr(s, "description", ""),
-                    "category": getattr(s, "category", "general"),
-                    "estimated_complexity": getattr(s, "estimated_complexity", "medium"),
-                    "priority": getattr(s, "priority", 5),
-                    "requires": list(getattr(s, "requires", ())),
-                })
-
-            return mcp_json({
-                "signal": signal,
-                "suggestions": results,
-                "total": len(results),
-                "hint": (
-                    "These are suggestions. Use sunwell_execute() to act on them, "
-                    "or add them to the backlog manually."
-                ),
-            }, "compact")
+            # Decomposer removed; return placeholder until feature restored
+            return mcp_json(
+                {
+                    "signal": signal,
+                    "suggestions": [],
+                    "total": 0,
+                    "hint": (
+                        "Signal decomposition is not available. Add goals explicitly "
+                        "with 'sunwell backlog add <goal>' or use sunwell_goals to browse."
+                    ),
+                },
+                "compact",
+            )
 
         except Exception as e:
-            return mcp_json({
-                "error": str(e),
-                "signal": signal,
-                "hint": "Signal decomposition requires an indexed workspace",
-            }, "compact")
+            return mcp_json(
+                {
+                    "error": str(e),
+                    "signal": signal,
+                    "hint": "Signal decomposition requires an indexed workspace",
+                },
+                "compact",
+            )
 
     # ------------------------------------------------------------------
     # Multi-agent coordination tools (self-driving architecture)
@@ -358,57 +363,71 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
         try:
             manager = _get_manager()
 
-            # Use worker hash as ID
-            worker_id = hash(worker_name) % 10000
+            # Use worker hash as ID (stub expects str)
+            worker_id = str(hash(worker_name) % 10000)
 
             if not runtime:
                 return mcp_json({"error": "Runtime not available for async claim"}, "compact")
+
+            # Stub: already claimed if in_progress
+            if manager.backlog.in_progress and manager.backlog.in_progress != goal_id:
+                return mcp_json(
+                    {
+                        "claimed": False,
+                        "reason": f"Another goal already in progress",
+                    },
+                    "compact",
+                )
 
             claimed = runtime.run(manager.claim_goal(goal_id, worker_id=worker_id))
 
             if not claimed:
                 goal = manager.backlog.goals.get(goal_id)
                 if goal is None:
-                    return mcp_json({
+                    return mcp_json(
+                        {
+                            "claimed": False,
+                            "reason": f"Goal '{goal_id}' not found",
+                        },
+                        "compact",
+                    )
+                return mcp_json(
+                    {
                         "claimed": False,
-                        "reason": f"Goal '{goal_id}' not found",
-                    }, "compact")
-                if goal.claimed_by is not None:
-                    return mcp_json({
-                        "claimed": False,
-                        "reason": f"Goal already claimed by worker {goal.claimed_by}",
-                    }, "compact")
-                return mcp_json({
-                    "claimed": False,
-                    "reason": "Claim failed (unknown reason)",
-                }, "compact")
+                        "reason": "Claim failed (unknown reason)",
+                    },
+                    "compact",
+                )
 
             # Return full goal context for the claiming agent
             goal = manager.backlog.goals[goal_id]
-            return mcp_json({
-                "claimed": True,
-                "goal": {
-                    "id": goal.id,
-                    "title": goal.title,
-                    "description": goal.description,
-                    "category": goal.category,
-                    "estimated_complexity": goal.estimated_complexity,
-                    "requires": list(goal.requires),
-                    "produces": list(goal.produces),
-                    "scope": {
-                        "max_files": goal.scope.max_files,
-                        "max_lines_changed": goal.scope.max_lines_changed,
+            return mcp_json(
+                {
+                    "claimed": True,
+                    "goal": {
+                        "id": goal.id,
+                        "title": goal.title,
+                        "description": goal.description,
+                        "category": goal.category,
+                        "estimated_complexity": goal.estimated_complexity,
+                        "requires": list(goal.requires),
+                        "produces": list(goal.produces),
+                        "scope": {
+                            "max_files": goal.scope.max_files,
+                            "max_lines_changed": goal.scope.max_lines_changed,
+                        },
                     },
+                    "worker_id": worker_id,
+                    "worker_name": worker_name,
+                    "instructions": (
+                        "You have claimed this goal. Execute it within the scope limits. "
+                        "When done, call sunwell_submit_handoff() with your results, "
+                        "findings, and any concerns. If you cannot complete it, call "
+                        "sunwell_release_goal() to release the claim."
+                    ),
                 },
-                "worker_id": worker_id,
-                "worker_name": worker_name,
-                "instructions": (
-                    "You have claimed this goal. Execute it within the scope limits. "
-                    "When done, call sunwell_submit_handoff() with your results, "
-                    "findings, and any concerns. If you cannot complete it, call "
-                    "sunwell_release_goal() to release the claim."
-                ),
-            }, "full")
+                "full",
+            )
 
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
@@ -447,36 +466,48 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
         try:
             manager = _get_manager()
 
-            # Verify goal exists and is claimed
+            # Verify goal exists and is claimed (stub: in_progress tracks claim)
             goal = manager.backlog.goals.get(goal_id)
             if goal is None:
-                return mcp_json({
-                    "accepted": False,
-                    "reason": f"Goal '{goal_id}' not found",
-                }, "compact")
+                return mcp_json(
+                    {
+                        "accepted": False,
+                        "reason": f"Goal '{goal_id}' not found",
+                    },
+                    "compact",
+                )
 
-            if goal.claimed_by is None:
-                return mcp_json({
-                    "accepted": False,
-                    "reason": "Goal is not claimed. Claim it first with sunwell_claim_goal().",
-                }, "compact")
+            if manager.backlog.in_progress != goal_id:
+                return mcp_json(
+                    {
+                        "accepted": False,
+                        "reason": "Goal is not claimed. Claim it first with sunwell_claim_goal().",
+                    },
+                    "compact",
+                )
 
             # Parse comma-separated fields
-            files_list = [f.strip() for f in files_changed.split(",") if f.strip()] if files_changed else []
-            findings_list = [f.strip() for f in findings.split(",") if f.strip()] if findings else []
-            concerns_list = [c.strip() for c in concerns.split(",") if c.strip()] if concerns else []
-            suggestions_list = [s.strip() for s in suggestions.split(",") if s.strip()] if suggestions else []
+            files_list = (
+                [f.strip() for f in files_changed.split(",") if f.strip()] if files_changed else []
+            )
+            findings_list = (
+                [f.strip() for f in findings.split(",") if f.strip()] if findings else []
+            )
+            concerns_list = (
+                [c.strip() for c in concerns.split(",") if c.strip()] if concerns else []
+            )
+            suggestions_list = (
+                [s.strip() for s in suggestions.split(",") if s.strip()] if suggestions else []
+            )
 
-            # Create handoff
+            # Create handoff (stub has no claimed_by; use in_progress as worker hint)
             handoff = Handoff(
                 task_id=goal_id,
-                worker_id=f"mcp-worker-{goal.claimed_by}",
+                worker_id="mcp-worker",
                 success=success,
                 summary=summary,
                 artifacts=tuple(files_list),
-                findings=tuple(
-                    Finding(description=f) for f in findings_list
-                ),
+                findings=tuple(Finding(description=f) for f in findings_list),
                 concerns=tuple(concerns_list),
                 suggestions=tuple(suggestions_list),
             )
@@ -484,36 +515,34 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
             if not runtime:
                 return mcp_json({"error": "Runtime not available for async handoff"}, "compact")
 
-            # Update goal status
+            # Update goal status (stub: complete_goal takes artifacts, not GoalResult)
             if success:
-                from sunwell.features.backlog.goals import GoalResult
-                result = GoalResult(
-                    success=True,
-                    summary=summary,
-                    files_changed=tuple(files_list),
-                )
-                runtime.run(manager.complete_goal(goal_id, result))
+                runtime.run(manager.complete_goal(goal_id, artifacts=tuple(files_list)))
             else:
                 runtime.run(manager.mark_failed(goal_id, summary))
 
-            # Store handoff for planner consumption
-            _store_handoff(manager.backlog_path, handoff)
+            # Store handoff for planner consumption (stub: use root, not backlog_path)
+            handoff_dir = manager.root / ".sunwell" / "backlog"
+            _store_handoff(handoff_dir, handoff)
 
-            return mcp_json({
-                "accepted": True,
-                "goal_id": goal_id,
-                "new_status": "completed" if success else "failed",
-                "handoff_summary": {
-                    "findings_count": len(findings_list),
-                    "concerns_count": len(concerns_list),
-                    "suggestions_count": len(suggestions_list),
-                    "files_changed": len(files_list),
+            return mcp_json(
+                {
+                    "accepted": True,
+                    "goal_id": goal_id,
+                    "new_status": "completed" if success else "failed",
+                    "handoff_summary": {
+                        "findings_count": len(findings_list),
+                        "concerns_count": len(concerns_list),
+                        "suggestions_count": len(suggestions_list),
+                        "files_changed": len(files_list),
+                    },
+                    "message": (
+                        "Handoff received. The planner will incorporate your "
+                        "findings into the next planning cycle."
+                    ),
                 },
-                "message": (
-                    "Handoff received. The planner will incorporate your "
-                    "findings into the next planning cycle."
-                ),
-            }, "compact")
+                "compact",
+            )
 
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")
@@ -537,27 +566,36 @@ def register_backlog_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> N
 
             goal = manager.backlog.goals.get(goal_id)
             if goal is None:
-                return mcp_json({
-                    "released": False,
-                    "reason": f"Goal '{goal_id}' not found",
-                }, "compact")
+                return mcp_json(
+                    {
+                        "released": False,
+                        "reason": f"Goal '{goal_id}' not found",
+                    },
+                    "compact",
+                )
 
-            if goal.claimed_by is None:
-                return mcp_json({
-                    "released": False,
-                    "reason": "Goal is not claimed",
-                }, "compact")
+            if manager.backlog.in_progress != goal_id:
+                return mcp_json(
+                    {
+                        "released": False,
+                        "reason": "Goal is not claimed",
+                    },
+                    "compact",
+                )
 
             if not runtime:
                 return mcp_json({"error": "Runtime not available for async release"}, "compact")
 
             runtime.run(manager.unclaim_goal(goal_id))
 
-            return mcp_json({
-                "released": True,
-                "goal_id": goal_id,
-                "message": "Goal released and available for other agents.",
-            }, "compact")
+            return mcp_json(
+                {
+                    "released": True,
+                    "goal_id": goal_id,
+                    "message": "Goal released and available for other agents.",
+                },
+                "compact",
+            )
 
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")

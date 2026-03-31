@@ -136,10 +136,7 @@ class Focus:
 
         # Sum weights of matching topics
         total_weight = sum(self.topics.values())
-        matching_weight = sum(
-            self.topics.get(tag, 0)
-            for tag in tags
-        )
+        matching_weight = sum(self.topics.get(tag, 0) for tag in tags)
 
         if total_weight == 0:
             return 0.5

@@ -48,6 +48,7 @@ class SkillSubgraphExtractedData(TypedDict, total=False):
 
 class SkillGraphResolvedData(TypedDict, total=False):
     """Data for skill_graph_resolved event (RFC-087)."""
+
     lens_name: str  # Required
     skill_count: int  # Required
     wave_count: int  # Required
@@ -56,6 +57,7 @@ class SkillGraphResolvedData(TypedDict, total=False):
 
 class SkillWaveStartData(TypedDict, total=False):
     """Data for skill_wave_start event (RFC-087)."""
+
     wave_index: int  # Required
     total_waves: int  # Required
     skills: list[str]  # Required - skill names in this wave
@@ -64,6 +66,7 @@ class SkillWaveStartData(TypedDict, total=False):
 
 class SkillWaveCompleteData(TypedDict, total=False):
     """Data for skill_wave_complete event (RFC-087)."""
+
     wave_index: int  # Required
     duration_ms: int  # Required
     succeeded: list[str]  # Required - skills that succeeded
@@ -72,6 +75,7 @@ class SkillWaveCompleteData(TypedDict, total=False):
 
 class SkillCacheHitData(TypedDict, total=False):
     """Data for skill_cache_hit event (RFC-087)."""
+
     skill_name: str  # Required
     cache_key: str  # Required
     saved_ms: int  # Required - estimated time saved
@@ -79,6 +83,7 @@ class SkillCacheHitData(TypedDict, total=False):
 
 class SkillExecuteStartData(TypedDict, total=False):
     """Data for skill_execute_start event (RFC-087)."""
+
     skill_name: str  # Required
     wave_index: int  # Required
     requires: list[str]  # Required - context keys this skill needs
@@ -90,6 +95,7 @@ class SkillExecuteStartData(TypedDict, total=False):
 
 class SkillExecuteCompleteData(TypedDict, total=False):
     """Data for skill_execute_complete event (RFC-087)."""
+
     skill_name: str  # Required
     duration_ms: int  # Required
     produces: list[str]  # Required - context keys produced

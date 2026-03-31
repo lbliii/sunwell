@@ -752,9 +752,7 @@ class LearningCache:
                 conn.execute("DELETE FROM bm25_metadata")
 
                 # Get all learnings
-                rows = conn.execute(
-                    "SELECT id, fact FROM learnings"
-                ).fetchall()
+                rows = conn.execute("SELECT id, fact FROM learnings").fetchall()
 
                 if not rows:
                     conn.commit()
@@ -836,9 +834,7 @@ class LearningCache:
         try:
             self._ensure_schema(conn)
 
-            count = conn.execute(
-                "SELECT COUNT(*) FROM bm25_index"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM bm25_index").fetchone()[0]
 
             return count > 0
         finally:
@@ -946,9 +942,7 @@ class LearningCache:
 
                     # BM25 formula
                     numerator = tf * (k1 + 1)
-                    denominator = tf + k1 * (
-                        1 - b + b * doc_length / avg_doc_length
-                    )
+                    denominator = tf + k1 * (1 - b + b * doc_length / avg_doc_length)
                     term_score = idf * (numerator / denominator)
 
                     # Accumulate score
@@ -999,22 +993,18 @@ class LearningCache:
                     "total_entries": 0,
                 }
 
-            unique_terms = conn.execute(
-                "SELECT COUNT(DISTINCT term) FROM bm25_index"
-            ).fetchone()[0]
+            unique_terms = conn.execute("SELECT COUNT(DISTINCT term) FROM bm25_index").fetchone()[0]
 
-            total_entries = conn.execute(
-                "SELECT COUNT(*) FROM bm25_index"
-            ).fetchone()[0]
+            total_entries = conn.execute("SELECT COUNT(*) FROM bm25_index").fetchone()[0]
 
             avg_doc_length = conn.execute(
                 "SELECT value FROM bm25_metadata WHERE key = 'avg_doc_length'"
             ).fetchone()[0]
 
             total_docs = int(
-                conn.execute(
-                    "SELECT value FROM bm25_metadata WHERE key = 'total_docs'"
-                ).fetchone()[0]
+                conn.execute("SELECT value FROM bm25_metadata WHERE key = 'total_docs'").fetchone()[
+                    0
+                ]
             )
 
             return {

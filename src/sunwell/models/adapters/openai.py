@@ -1,6 +1,5 @@
 """OpenAI model adapter with tool calling support (RFC-012)."""
 
-
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -41,6 +40,7 @@ class OpenAIModel:
     def __post_init__(self) -> None:
         """Read API key from environment if not provided."""
         import os
+
         if self.api_key is None:
             self.api_key = os.environ.get("OPENAI_API_KEY")
 
@@ -54,9 +54,7 @@ class OpenAIModel:
             try:
                 from openai import AsyncOpenAI
             except ImportError as e:
-                raise ImportError(
-                    "OpenAI not installed. Run: pip install sunwell[openai]"
-                ) from e
+                raise ImportError("OpenAI not installed. Run: pip install sunwell[openai]") from e
 
             # Check for API key BEFORE creating client (gives clear error)
             if not self.api_key:
@@ -117,11 +115,13 @@ class OpenAIModel:
                         ]
                     messages.append(assistant_msg)
                 elif msg.role == "tool":
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": msg.tool_call_id,
-                        "content": msg.content or "",
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": msg.tool_call_id,
+                            "content": msg.content or "",
+                        }
+                    )
 
         return messages
 
@@ -227,7 +227,9 @@ class OpenAIModel:
                 prompt_tokens=usage.prompt_tokens if usage else 0,
                 completion_tokens=usage.completion_tokens if usage else 0,
                 total_tokens=usage.total_tokens if usage else 0,
-            ) if usage else None,
+            )
+            if usage
+            else None,
             finish_reason=response.choices[0].finish_reason,
         )
 

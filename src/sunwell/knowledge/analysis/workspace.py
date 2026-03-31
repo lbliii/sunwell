@@ -40,9 +40,16 @@ _PROJECT_MARKERS: tuple[tuple[str, str, float], ...] = (
 )
 
 # Directories that indicate this is a source code project (not just docs)
-_SOURCE_INDICATORS: frozenset[str] = frozenset({
-    "src", "lib", "pkg", "internal", "cmd", "app",
-})
+_SOURCE_INDICATORS: frozenset[str] = frozenset(
+    {
+        "src",
+        "lib",
+        "pkg",
+        "internal",
+        "cmd",
+        "app",
+    }
+)
 
 # ═══════════════════════════════════════════════════════════════
 # PRE-COMPILED REGEX PATTERNS
@@ -314,10 +321,7 @@ class WorkspaceDetector:
             marker_path = parent / marker
             if marker_path.exists():
                 # Verify parent has actual source code (not just config)
-                has_source = any(
-                    (parent / indicator).is_dir()
-                    for indicator in _SOURCE_INDICATORS
-                )
+                has_source = any((parent / indicator).is_dir() for indicator in _SOURCE_INDICATORS)
 
                 # Adjust confidence based on source indicators
                 final_confidence = confidence if has_source else confidence * 0.8
@@ -609,19 +613,19 @@ async def build_workspace(
             target = Path(target).expanduser().resolve()
             # Check if already detected
             if target.exists() and not any(lnk.target == target for lnk in links):
-                    detector = WorkspaceDetector()
-                    language = detector._detect_language(target)
-                    links.append(
-                        WorkspaceLink(
-                            source=docs_root,
-                            target=target,
-                            relationship="source_code",
-                            confidence=1.0,
-                            evidence="Explicitly linked by user",
-                            language=language,
-                            confirmed=True,
-                        )
+                detector = WorkspaceDetector()
+                language = detector._detect_language(target)
+                links.append(
+                    WorkspaceLink(
+                        source=docs_root,
+                        target=target,
+                        relationship="source_code",
+                        confidence=1.0,
+                        evidence="Explicitly linked by user",
+                        language=language,
+                        confirmed=True,
                     )
+                )
 
     # Detect topology
     topology: Literal["monorepo", "polyrepo", "hybrid"] = "polyrepo"

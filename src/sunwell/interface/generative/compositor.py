@@ -9,7 +9,6 @@ The compositor predicts UI layout before content is ready,
 enabling instant skeleton rendering while content streams in.
 """
 
-
 import json
 import re
 from dataclasses import dataclass, field

@@ -63,10 +63,13 @@ async def interference_generate(
             )
         else:
             # Insert new system message
-            perspective_messages.insert(0, Message(
-                role="system",
-                content=f"Think from the perspective of a {perspective}.",
-            ))
+            perspective_messages.insert(
+                0,
+                Message(
+                    role="system",
+                    content=f"Think from the perspective of a {perspective}.",
+                ),
+            )
 
         try:
             result = await model.generate(

@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from sunwell.foundation.schema.models.types import LensReference, SemanticVersion
 from sunwell.foundation.core.lens import LensMetadata
+from sunwell.foundation.schema.models.types import LensReference, SemanticVersion
 
 
 def parse_metadata(data: dict[str, Any]) -> LensMetadata:

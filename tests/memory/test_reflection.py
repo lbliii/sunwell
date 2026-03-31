@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.memory.core.reflection.causality import CausalityAnalyzer
 from sunwell.memory.core.reflection.patterns import PatternDetector
 from sunwell.memory.core.reflection.reflector import Reflector

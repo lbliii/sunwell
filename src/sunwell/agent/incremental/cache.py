@@ -218,9 +218,7 @@ class ExecutionCache:
     def _get_metadata(self, key: str) -> str | None:
         """Get a metadata value."""
         with self._lock:
-            row = self._conn.execute(
-                "SELECT value FROM metadata WHERE key = ?", (key,)
-            ).fetchone()
+            row = self._conn.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
         return row["value"] if row else None
 
     def get(self, artifact_id: str) -> CachedExecution | None:

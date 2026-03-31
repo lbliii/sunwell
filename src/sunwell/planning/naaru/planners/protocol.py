@@ -3,7 +3,6 @@
 This module defines the TaskPlanner protocol, PlanningStrategy, and related exceptions.
 """
 
-
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
@@ -70,7 +69,6 @@ class TaskPlanner(Protocol):
     """Protocol for task planning/decomposition (RFC-032, RFC-094).
 
     Implementations:
-    - SelfImprovementPlanner: Find opportunities in Sunwell's codebase
     - AgentPlanner: Decompose arbitrary user goals into tasks
     - HybridPlanner: Combines both modes (future)
 

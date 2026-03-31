@@ -17,7 +17,6 @@ Why double-colon?
 | ::cmd  | Very low   | Almost never in natural English  |
 """
 
-
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -31,6 +30,7 @@ if TYPE_CHECKING:
 # =============================================================================
 # Types
 # =============================================================================
+
 
 @dataclass(frozen=True, slots=True)
 class ParsedInput:
@@ -64,7 +64,7 @@ CommandHandler = Callable[[str, ChatSession], Awaitable[str | None]]
 # =============================================================================
 
 # Command pattern: ::word with optional arguments
-COMMAND_PATTERN = re.compile(r'^::([a-zA-Z][\w-]*)\s*(.*)', re.DOTALL)
+COMMAND_PATTERN = re.compile(r"^::([a-zA-Z][\w-]*)\s*(.*)", re.DOTALL)
 
 
 def parse_input(text: str) -> ParsedInput:
@@ -102,17 +102,18 @@ RESET = "\033[0m"
 # Trust level icons (extracted for O(1) reuse)
 TRUST_ICONS: dict[str, str] = {"full": "🔓", "sandboxed": "🔒", "none": "📝"}
 
-HIGHLIGHT_PATTERN = re.compile(r'(^|(?<=\s))(::[\w-]+)')
+HIGHLIGHT_PATTERN = re.compile(r"(^|(?<=\s))(::[\w-]+)")
 
 
 def highlight_commands(text: str) -> str:
     """Highlight ::commands with ANSI colors."""
-    return HIGHLIGHT_PATTERN.sub(rf'\1{BOLD}{CYAN}\2{RESET}', text)
+    return HIGHLIGHT_PATTERN.sub(rf"\1{BOLD}{CYAN}\2{RESET}", text)
 
 
 # =============================================================================
 # Command Registry
 # =============================================================================
+
 
 class CommandRegistry:
     """Registry for ::command handlers."""
@@ -133,10 +134,12 @@ class CommandRegistry:
             async def cmd_help(args: str, session: ChatSession) -> str:
                 return "Help text..."
         """
+
         def decorator(fn: CommandHandler) -> CommandHandler:
             self._handlers[name] = fn
             self._descriptions[name] = description or fn.__doc__ or ""
             return fn
+
         return decorator
 
     def get(self, name: str) -> CommandHandler | None:
@@ -246,15 +249,14 @@ async def cmd_read(args: str, session: ChatSession) -> str:
             return f"File not found: {path}"
 
         content = path.read_text()
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Add to conversation as a system message
-        session.conversation_history.append({
-            "role": "user",
-            "content": f"[File: {path}]\n```\n{content}\n```"
-        })
+        session.conversation_history.append(
+            {"role": "user", "content": f"[File: {path}]\n```\n{content}\n```"}
+        )
 
-        preview = '\n'.join(lines[:10])
+        preview = "\n".join(lines[:10])
         if len(lines) > 10:
             preview += f"\n... ({len(lines) - 10} more lines)"
 
@@ -269,7 +271,7 @@ async def cmd_skills(args: str, session: ChatSession) -> str:
     if not session.lens:
         return "No lens loaded"
 
-    if not hasattr(session.lens, 'skills') or not session.lens.skills:
+    if not hasattr(session.lens, "skills") or not session.lens.skills:
         return "No skills defined in current lens"
 
     lines = ["Available skills:"]
@@ -290,10 +292,10 @@ async def cmd_lens(args: str, session: ChatSession) -> str:
 
         meta = session.lens.metadata
         return f"""Current lens: {meta.name} v{meta.version}
-Domain: {meta.domain or 'general'}
-Description: {meta.description or 'No description'}
+Domain: {meta.domain or "general"}
+Description: {meta.description or "No description"}
 Heuristics: {len(session.lens.heuristics)}
-Skills: {len(session.lens.skills) if hasattr(session.lens, 'skills') else 0}"""
+Skills: {len(session.lens.skills) if hasattr(session.lens, "skills") else 0}"""
 
     # Switch lens (requires lens loader integration)
     return f"Switching lens not yet implemented. Use: sunwell chat --lens {args}"
@@ -438,6 +440,7 @@ async def _execute_skill_shortcut(shortcut: str, args: str, session: ChatSession
 # =============================================================================
 # Integration Helper
 # =============================================================================
+
 
 async def handle_command(
     user_input: str,

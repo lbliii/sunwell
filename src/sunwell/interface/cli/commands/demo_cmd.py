@@ -166,12 +166,10 @@ def _list_available_tasks() -> None:
         default = " [dim](default)[/dim]" if name == "divide" else ""
         console.print(f"  [cyan]{name}[/cyan]{default}")
         console.print(f"    {task.description}")
-        console.print(f"    [dim]Prompt: \"{task.prompt}\"[/dim]")
+        console.print(f'    [dim]Prompt: "{task.prompt}"[/dim]')
         console.print()
 
-    console.print(
-        "[dim]Or provide a custom prompt: sunwell demo --task \"your prompt here\"[/dim]"
-    )
+    console.print('[dim]Or provide a custom prompt: sunwell demo --task "your prompt here"[/dim]')
     console.print()
 
 
@@ -343,9 +341,7 @@ async def _run_demo(
         # Create comparison and present
         if skip_single_shot:
             # Just show Sunwell result
-            _present_single_result(
-                sunwell_result, sunwell_score, demo_task, model_name, verbose
-            )
+            _present_single_result(sunwell_result, sunwell_score, demo_task, model_name, verbose)
         else:
             comparison = DemoComparison(
                 task=demo_task,
@@ -400,19 +396,15 @@ async def _run_iterations(
         task_id = progress.add_task(f"Iteration 1/{iterations}...", total=None)
 
         for i in range(iterations):
-            progress.update(task_id, description=f"Iteration {i+1}/{iterations}...")
+            progress.update(task_id, description=f"Iteration {i + 1}/{iterations}...")
 
             # Run single-shot
             single_shot = await runner.executor.run_single_shot(demo_task)
-            single_score = runner.scorer.score(
-                single_shot.code, demo_task.expected_features
-            )
+            single_score = runner.scorer.score(single_shot.code, demo_task.expected_features)
 
             # Run Sunwell
             sunwell_result = await runner.executor.run_sunwell(demo_task)
-            sunwell_score = runner.scorer.score(
-                sunwell_result.code, demo_task.expected_features
-            )
+            sunwell_score = runner.scorer.score(sunwell_result.code, demo_task.expected_features)
 
             comparison = DemoComparison(
                 task=demo_task,
@@ -429,7 +421,7 @@ async def _run_iterations(
 
             if verbose and not json_output:
                 console.print(
-                    f"  [{i+1}] Single: {single_score.score:.1f} | "
+                    f"  [{i + 1}] Single: {single_score.score:.1f} | "
                     f"Sunwell: {sunwell_score.score:.1f} | "
                     f"Δ: +{comparison.improvement_percent:.0f}%"
                 )
@@ -502,7 +494,7 @@ def _present_iterations_summary(
     )
     console.print()
     console.print(f"Model: [cyan]{model_name}[/cyan]")
-    console.print(f"Task: [cyan]{demo_task.name}[/cyan] — \"{demo_task.prompt}\"")
+    console.print(f'Task: [cyan]{demo_task.name}[/cyan] — "{demo_task.prompt}"')
     console.print()
 
     # Stats table
@@ -532,15 +524,11 @@ def _present_iterations_summary(
         f"[bold green]Average Improvement: +{mean_improvement:.0f}% "
         f"(±{improvement_stdev:.0f}%)[/bold green]"
     )
-    console.print(
-        f"[dim]Range: +{min(improvements):.0f}% to +{max(improvements):.0f}%[/dim]"
-    )
+    console.print(f"[dim]Range: +{min(improvements):.0f}% to +{max(improvements):.0f}%[/dim]")
     console.print()
 
     # Tagline
-    console.print(
-        "[bold cyan]🔮 Same model. Same prompt. Consistently better.[/bold cyan]"
-    )
+    console.print("[bold cyan]🔮 Same model. Same prompt. Consistently better.[/bold cyan]")
     console.print()
 
 
@@ -576,7 +564,7 @@ def _present_single_result(
     )
     console.print()
     console.print(f"Using model: [cyan]{model_name}[/cyan]")
-    console.print(f"Task: [cyan]{task.name}[/cyan] — \"{task.prompt}\"")
+    console.print(f'Task: [cyan]{task.name}[/cyan] — "{task.prompt}"')
     console.print()
 
     # Show timing
@@ -664,11 +652,13 @@ async def _run_demo_streaming(
     demo_task = get_task(task)
 
     # Emit start event
-    emit({
-        "type": "start",
-        "model": model_name,
-        "task": {"name": demo_task.name, "prompt": demo_task.prompt},
-    })
+    emit(
+        {
+            "type": "start",
+            "model": model_name,
+            "task": {"name": demo_task.name, "prompt": demo_task.prompt},
+        }
+    )
 
     # Create executor and scorer
     executor = DemoExecutor(model, verbose=False)

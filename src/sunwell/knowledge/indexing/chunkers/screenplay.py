@@ -57,9 +57,7 @@ class ScreenplayChunker:
         scenes = self._split_by_scenes(content, file_path)
         return scenes
 
-    def _split_by_scenes(
-        self, content: str, file_path: Path
-    ) -> list[SceneChunk]:
+    def _split_by_scenes(self, content: str, file_path: Path) -> list[SceneChunk]:
         """Split screenplay into scenes."""
         lines = content.split("\n")
         chunks: list[SceneChunk] = []

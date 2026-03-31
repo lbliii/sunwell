@@ -99,8 +99,7 @@ class CompiledTaskGraph:
         return [
             t
             for t in self.tasks
-            if t.id not in completed_ids
-            and t.is_ready(completed_ids, completed_artifacts)
+            if t.id not in completed_ids and t.is_ready(completed_ids, completed_artifacts)
         ]
 
     def get_wave_for_task(self, task_id: str) -> int:
@@ -373,9 +372,7 @@ class SkillCompiler:
 
             if not ready:
                 # Deadlock — should have been caught by validation
-                raise SkillCompilationError(
-                    f"Execution deadlock with pending tasks: {pending}"
-                )
+                raise SkillCompilationError(f"Execution deadlock with pending tasks: {pending}")
 
             waves.append(ready)
             completed.update(ready)
@@ -427,7 +424,4 @@ def has_dag_metadata(skills: tuple[Skill, ...] | list[Skill]) -> bool:
     Returns True if at least one skill has depends_on, produces, or requires.
     This determines whether to use skill compilation vs legacy planning.
     """
-    return any(
-        skill.depends_on or skill.produces or skill.requires
-        for skill in skills
-    )
+    return any(skill.depends_on or skill.produces or skill.requires for skill in skills)

@@ -126,9 +126,7 @@ def invalidate_shortcut_cache() -> None:
         _shortcut_cache = None
 
 
-def complete_shortcut(
-    ctx: click.Context, param: click.Parameter, incomplete: str
-) -> list[str]:
+def complete_shortcut(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[str]:
     """Shell completion for shortcuts.
 
     Uses cached lens shortcuts for fast completion performance.
@@ -139,9 +137,7 @@ def complete_shortcut(
     return [s for s in shortcuts if s.startswith(incomplete_clean)]
 
 
-def complete_target(
-    ctx: click.Context, param: click.Parameter, incomplete: str
-) -> list[str]:
+def complete_target(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[str]:
     """Shell completion for file paths."""
     base = Path(incomplete).parent if incomplete else Path(".")
     prefix = Path(incomplete).name if incomplete else ""
@@ -232,9 +228,7 @@ async def run_shortcut(
     if not skill_name:
         console.print(f"  [void.purple]✗[/] [sunwell.error]Unknown shortcut:[/] {shortcut}")
         if lens.router and lens.router.shortcuts:
-            available = ", ".join(
-                sorted(k.lstrip(":") for k in lens.router.shortcuts.keys())
-            )
+            available = ", ".join(sorted(k.lstrip(":") for k in lens.router.shortcuts.keys()))
             console.print(f"[neutral.dim]  Available in {lens_name}: {available}[/]")
         else:
             console.print(f"[neutral.dim]  Lens '{lens_name}' has no shortcuts defined.[/]")
@@ -244,7 +238,9 @@ async def run_shortcut(
     # 3. Find skill in lens
     skill = lens.get_skill(skill_name)
     if not skill:
-        console.print(f"  [void.purple]✗[/] [sunwell.error]Skill not found in lens:[/] {skill_name}")
+        console.print(
+            f"  [void.purple]✗[/] [sunwell.error]Skill not found in lens:[/] {skill_name}"
+        )
         return
 
     if verbose:
@@ -259,9 +255,7 @@ async def run_shortcut(
     context = await _build_skill_context(target, workspace_root)
 
     if plan_only:
-        _show_execution_plan(
-            shortcut, skill_name, skill, lens, target, context, verbose
-        )
+        _show_execution_plan(shortcut, skill_name, skill, lens, target, context, verbose)
         return
 
     # 6. Create model
@@ -309,9 +303,7 @@ async def run_shortcut(
     )
 
     # Filter context to only string values
-    exec_context: dict[str, str] = {
-        k: v for k, v in context.items() if isinstance(v, str)
-    }
+    exec_context: dict[str, str] = {k: v for k, v in context.items() if isinstance(v, str)}
 
     # Build explicit task description with document content
     task_parts = []
@@ -334,9 +326,7 @@ async def run_shortcut(
 
     # 9. Execute in agentic mode
     def on_tool_call(tool_name: str, args: dict) -> None:
-        args_preview = ", ".join(
-            f"{k}={repr(v)[:30]}" for k, v in list(args.items())[:2]
-        )
+        args_preview = ", ".join(f"{k}={repr(v)[:30]}" for k, v in list(args.items())[:2])
         console.print(f"  [holy.radiant]✧ {tool_name}[/] [neutral.dim]({args_preview})[/]")
 
     def on_tool_result(tool_name: str, success: bool, output: str) -> None:
@@ -364,6 +354,7 @@ async def run_shortcut(
     # 10. Display result
     if json_output:
         import json as json_module
+
         output = {
             "shortcut": shortcut,
             "skill": skill_name,
@@ -573,21 +564,13 @@ def _detect_diataxis_type(target: Path) -> str | None:
     except Exception:
         return None
 
-    if any(
-        word in content
-        for word in ["step 1", "step 2", "in this tutorial", "you will learn"]
-    ):
+    if any(word in content for word in ["step 1", "step 2", "in this tutorial", "you will learn"]):
         return "TUTORIAL"
     if any(word in content for word in ["how to", "guide", "troubleshooting"]):
         return "HOW-TO"
-    if any(
-        word in content
-        for word in ["api reference", "parameters:", "returns:", "arguments:"]
-    ):
+    if any(word in content for word in ["api reference", "parameters:", "returns:", "arguments:"]):
         return "REFERENCE"
-    if any(
-        word in content for word in ["architecture", "how it works", "design", "concepts"]
-    ):
+    if any(word in content for word in ["architecture", "how it works", "design", "concepts"]):
         return "EXPLANATION"
 
     return None
@@ -674,12 +657,14 @@ def _show_execution_plan(
 
     if skill.instructions and verbose:
         console.print("[sunwell.heading]≡ Skill Instructions:[/sunwell.heading]")
-        console.print(Panel(
-            Markdown(skill.instructions),
-            border_style="neutral.dim",
-            title="[neutral.dim]What the AI will do[/neutral.dim]",
-            title_align="left",
-        ))
+        console.print(
+            Panel(
+                Markdown(skill.instructions),
+                border_style="neutral.dim",
+                title="[neutral.dim]What the AI will do[/neutral.dim]",
+                title_align="left",
+            )
+        )
         console.print()
 
     if skill.validate_with:
@@ -692,9 +677,7 @@ def _show_execution_plan(
             val_table.add_row("Validators", ", ".join(skill.validate_with.validators))
         if skill.validate_with.personas:
             val_table.add_row("Personas", ", ".join(skill.validate_with.personas))
-        val_table.add_row(
-            "Min Confidence", f"{skill.validate_with.min_confidence:.0%}"
-        )
+        val_table.add_row("Min Confidence", f"{skill.validate_with.min_confidence:.0%}")
         console.print(val_table)
         console.print()
 
@@ -725,9 +708,7 @@ def _show_shortcut_help() -> None:
     creation_keywords = ("create", "generate")
     transform_keywords = ("polish", "modularize", "fix", "apply")
 
-    audit_shortcuts = {
-        k: v for k, v in shortcuts.items() if any(kw in v for kw in audit_keywords)
-    }
+    audit_shortcuts = {k: v for k, v in shortcuts.items() if any(kw in v for kw in audit_keywords)}
     creation_shortcuts = {
         k: v for k, v in shortcuts.items() if any(kw in v for kw in creation_keywords)
     }
@@ -737,9 +718,7 @@ def _show_shortcut_help() -> None:
     util_shortcuts = {
         k: v
         for k, v in shortcuts.items()
-        if k not in audit_shortcuts
-        and k not in creation_shortcuts
-        and k not in transform_shortcuts
+        if k not in audit_shortcuts and k not in creation_shortcuts and k not in transform_shortcuts
     }
 
     console.print("\n[bold cyan]◎ Available Shortcuts[/bold cyan]\n")
@@ -766,5 +745,5 @@ def _show_shortcut_help() -> None:
 
     console.print(f"\n[dim]Total: {len(shortcuts)} shortcuts from active lens[/dim]")
     console.print("[dim]Usage: sunwell -s a-2 docs/api.md[/dim]")
-    console.print("[dim]       sunwell -s a-2 docs/api.md \"focus on API examples\"[/dim]")
+    console.print('[dim]       sunwell -s a-2 docs/api.md "focus on API examples"[/dim]')
     console.print("[dim]Tip: Use --verbose for detailed execution info[/dim]")

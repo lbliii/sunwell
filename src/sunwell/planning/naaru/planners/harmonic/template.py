@@ -51,16 +51,17 @@ async def plan_with_template(
     artifacts: list[ArtifactSpec] = []
     for artifact_pattern in template_data.expected_artifacts:
         resolved = substitute_variables(artifact_pattern, variables)
-        artifacts.append(ArtifactSpec(
-            id=resolved.replace("/", "_").replace(".", "_"),
-            description=f"Create {resolved}",
-            produces=(resolved,),
-            produces_file=resolved,
-            requires=frozenset(
-                substitute_variables(r, variables)
-                for r in template_data.requires
-            ),
-        ))
+        artifacts.append(
+            ArtifactSpec(
+                id=resolved.replace("/", "_").replace(".", "_"),
+                description=f"Create {resolved}",
+                produces=(resolved,),
+                produces_file=resolved,
+                requires=frozenset(
+                    substitute_variables(r, variables) for r in template_data.requires
+                ),
+            )
+        )
 
     # Build graph
     graph = ArtifactGraph(limits=planner.limits)
@@ -77,24 +78,27 @@ async def plan_with_template(
         metrics = compute_metrics_v1(graph)
 
     # Emit template planning complete event
-    planner._emit_event("plan_winner", {
-        "tasks": len(graph),
-        "artifact_count": len(graph),
-        "selected_candidate_id": "template-guided",
-        "total_candidates": 1,
-        "score": get_effective_score(metrics),
-        "scoring_version": planner.scoring_version.value,
-        "metrics": metrics_to_dict(metrics),
-        "selection_reason": f"Template-guided: {template_data.name}",
-        "variance_strategy": "template",
-        "variance_config": {
-            "template_name": template_data.name,
-            "template_id": template.id,
-            "variables": variables,
+    planner._emit_event(
+        "plan_winner",
+        {
+            "tasks": len(graph),
+            "artifact_count": len(graph),
+            "selected_candidate_id": "template-guided",
+            "total_candidates": 1,
+            "score": get_effective_score(metrics),
+            "scoring_version": planner.scoring_version.value,
+            "metrics": metrics_to_dict(metrics),
+            "selection_reason": f"Template-guided: {template_data.name}",
+            "variance_strategy": "template",
+            "variance_config": {
+                "template_name": template_data.name,
+                "template_id": template.id,
+                "variables": variables,
+            },
+            "refinement_rounds": 0,
+            "final_score_improvement": 0.0,
         },
-        "refinement_rounds": 0,
-        "final_score_improvement": 0.0,
-    })
+    )
 
     return graph, metrics
 

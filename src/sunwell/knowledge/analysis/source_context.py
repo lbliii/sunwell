@@ -35,18 +35,40 @@ _LANGUAGE_MARKERS: tuple[tuple[str, str], ...] = (
     ("go.mod", "go"),
 )
 
-_SKIP_DIRS_PYTHON: frozenset[str] = frozenset({
-    "__pycache__", ".git", ".venv", "venv", "env", ".tox",
-    "node_modules", "dist", "build", ".pytest_cache", ".mypy_cache",
-})
+_SKIP_DIRS_PYTHON: frozenset[str] = frozenset(
+    {
+        "__pycache__",
+        ".git",
+        ".venv",
+        "venv",
+        "env",
+        ".tox",
+        "node_modules",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+    }
+)
 
-_SKIP_DIRS_TS: frozenset[str] = frozenset({
-    "node_modules", ".git", "dist", "build", "coverage",
-})
+_SKIP_DIRS_TS: frozenset[str] = frozenset(
+    {
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        "coverage",
+    }
+)
 
-_SKIP_DIRS_GENERIC: frozenset[str] = frozenset({
-    ".git", "target", "vendor", "node_modules",
-})
+_SKIP_DIRS_GENERIC: frozenset[str] = frozenset(
+    {
+        ".git",
+        "target",
+        "vendor",
+        "node_modules",
+    }
+)
 
 # ═══════════════════════════════════════════════════════════════
 # PRE-COMPILED REGEX PATTERNS

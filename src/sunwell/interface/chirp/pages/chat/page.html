@@ -1,0 +1,110 @@
+{% extends "_layout.html" %}
+{% block page_content %}
+{% from "chirpui/layout.html" import container, stack, page_header %}
+{% from "chirpui/chat_layout.html" import chat_layout %}
+{% from "chirpui/message_thread.html" import message_thread %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% from "chirpui/button.html" import btn %}
+
+{% call container() %}
+{% call stack(gap="lg") %}
+
+    {% call page_header("Chat", subtitle="Ask Sunwell anything — same agent intelligence as the CLI") %}
+    {% slot actions %}
+    <div class="chat-header-actions chirpui-cluster chirpui-cluster--sm">
+      {% include "chat/_model_selector.html" %}
+    </div>
+    {% end %}
+    {% end %}
+
+    {% call chat_layout(show_activity=true) %}
+    {% slot messages %}
+        <div id="chat-messages">
+            {% call message_thread() %}
+            {% if messages %}
+                {% for msg in messages %}
+                {% if msg.role == "user" %}
+                {% call message_bubble(role="user") %}
+                <div><p>{{ msg.content }}</p></div>
+                {% end %}
+                {% else %}
+                {% call message_bubble(role="assistant") %}
+                <div class="msg-assistant prose">{{ msg.content | default("") | markdown_or_plain }}</div>
+                {% end %}
+                {% end %}
+                {% end %}
+            {% else %}
+            <div class="chat-empty chirpui-text-muted" style="text-align: center; padding: var(--chirpui-spacing-xl);">
+                <p class="chirpui-font-lg">Welcome to Sunwell Chat</p>
+                <p>Ask a question or describe a task. The same agent that powers the CLI is here.</p>
+                <p class="chirpui-ui-sm" style="margin-top: var(--chirpui-spacing-md);">Try: "What is Python 3.14?" or "Explain the project structure"</p>
+            </div>
+            {% end %}
+            {% end %}
+        </div>
+    {% end %}
+    {% slot input %}
+            <form id="chat-form"
+                  hx-post="/chat/send"
+                  hx-target="#chat-messages"
+                  hx-swap="beforeend"
+                  hx-indicator="#chat-send-indicator"
+                  hx-disabled-elt="button[type=submit]"
+                  hx-disinherit="hx-boost hx-target hx-swap"
+                  class="chirpui-chat-input">
+                <input type="hidden" name="session_id" value="{{ session_id }}" id="chat-form-session-id">
+                <div class="chirpui-chat-input__composer">
+                    <textarea class="chirpui-chat-input__field" name="message" rows="2"
+                        placeholder="Type a message..."
+                        aria-label="Message"></textarea>
+                </div>
+                <footer class="chirpui-chat-input__footer" style="display: flex; gap: var(--chirpui-spacing-sm); align-items: center; flex-wrap: wrap;">
+                    <span id="chat-send-indicator" class="htmx-indicator chat-spinner chirpui-ui-sm chirpui-text-muted" aria-hidden="true"></span>
+                    <label class="chirpui-ui-sm chirpui-text-muted" style="display: flex; align-items: center; gap: var(--chirpui-spacing-xs);">
+                        <input type="checkbox" name="stream" value="1" checked aria-label="Stream response">
+                        Stream
+                    </label>
+                    {{ btn("Send", variant="primary", type="submit") }}
+                    <button type="button" class="chirpui-btn chirpui-btn--ghost chirpui-ui-sm" hx-post="/chat/clear" hx-target="#chat-messages" hx-swap="innerHTML" hx-include="[name=session_id]" hx-disinherit="hx-boost hx-target hx-swap">Clear</button>
+                </footer>
+            </form>
+    {% end %}
+    {% slot activity %}
+        <aside id="chat-activity-panel" class="chirpui-surface chirpui-surface--muted" style="border-radius: var(--chirpui-radius); overflow: hidden; display: flex; flex-direction: column;">
+            <div class="chat-activity-header" style="padding: var(--chirpui-spacing-sm) var(--chirpui-spacing-md); border-bottom: 1px solid var(--chirpui-border); font-weight: 600; font-size: var(--chirpui-ui-sm); display: flex; align-items: center; justify-content: space-between;">
+                <span>Tool Activity</span>
+                <button type="button" class="chirpui-btn chirpui-btn--ghost chirpui-ui-xs" id="chat-activity-toggle" aria-label="Toggle activity panel">×</button>
+            </div>
+            <div id="chat-activity-feed" class="chat-activity-feed" style="flex: 1; overflow-y: auto; padding: var(--chirpui-spacing-sm); min-height: 120px;"
+                 hx-ext="sse"
+                 sse-connect="/chat/stream?session_id={{ session_id }}"
+                 sse-swap="chat-activity-feed"
+                 hx-swap="beforeend">
+                <div class="chat-activity-empty chirpui-text-muted chirpui-ui-sm" style="text-align: center; padding: var(--chirpui-spacing-md);">
+                    No tool activity yet
+                </div>
+            </div>
+        </aside>
+    {% end %}
+    {% end %}
+
+{% end %}
+{% end %}
+{% end %}
+
+{% block scripts %}
+<script>
+document.getElementById('chat-form')?.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.successful) {
+        const form = document.getElementById('chat-form');
+        const textarea = form?.querySelector('textarea[name="message"]');
+        if (textarea) textarea.value = '';
+        document.querySelector('.chat-empty')?.remove();
+    }
+});
+document.getElementById('chat-activity-toggle')?.addEventListener('click', function() {
+    const panel = document.getElementById('chat-activity-panel');
+    if (panel) panel.classList.toggle('chat-activity-collapsed');
+});
+</script>
+{% end %}

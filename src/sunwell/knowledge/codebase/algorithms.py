@@ -313,9 +313,7 @@ class GraphAlgorithms:
                         if nid in self.graph.structural_nodes
                     ]
 
-                for target_id, edge in self.graph.structural_edges_out.get(
-                    current_id, []
-                ):
+                for target_id, edge in self.graph.structural_edges_out.get(current_id, []):
                     if edge_types and edge.edge_type not in edge_types:
                         continue
                     if target_id not in visited:
@@ -542,9 +540,7 @@ class GraphAlgorithms:
         # Filter nodes if needed
         if node_type:
             relevant_nodes = {
-                nid
-                for nid, n in self.graph.structural_nodes.items()
-                if n.node_type == node_type
+                nid for nid, n in self.graph.structural_nodes.items() if n.node_type == node_type
             }
         else:
             relevant_nodes = set(self.graph.structural_nodes.keys())
@@ -576,9 +572,7 @@ class GraphAlgorithms:
             return None  # Cycle detected
 
         return [
-            self.graph.structural_nodes[nid]
-            for nid in result
-            if nid in self.graph.structural_nodes
+            self.graph.structural_nodes[nid] for nid in result if nid in self.graph.structural_nodes
         ]
 
     # -------------------------------------------------------------------------

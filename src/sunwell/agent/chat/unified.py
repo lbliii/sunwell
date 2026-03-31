@@ -27,10 +27,11 @@ Thread Safety:
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.agent.background import BackgroundManager
 from sunwell.agent.chat.checkpoint import (
     ChatCheckpoint,
     ChatCheckpointType,
@@ -57,15 +58,14 @@ from sunwell.agent.intent import (
     IntentNode,
     format_path,
 )
-from sunwell.agent.background import BackgroundManager
-from sunwell.agent.recovery.manager import RecoveryManager
-from sunwell.agent.rewind import SnapshotManager
-from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
 from sunwell.agent.isolation.workspace import (
     WorkspaceReadiness,
     check_workspace_readiness,
     ensure_git_repo,
 )
+from sunwell.agent.recovery.manager import RecoveryManager
+from sunwell.agent.rewind import SnapshotManager
+from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
 
 if TYPE_CHECKING:
     from sunwell.agent.context.session import SessionContext
@@ -107,6 +107,7 @@ class UnifiedChatLoop:
         trust_level: str = "workspace",
         auto_confirm: bool = False,
         stream_progress: bool = True,
+        token_callback: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize the unified chat loop.
 
@@ -117,6 +118,7 @@ class UnifiedChatLoop:
             trust_level: Trust level for tool execution (default "workspace")
             auto_confirm: Skip confirmation checkpoints (for testing/CI)
             stream_progress: Yield AgentEvents during execution
+            token_callback: Optional callback for per-token streaming (web chat)
         """
         self.model = model
         self.tool_executor = tool_executor
@@ -124,6 +126,7 @@ class UnifiedChatLoop:
         self.trust_level = trust_level
         self.auto_confirm = auto_confirm
         self.stream_progress = stream_progress
+        self._token_callback = token_callback
 
         # DAG classifier (RFC: Conversational DAG Architecture)
         self.classifier = DAGClassifier(model=model)
@@ -159,7 +162,7 @@ class UnifiedChatLoop:
         self._recovery_manager = RecoveryManager(recovery_dir)
 
         # Workspace readiness for parallel isolation (checked lazily)
-        self._workspace_readiness: "WorkspaceReadiness | None" = None
+        self._workspace_readiness: WorkspaceReadiness | None = None
 
     @property
     def is_executing(self) -> bool:
@@ -238,6 +241,7 @@ class UnifiedChatLoop:
             self.conversation_history,
             self.workspace,
             execution_context,
+            token_callback=self._token_callback,
         )
 
     async def _execute_goal(
@@ -445,9 +449,7 @@ class UnifiedChatLoop:
                     continue
 
                 # Check for explicit /command first
-                if user_input.strip().startswith("/") or user_input.strip().startswith(
-                    "::"
-                ):
+                if user_input.strip().startswith("/") or user_input.strip().startswith("::"):
                     response, agent_goal = self._handle_command(user_input)
                     if agent_goal:
                         # Manual iteration to forward checkpoint responses
@@ -516,11 +518,12 @@ class UnifiedChatLoop:
                 # route_dag_classification returns either:
                 # - A tuple (LoopState, str) for conversational responses
                 # - An AsyncIterator for execution paths with checkpoints
-                
+
                 # RFC: Plan-Based Duration Estimation - load execution history
                 from sunwell.agent.estimation import ExecutionHistory
+
                 execution_history = ExecutionHistory.load(self.workspace)
-                
+
                 route_result = await route_dag_classification(
                     result,
                     user_input,
@@ -585,7 +588,7 @@ class UnifiedChatLoop:
 
     async def _plan_goal(self, goal: str) -> PlanResult:
         """Run planning only and return PlanResult for duration estimation.
-        
+
         This is called before the background offer to get accurate task data.
         """
         from sunwell.agent import Agent
@@ -595,12 +598,18 @@ class UnifiedChatLoop:
             # Return empty plan result if no tools
             from sunwell.agent.core.task_graph import TaskGraph
             from sunwell.planning.naaru.planners.metrics import PlanMetrics
+
             return PlanResult(
                 task_graph=TaskGraph(),
                 metrics=PlanMetrics(
-                    depth=1, width=0, leaf_count=0, artifact_count=0,
-                    parallelism_factor=0.0, balance_factor=0.0,
-                    file_conflicts=0, estimated_waves=1,
+                    depth=1,
+                    width=0,
+                    leaf_count=0,
+                    artifact_count=0,
+                    parallelism_factor=0.0,
+                    balance_factor=0.0,
+                    file_conflicts=0,
+                    estimated_waves=1,
                 ),
             )
 
@@ -654,6 +663,7 @@ class UnifiedChatLoop:
         memory = self.memory
         if memory is None:
             from sunwell.memory import PersistentMemory
+
             memory = PersistentMemory.load(self.workspace)
             self.memory = memory
 

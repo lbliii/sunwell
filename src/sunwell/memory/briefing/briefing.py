@@ -188,7 +188,9 @@ class Briefing:
 
         if self.hot_files:
             lines.append("")
-            lines.append(f"**Files I'm focusing on**: {', '.join(f'`{f}`' for f in self.hot_files)}")
+            lines.append(
+                f"**Files I'm focusing on**: {', '.join(f'`{f}`' for f in self.hot_files)}"
+            )
 
         return "\n".join(lines)
 
@@ -271,7 +273,9 @@ class ExecutionSummary:
 
         # Determine last action from completed tasks
         if completed_list:
-            last_action = f"Completed {len(completed_list)} task(s): {', '.join(completed_list[:3])}"
+            last_action = (
+                f"Completed {len(completed_list)} task(s): {', '.join(completed_list[:3])}"
+            )
             if len(completed_list) > 3:
                 last_action += f" and {len(completed_list) - 3} more"
         else:

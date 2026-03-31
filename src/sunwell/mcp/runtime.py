@@ -5,8 +5,6 @@ Eliminates per-call event loop creation, workspace resolution duplication,
 and repeated subsystem initialization across 25+ MCP tools.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import threading
@@ -99,9 +97,7 @@ class MCPRuntime:
     """
 
     def __init__(self, workspace: str | None = None) -> None:
-        self._workspace = (
-            Path(workspace).expanduser().resolve() if workspace else Path.cwd()
-        )
+        self._workspace = Path(workspace).expanduser().resolve() if workspace else Path.cwd()
         self._loop_thread = _LoopThread()
 
         # Lazy subsystem caches (UNSET = not attempted yet)
@@ -208,6 +204,32 @@ class MCPRuntime:
             "backlog": self.backlog is not None,
             "graph": self.graph is not None,
         }
+
+    def warm_subsystems(self) -> None:
+        """Load memory, backlog, and graph caches in parallel on the MCP event loop.
+
+        Reduces sequential latency from first-touch property access (availability).
+        """
+        import time
+
+        t0 = time.perf_counter()
+
+        async def _parallel() -> tuple[Any, Any, Any]:
+            return await asyncio.gather(
+                asyncio.to_thread(self._load_memory),
+                asyncio.to_thread(self._load_backlog),
+                asyncio.to_thread(self._load_graph),
+            )
+
+        mem, bg, gr = self.run(_parallel(), timeout=120.0)
+        self._memory = mem
+        self._backlog = bg
+        self._graph = gr
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.info(
+            "mcp_subsystems_warmed",
+            extra={"event": "mcp_subsystems_warmed", "elapsed_ms": elapsed_ms},
+        )
 
     # ------------------------------------------------------------------
     # Private loaders

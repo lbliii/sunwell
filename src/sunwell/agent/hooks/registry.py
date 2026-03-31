@@ -154,9 +154,7 @@ class HookRegistry:
         with self._lock:
             hook_ids = list(self._by_event.get(event, set()))
             registrations = [
-                self._registrations[hid]
-                for hid in hook_ids
-                if hid in self._registrations
+                self._registrations[hid] for hid in hook_ids if hid in self._registrations
             ]
 
         if not registrations:
@@ -174,11 +172,7 @@ class HookRegistry:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
-                hook_name = (
-                    registration.metadata.name
-                    if registration.metadata
-                    else registration.id
-                )
+                hook_name = registration.metadata.name if registration.metadata else registration.id
                 logger.exception("Hook %s failed for event %s", hook_name, event.value)
 
     def emit_sync(self, event: HookEvent, data: dict[str, Any]) -> None:
@@ -193,9 +187,7 @@ class HookRegistry:
         with self._lock:
             hook_ids = list(self._by_event.get(event, set()))
             registrations = [
-                self._registrations[hid]
-                for hid in hook_ids
-                if hid in self._registrations
+                self._registrations[hid] for hid in hook_ids if hid in self._registrations
             ]
 
         for registration in registrations:
@@ -207,16 +199,10 @@ class HookRegistry:
                 if asyncio.iscoroutine(result):
                     logger.warning(
                         "Async hook %s skipped in sync emit",
-                        registration.metadata.name
-                        if registration.metadata
-                        else registration.id,
+                        registration.metadata.name if registration.metadata else registration.id,
                     )
             except Exception:
-                hook_name = (
-                    registration.metadata.name
-                    if registration.metadata
-                    else registration.id
-                )
+                hook_name = registration.metadata.name if registration.metadata else registration.id
                 logger.exception("Hook %s failed for event %s", hook_name, event.value)
 
     def check_requirements(self, metadata: HookMetadata) -> bool:
@@ -257,11 +243,7 @@ class HookRegistry:
         """
         with self._lock:
             hook_ids = self._by_event.get(event, set())
-            return [
-                self._registrations[hid]
-                for hid in hook_ids
-                if hid in self._registrations
-            ]
+            return [self._registrations[hid] for hid in hook_ids if hid in self._registrations]
 
     def get_all_hooks(self) -> list[HookRegistration]:
         """Get all registered hooks.
@@ -333,10 +315,12 @@ def on_hook(
     Returns:
         Decorator function
     """
+
     def decorator(handler: HookHandler) -> HookHandler:
         registry = get_hook_registry()
         registry.register(event, handler, metadata)
         return handler
+
     return decorator
 
 

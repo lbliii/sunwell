@@ -65,12 +65,12 @@ def get_background_loop() -> asyncio.AbstractEventLoop:
 
 
 def spawn_background_session(
-    manager: "BackgroundManager",
+    manager: BackgroundManager,
     goal: str,
-    model: "ModelProtocol",
-    tool_executor: "ToolExecutor",
-    memory: "PersistentMemory | None" = None,
-) -> "BackgroundSession":
+    model: ModelProtocol,
+    tool_executor: ToolExecutor,
+    memory: PersistentMemory | None = None,
+) -> BackgroundSession:
     """Spawn a background agent session from a synchronous context.
 
     This function properly handles the async spawning by scheduling it

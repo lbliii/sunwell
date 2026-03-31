@@ -24,8 +24,9 @@ RFC-027 additions:
 """
 
 # Core types
-from sunwell.tools.core.constants import TRUST_LEVEL_TOOLS
+from sunwell.tools.core.constants import ROLE_DENIED_TOOLS, TRUST_LEVEL_TOOLS
 from sunwell.tools.core.types import (
+    ExecutionRole,
     ToolAuditEntry,
     ToolPolicy,
     ToolRateLimits,
@@ -74,9 +75,14 @@ from sunwell.tools.providers import (
 
 # Sunwell handlers
 from sunwell.tools.sunwell import SunwellToolHandlers
+from sunwell.tools.surface import ToolSurface, assemble_tools_for_model
 
 __all__ = [
     # Trust levels
+    "ExecutionRole",
+    "ROLE_DENIED_TOOLS",
+    "ToolSurface",
+    "assemble_tools_for_model",
     "ToolTrust",
     "ToolResult",
     "ToolRateLimits",

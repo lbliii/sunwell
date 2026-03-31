@@ -4,17 +4,11 @@ Provides an agent-callable tool to research GitHub repositories using
 magnetic search techniques to extract patterns and architecture.
 """
 
-from __future__ import annotations
-
 import asyncio
 import logging
-from typing import TYPE_CHECKING
 
 from sunwell.tools.core.types import ToolTrust
 from sunwell.tools.registry.base import BaseTool, tool_metadata
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

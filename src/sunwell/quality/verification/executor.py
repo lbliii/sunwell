@@ -3,7 +3,6 @@
 Execute generated tests in isolated environment.
 """
 
-
 import asyncio
 import sys
 import tempfile

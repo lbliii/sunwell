@@ -14,7 +14,6 @@ Thread Safety:
     free-threaded Python (3.14t).
 """
 
-
 import os
 import threading
 from dataclasses import asdict, dataclass, field
@@ -138,29 +137,71 @@ def _apply_env_overrides(config_dict: dict) -> dict:
         "embedding": {"prefer_local", "ollama_model", "ollama_url", "fallback_to_hash"},
         "model": {"default_provider", "default_model", "smart_routing"},
         "naaru": {
-            "name", "title", "voice", "wisdom", "router",
-            "harmonic_synthesis", "resonance", "convergence", "discernment",
-            "enable_parallel_execution", "max_parallel_tasks", "max_parallel_llm_requests",
+            "name",
+            "title",
+            "voice",
+            "wisdom",
+            "router",
+            "harmonic_synthesis",
+            "resonance",
+            "convergence",
+            "discernment",
+            "enable_parallel_execution",
+            "max_parallel_tasks",
+            "max_parallel_llm_requests",
         },
-        "ollama": {"base_url", "num_parallel", "max_loaded_models", "connection_pool_size", "request_timeout"},
+        "ollama": {
+            "base_url",
+            "num_parallel",
+            "max_loaded_models",
+            "connection_pool_size",
+            "request_timeout",
+        },
     }
 
     # Known keys that contain underscores (to avoid splitting them)
     compound_keys = {
-        "base_path", "prefer_local", "ollama_model", "ollama_url", "fallback_to_hash",
-        "default_provider", "default_model", "smart_routing", "novelty_threshold",
-        "min_queries_before_spawn", "domain_coherence_threshold", "max_simulacrums",
-        "auto_name", "stale_days", "archive_days", "min_useful_nodes",
-        "min_useful_learnings", "auto_archive", "auto_merge_empty",
+        "base_path",
+        "prefer_local",
+        "ollama_model",
+        "ollama_url",
+        "fallback_to_hash",
+        "default_provider",
+        "default_model",
+        "smart_routing",
+        "novelty_threshold",
+        "min_queries_before_spawn",
+        "domain_coherence_threshold",
+        "max_simulacrums",
+        "auto_name",
+        "stale_days",
+        "archive_days",
+        "min_useful_nodes",
+        "min_useful_learnings",
+        "auto_archive",
+        "auto_merge_empty",
         "protect_recently_spawned_days",
         # Naaru keys
-        "voice_temperature", "voice_models", "wisdom_models", "purity_threshold",
-        "harmonic_synthesis", "num_analysis_shards", "num_synthesis_shards",
-        "router_temperature", "router_cache_size",
-        "enable_parallel_execution", "max_parallel_tasks", "max_parallel_llm_requests",
-        "use_native_ollama_api", "alternate_titles",
+        "voice_temperature",
+        "voice_models",
+        "wisdom_models",
+        "purity_threshold",
+        "harmonic_synthesis",
+        "num_analysis_shards",
+        "num_synthesis_shards",
+        "router_temperature",
+        "router_cache_size",
+        "enable_parallel_execution",
+        "max_parallel_tasks",
+        "max_parallel_llm_requests",
+        "use_native_ollama_api",
+        "alternate_titles",
         # Ollama keys
-        "base_url", "num_parallel", "max_loaded_models", "connection_pool_size", "request_timeout",
+        "base_url",
+        "num_parallel",
+        "max_loaded_models",
+        "connection_pool_size",
+        "request_timeout",
     }
 
     for key, value in os.environ.items():
@@ -168,7 +209,7 @@ def _apply_env_overrides(config_dict: dict) -> dict:
             continue
 
         # Get the path after prefix, lowercase
-        path_str = key[len(prefix):].lower()
+        path_str = key[len(prefix) :].lower()
 
         # Try to parse intelligently by finding known structure
         path_parts = []
@@ -178,7 +219,7 @@ def _apply_env_overrides(config_dict: dict) -> dict:
         for section in known_sections:
             if remaining.startswith(section + "_"):
                 path_parts.append(section)
-                remaining = remaining[len(section) + 1:]
+                remaining = remaining[len(section) + 1 :]
                 break
 
         if not path_parts:
@@ -191,7 +232,7 @@ def _apply_env_overrides(config_dict: dict) -> dict:
             for subsection in known_sections[section]:
                 if remaining.startswith(subsection + "_") or remaining == subsection:
                     path_parts.append(subsection)
-                    remaining = remaining[len(subsection):].lstrip("_")
+                    remaining = remaining[len(subsection) :].lstrip("_")
                     break
 
         # Remaining is the key (might have underscores)
@@ -305,10 +346,12 @@ def load_config(path: str | Path | None = None) -> SunwellConfig:
     config_paths = []
     if path:
         config_paths.append(Path(path))
-    config_paths.extend([
-        Path(".sunwell/config.yaml"),
-        Path.home() / ".sunwell" / "config.yaml",
-    ])
+    config_paths.extend(
+        [
+            Path(".sunwell/config.yaml"),
+            Path.home() / ".sunwell" / "config.yaml",
+        ]
+    )
 
     for config_path in config_paths:
         if config_path.exists():
@@ -441,7 +484,7 @@ def save_default_config(path: str | Path = ".sunwell/config.yaml") -> Path:
     Returns:
         Path to the saved config file.
     """
-    config_content = '''# Sunwell Configuration
+    config_content = """# Sunwell Configuration
 # https://github.com/sunwell/sunwell
 #
 # NOTE: Actual defaults are defined in sunwell/types/config.py (single source of truth).
@@ -639,7 +682,7 @@ verbose: false
 # Enable debug logging (shows model calls, intent classification, planning)
 # Can also use: --debug flag, or SUNWELL_LOG_LEVEL=DEBUG env var
 debug: false
-'''
+"""
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

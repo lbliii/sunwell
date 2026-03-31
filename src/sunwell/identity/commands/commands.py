@@ -13,7 +13,6 @@ Commands:
 - /identity export - Export identity data to JSON
 """
 
-
 import json
 from datetime import datetime
 from pathlib import Path
@@ -39,12 +38,18 @@ def format_identity_display(identity_store: IdentityStore) -> str:
     else:
         status = "[dim]Inactive[/dim]"
 
-    conf_color = "green" if identity.confidence >= 0.8 else "yellow" if identity.confidence >= 0.6 else "red"
-    lines.append(f"Status: {status}     Confidence: [{conf_color}]{identity.confidence:.0%}[/{conf_color}]")
+    conf_color = (
+        "green" if identity.confidence >= 0.8 else "yellow" if identity.confidence >= 0.6 else "red"
+    )
+    lines.append(
+        f"Status: {status}     Confidence: [{conf_color}]{identity.confidence:.0%}[/{conf_color}]"
+    )
 
     # Last updated
     if identity.last_digest:
-        lines.append(f"Last Updated: {identity.last_digest.strftime('%Y-%m-%d %H:%M')} (turn {identity.turn_count_at_digest})")
+        lines.append(
+            f"Last Updated: {identity.last_digest.strftime('%Y-%m-%d %H:%M')} (turn {identity.turn_count_at_digest})"
+        )
     else:
         lines.append("Last Updated: Never (no digest yet)")
 
@@ -87,10 +92,14 @@ def format_identity_display(identity_store: IdentityStore) -> str:
     # Recent observations
     if identity.observations:
         recent = identity.observations[-5:]
-        lines.append(f"[bold]Recent Observations[/bold] ({len(recent)} of {len(identity.observations)}):")
+        lines.append(
+            f"[bold]Recent Observations[/bold] ({len(recent)} of {len(identity.observations)}):"
+        )
         for obs in recent:
             conf_display = f"[dim][{obs.confidence:.2f}][/dim]"
-            obs_text = obs.observation[:45] + "..." if len(obs.observation) > 45 else obs.observation
+            obs_text = (
+                obs.observation[:45] + "..." if len(obs.observation) > 45 else obs.observation
+            )
             lines.append(f"  • {obs_text:50} {conf_display}")
         lines.append("")
 
@@ -123,15 +132,17 @@ async def handle_identity_command(
     if not arg:
         # Main view: /identity
         display = format_identity_display(identity_store)
-        console.print(Panel(
-            display,
-            title=f"{MURU.name}'s Identity Model",
-            border_style="cyan",
-        ))
+        console.print(
+            Panel(
+                display,
+                title=f"{MURU.name}'s Identity Model",
+                border_style="cyan",
+            )
+        )
         return
 
     subcmd = arg.lower().split()[0]
-    subarg = arg[len(subcmd):].strip() if len(arg) > len(subcmd) else ""
+    subarg = arg[len(subcmd) :].strip() if len(arg) > len(subcmd) else ""
 
     if subcmd == "rate":
         # Rate the identity model
@@ -149,7 +160,9 @@ async def handle_identity_command(
     elif subcmd == "pause":
         identity_store.pause()
         console.print("[yellow]⏸ Behavioral learning paused[/yellow]")
-        console.print("[dim]Existing identity will still be used. Use /identity resume to continue learning.[/dim]")
+        console.print(
+            "[dim]Existing identity will still be used. Use /identity resume to continue learning.[/dim]"
+        )
 
     elif subcmd == "resume":
         identity_store.resume()
@@ -189,8 +202,9 @@ async def _handle_rate(
 
     if not rating_input:
         # Show rating prompt
-        console.print(Panel(
-            """Does this identity model accurately capture how you like to interact?
+        console.print(
+            Panel(
+                """Does this identity model accurately capture how you like to interact?
 
   [bold]1[/bold] - Not at all
   [bold]2[/bold] - Somewhat off
@@ -200,9 +214,10 @@ async def _handle_rate(
 
 Your rating helps improve M'uru's learning.
 [dim]Usage: /identity rate <1-5>[/dim]""",
-            title=f"Rate {MURU.name}'s Identity Model",
-            border_style="cyan",
-        ))
+                title=f"Rate {MURU.name}'s Identity Model",
+                border_style="cyan",
+            )
+        )
         return
 
     try:
@@ -249,14 +264,19 @@ async def _handle_refresh(
 
         # Try quick heuristic digest
         from sunwell.identity.synthesis import quick_digest
+
         obs_texts = [o.observation for o in identity_store.identity.observations]
         prompt, confidence = await quick_digest(obs_texts, identity_store.identity.prompt)
 
         if prompt:
             identity_store.update_digest(prompt, confidence, turn_count)
-            console.print(f"[green]✓ Identity refreshed (heuristic, confidence: {confidence:.0%})[/green]")
+            console.print(
+                f"[green]✓ Identity refreshed (heuristic, confidence: {confidence:.0%})[/green]"
+            )
         else:
-            console.print("[yellow]Not enough consistent observations for heuristic digest.[/yellow]")
+            console.print(
+                "[yellow]Not enough consistent observations for heuristic digest.[/yellow]"
+            )
         return
 
     console.print("[dim]Digesting observations...[/dim]")
@@ -278,7 +298,9 @@ async def _handle_refresh(
             tone=new_identity.tone,
             values=new_identity.values,
         )
-        console.print(f"[green]✓ Identity refreshed (confidence: {new_identity.confidence:.0%})[/green]")
+        console.print(
+            f"[green]✓ Identity refreshed (confidence: {new_identity.confidence:.0%})[/green]"
+        )
     else:
         console.print("[yellow]Digest confidence too low. Need more observations.[/yellow]")
 

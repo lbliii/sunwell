@@ -83,9 +83,7 @@ class Reflector:
         reflections = []
         for cluster in clusters:
             # Get learnings in cluster
-            cluster_learnings = [
-                l for l in constraints if l.id in cluster.learning_ids
-            ]
+            cluster_learnings = [l for l in constraints if l.id in cluster.learning_ids]
 
             # Analyze causality
             causality, summary = await self._causality_analyzer.analyze_causality(
@@ -237,7 +235,9 @@ class Reflector:
 
         # Update confidence (weighted average)
         total_count = existing_model.source_learning_count + len(new_learnings)
-        new_avg_confidence = sum(l.confidence for l in new_learnings) / len(new_learnings) if new_learnings else 0
+        new_avg_confidence = (
+            sum(l.confidence for l in new_learnings) / len(new_learnings) if new_learnings else 0
+        )
         updated_confidence = (
             existing_model.confidence * existing_model.source_learning_count
             + new_avg_confidence * len(new_learnings)

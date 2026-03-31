@@ -145,9 +145,7 @@ class SavedExecution:
 
         # Update status
         if self.is_complete:
-            self.status = (
-                ExecutionStatus.COMPLETED if not self.failed else ExecutionStatus.FAILED
-            )
+            self.status = ExecutionStatus.COMPLETED if not self.failed else ExecutionStatus.FAILED
         else:
             self.status = ExecutionStatus.IN_PROGRESS
 
@@ -163,9 +161,7 @@ class SavedExecution:
             "graph": self.graph.to_dict(),
             "execution": {
                 "current_wave": self.current_wave,
-                "completed": {
-                    aid: comp.to_dict() for aid, comp in self.completed.items()
-                },
+                "completed": {aid: comp.to_dict() for aid, comp in self.completed.items()},
                 "failed": self.failed,
             },
             "content_hashes": self.content_hashes,

@@ -4,10 +4,9 @@ Provides tools for semantic search, question answering,
 codebase intelligence, and workspace discovery.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -16,11 +15,7 @@ from sunwell.mcp.formatting import (
     resolve_format,
     truncate,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
@@ -92,13 +87,11 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
             for r in results:
                 path_str = str(getattr(r, "path", getattr(r, "file_path", "")))
                 if scope == "code" and any(
-                    path_str.endswith(ext)
-                    for ext in (".md", ".rst", ".txt", ".adoc")
+                    path_str.endswith(ext) for ext in (".md", ".rst", ".txt", ".adoc")
                 ):
                     continue
                 if scope == "docs" and not any(
-                    path_str.endswith(ext)
-                    for ext in (".md", ".rst", ".txt", ".adoc")
+                    path_str.endswith(ext) for ext in (".md", ".rst", ".txt", ".adoc")
                 ):
                     continue
                 filtered.append(r)
@@ -121,7 +114,12 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
                 result_items.append(omit_empty(item))
 
             return mcp_json(
-                {"query": query, "scope": scope, "total_results": len(filtered), "results": result_items},
+                {
+                    "query": query,
+                    "scope": scope,
+                    "total_results": len(filtered),
+                    "results": result_items,
+                },
                 fmt,
             )
         except Exception as e:
@@ -183,7 +181,11 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
 
             if not result:
                 return mcp_json(
-                    {"question": question, "status": "no_answer", "message": "Could not find enough context."},
+                    {
+                        "question": question,
+                        "status": "no_answer",
+                        "message": "Could not find enough context.",
+                    },
                     fmt,
                 )
 
@@ -245,11 +247,15 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
             graph = runtime.graph if runtime else None
             if graph is None:
                 from sunwell.knowledge.codebase import CodebaseGraph
+
                 graph = CodebaseGraph.load(ws)
 
             if not graph:
                 return mcp_json(
-                    {"status": "no_graph", "message": "No codebase graph found. Run `sunwell scan` first."},
+                    {
+                        "status": "no_graph",
+                        "message": "No codebase graph found. Run `sunwell scan` first.",
+                    },
                     fmt,
                 )
 
@@ -332,7 +338,9 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
                             "path": str(proj.path),
                         }
                         if fmt != "minimal":
-                            entry["role"] = proj.role.value if hasattr(proj.role, "value") else str(proj.role)
+                            entry["role"] = (
+                                proj.role.value if hasattr(proj.role, "value") else str(proj.role)
+                            )
                             entry["is_primary"] = proj.is_primary
                         projects.append(entry)
             except Exception:
@@ -341,18 +349,26 @@ def register_knowledge_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) ->
             # Fallback: scan for common project markers
             if not projects:
                 markers = [
-                    "pyproject.toml", "package.json", "Cargo.toml",
-                    "go.mod", "pom.xml", "build.gradle",
+                    "pyproject.toml",
+                    "package.json",
+                    "Cargo.toml",
+                    "go.mod",
+                    "pom.xml",
+                    "build.gradle",
                 ]
                 for marker in markers:
                     if (ws / marker).exists():
-                        projects.append(omit_empty({
-                            "id": ws.name,
-                            "path": str(ws),
-                            "role": "primary" if fmt != "minimal" else None,
-                            "is_primary": True if fmt != "minimal" else None,
-                            "detected_by": marker if fmt != "minimal" else None,
-                        }))
+                        projects.append(
+                            omit_empty(
+                                {
+                                    "id": ws.name,
+                                    "path": str(ws),
+                                    "role": "primary" if fmt != "minimal" else None,
+                                    "is_primary": True if fmt != "minimal" else None,
+                                    "detected_by": marker if fmt != "minimal" else None,
+                                }
+                            )
+                        )
                         break
 
             return mcp_json(

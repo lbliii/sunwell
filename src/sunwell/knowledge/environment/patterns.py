@@ -4,7 +4,6 @@ Learns patterns across scanned projects to understand user conventions.
 Patterns are re-extracted on each environment scan (cheap to compute).
 """
 
-
 from sunwell.knowledge.environment.model import Pattern, ProjectEntry
 
 # =============================================================================

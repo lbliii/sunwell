@@ -49,18 +49,22 @@ class SessionService:
         # Convert to dicts
         result = []
         for session in sessions[:limit]:
-            result.append({
-                "id": session.session_id,
-                "goal": session.goal,
-                "status": session.status.value,
-                "started_at": session.started_at.timestamp() if session.started_at else None,
-                "completed_at": session.completed_at.timestamp() if session.completed_at else None,
-                "tasks_completed": session.tasks_completed,
-                "files_changed": len(session.files_changed),
-                "duration": session.duration_seconds,
-                "error": session.error,
-                "result_summary": session.result_summary,
-            })
+            result.append(
+                {
+                    "id": session.session_id,
+                    "goal": session.goal,
+                    "status": session.status.value,
+                    "started_at": session.started_at.timestamp() if session.started_at else None,
+                    "completed_at": session.completed_at.timestamp()
+                    if session.completed_at
+                    else None,
+                    "tasks_completed": session.tasks_completed,
+                    "files_changed": len(session.files_changed),
+                    "duration": session.duration_seconds,
+                    "error": session.error,
+                    "result_summary": session.result_summary,
+                }
+            )
 
         return result
 

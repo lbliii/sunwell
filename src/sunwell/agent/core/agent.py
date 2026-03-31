@@ -82,7 +82,8 @@ from sunwell.agent.validation.gates import ValidationGate
 from sunwell.tools.selection.graph import ToolDAGError
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator as TypeAsyncIterator, Callable
+    from collections.abc import AsyncIterator as TypeAsyncIterator
+    from collections.abc import Callable
 
     from sunwell.agent.coordination.parallel_executor import ParallelExecutor, TaskResult
     from sunwell.agent.loop.config import LoopConfig
@@ -246,9 +247,7 @@ class Agent:
     _gates_passed: int = field(default=0, init=False)
     """Count of validation gates that passed during this run."""
 
-    _current_phase: CheckpointPhase = field(
-        default=CheckpointPhase.ORIENT_COMPLETE, init=False
-    )
+    _current_phase: CheckpointPhase = field(default=CheckpointPhase.ORIENT_COMPLETE, init=False)
     """Current semantic phase of execution."""
 
     # Recovery manager for persisting execution state on failures
@@ -268,6 +267,7 @@ class Agent:
         # Initialize recovery manager for persisting execution state on failures
         from sunwell.agent.recovery.manager import RecoveryManager
         from sunwell.knowledge.project.state import resolve_state_dir
+
         recovery_dir = resolve_state_dir(self.cwd) / "recovery"
         self._recovery_manager = RecoveryManager(recovery_dir)
 
@@ -360,7 +360,7 @@ class Agent:
             synthesis_model=self.model,
             tool_executor=self.tool_executor,
             simulacrum=self._simulacrum,  # RFC-MEMORY: Pass simulacrum for learnings
-            memory=self._memory,           # RFC-MEMORY: Pass PersistentMemory
+            memory=self._memory,  # RFC-MEMORY: Pass PersistentMemory
             config=NaaruConfig(
                 enable_parallel_execution=True,
                 max_parallel_tasks=4,
@@ -466,14 +466,13 @@ class Agent:
         # ─── PHASE 0: PREFETCH (RFC-130) ───
         # Memory-informed prefetch to warm context before main execution
         if session.briefing:
-            prefetched = await self._run_memory_informed_prefetch(
-                session.briefing, memory
-            )
+            prefetched = await self._run_memory_informed_prefetch(session.briefing, memory)
             if prefetched:
                 self._prefetched_context = prefetched
                 # If prefetch suggests a lens, use it (unless explicitly set)
                 if prefetched.lens and not session.lens:
                     from sunwell.planning.lens.manager import LensManager
+
                     try:
                         manager = LensManager()
                         suggested_lens = manager.load(prefetched.lens)
@@ -562,6 +561,7 @@ class Agent:
             self._task_graph = precomputed_plan.task_graph
             # Emit PLAN_WINNER event for consistency with UI
             from sunwell.agent.events import plan_winner_event
+
             yield plan_winner_event(
                 tasks=len(precomputed_plan.task_graph.tasks),
                 gates=len(precomputed_plan.task_graph.gates),
@@ -598,6 +598,7 @@ class Agent:
         # ─── PHASE 4: EXECUTE ───
         # Use session options if available, otherwise build defaults
         from sunwell.agent.utils.request import RunOptions
+
         if session.options is not None:
             options = session.options
         else:
@@ -625,6 +626,7 @@ class Agent:
                     current = session.current_task
                     if current:
                         from sunwell.knowledge import FailedApproach
+
                         failure = FailedApproach(
                             id="",  # Will be generated
                             description=current.description,
@@ -681,9 +683,7 @@ class Agent:
                 from sunwell.agent.estimation import ExecutionHistory, PlanProfile
 
                 history = ExecutionHistory.load(session.cwd)
-                profile = PlanProfile.from_task_graph(
-                    self._task_graph, precomputed_plan.metrics
-                )
+                profile = PlanProfile.from_task_graph(self._task_graph, precomputed_plan.metrics)
                 history.record(
                     profile=profile,
                     estimated_seconds=precomputed_plan.estimated_seconds,
@@ -900,7 +900,7 @@ class Agent:
         self,
         session: SessionContext,
         options: RunOptions,
-    ) -> "Callable[[RunOptions], AsyncIterator[AgentEvent]]":
+    ) -> Callable[[RunOptions], AsyncIterator[AgentEvent]]:
         """Select execution strategy: parallel dispatch or sequential.
 
         Checks if TaskDispatcher would provide benefit (parallel groups exist
@@ -941,7 +941,7 @@ class Agent:
         self,
         session: SessionContext,
         options: RunOptions,
-        config: "LoopConfig",
+        config: LoopConfig,
     ) -> AsyncIterator[AgentEvent]:
         """Execute tasks using TaskDispatcher for parallel execution.
 
@@ -966,7 +966,7 @@ class Agent:
         # This wraps the agent's task execution to return TaskResult
         async def parallel_task_executor(
             child_session: SessionContext,
-            task: "Task",
+            task: Task,
         ) -> TaskResult:
             """Execute a task in parallel context, returning TaskResult."""
             start = time()
@@ -1022,7 +1022,7 @@ class Agent:
         )
 
         # Create sequential execution callback for individual tasks
-        async def execute_single_task(task: "Task") -> AsyncIterator[AgentEvent]:
+        async def execute_single_task(task: Task) -> AsyncIterator[AgentEvent]:
             """Execute a single task and yield events."""
             yield task_start_event(task.id, task.description)
 
@@ -1071,11 +1071,7 @@ class Agent:
         if options.validate:
             for gate in self._task_graph.gates:
                 if all(dep in self._task_graph.completed_ids for dep in gate.depends_on):
-                    gate_artifacts = [
-                        artifacts[tid]
-                        for tid in gate.depends_on
-                        if tid in artifacts
-                    ]
+                    gate_artifacts = [artifacts[tid] for tid in gate.depends_on if tid in artifacts]
 
                     async for event in validate_gate(gate, gate_artifacts, self.cwd):
                         yield event
@@ -1189,11 +1185,7 @@ class Agent:
                 ]
 
                 for gate in gates_for_completed:
-                    gate_artifacts = [
-                        artifacts[tid]
-                        for tid in gate.depends_on
-                        if tid in artifacts
-                    ]
+                    gate_artifacts = [artifacts[tid] for tid in gate.depends_on if tid in artifacts]
 
                     # Inline validate_gate (was _validate_gate wrapper)
                     async for event in validate_gate(gate, gate_artifacts, self.cwd):
@@ -1582,8 +1574,7 @@ class Agent:
             if not success and completed < total:
                 # Find what failed
                 failed_tasks = [
-                    t for t in self._task_graph.tasks
-                    if t.id not in self._task_graph.completed_ids
+                    t for t in self._task_graph.tasks if t.id not in self._task_graph.completed_ids
                 ]
                 if failed_tasks:
                     failed = failed_tasks[0]

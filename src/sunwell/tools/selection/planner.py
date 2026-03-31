@@ -102,7 +102,7 @@ class ToolPlanner:
     # Cache for repeated queries
     _cache: dict[str, ToolPlan] = field(default_factory=dict, init=False)
 
-    def _build_tool_list(self, tools: "tuple[Tool, ...]") -> str:
+    def _build_tool_list(self, tools: tuple[Tool, ...]) -> str:
         """Build a formatted list of tools for the prompt.
 
         Args:
@@ -120,7 +120,7 @@ class ToolPlanner:
             lines.append(f"- {tool.name}: {desc}")
         return "\n".join(lines)
 
-    def _build_tool_names(self, tools: "tuple[Tool, ...]") -> str:
+    def _build_tool_names(self, tools: tuple[Tool, ...]) -> str:
         """Build a comma-separated list of tool names.
 
         Args:
@@ -147,19 +147,18 @@ class ToolPlanner:
         """
         # Try to extract JSON array
         # Look for [...] pattern
-        match = re.search(r'\[.*?\]', response, re.DOTALL)
+        match = re.search(r"\[.*?\]", response, re.DOTALL)
         if match:
             try:
                 tools_list = json.loads(match.group())
                 if isinstance(tools_list, list):
                     # Filter to valid tool names
                     valid_tools = [
-                        t for t in tools_list
-                        if isinstance(t, str) and t in available_names
+                        t for t in tools_list if isinstance(t, str) and t in available_names
                     ]
                     if valid_tools:
                         return ToolPlan(
-                            tools=tuple(valid_tools[:self.max_tools]),
+                            tools=tuple(valid_tools[: self.max_tools]),
                             reasoning=response,
                             confidence=0.9,
                         )
@@ -175,7 +174,7 @@ class ToolPlanner:
 
         if mentioned:
             return ToolPlan(
-                tools=tuple(mentioned[:self.max_tools]),
+                tools=tuple(mentioned[: self.max_tools]),
                 reasoning=response,
                 confidence=0.6,  # Lower confidence for fallback parsing
             )
@@ -186,8 +185,8 @@ class ToolPlanner:
     async def plan(
         self,
         query: str,
-        available_tools: "tuple[Tool, ...]",
-        model: "ModelProtocol",
+        available_tools: tuple[Tool, ...],
+        model: ModelProtocol,
     ) -> ToolPlan:
         """Generate a tool plan for the query.
 
@@ -251,7 +250,7 @@ class ToolPlanner:
             # Fallback: return all tools or empty plan
             if self.fallback_to_all:
                 return ToolPlan(
-                    tools=tuple(t.name for t in available_tools[:self.max_tools]),
+                    tools=tuple(t.name for t in available_tools[: self.max_tools]),
                     reasoning=f"Planning failed: {e}",
                     confidence=0.3,
                 )
@@ -260,8 +259,8 @@ class ToolPlanner:
     def plan_sync(
         self,
         query: str,
-        available_tools: "tuple[Tool, ...]",
-        model: "ModelProtocol",
+        available_tools: tuple[Tool, ...],
+        model: ModelProtocol,
     ) -> ToolPlan:
         """Synchronous wrapper for plan().
 
@@ -316,7 +315,6 @@ KEYWORD_TOOL_MAP: dict[str, tuple[str, ...]] = {
     "copy": ("copy_file",),
     "undo": ("undo_file",),
     "restore": ("restore_file",),
-
     # Git operations
     "commit": ("git_add", "git_commit"),
     "stage": ("git_add",),
@@ -330,20 +328,17 @@ KEYWORD_TOOL_MAP: dict[str, tuple[str, ...]] = {
     "merge": ("git_merge",),
     "stash": ("git_stash",),
     "reset": ("git_reset",),
-
     # Shell operations
     "run": ("run_command",),
     "execute": ("run_command",),
     "test": ("run_command",),
     "build": ("run_command",),
     "install": ("run_command",),
-
     # Web operations
     "google": ("web_search",),
     "lookup": ("web_search",),
     "fetch": ("web_fetch",),
     "download": ("web_fetch",),
-
     # Environment
     "env": ("list_env",),
     "environment": ("list_env",),
@@ -353,7 +348,7 @@ KEYWORD_TOOL_MAP: dict[str, tuple[str, ...]] = {
 
 def plan_heuristic(
     query: str,
-    available_tools: "tuple[Tool, ...]",
+    available_tools: tuple[Tool, ...],
     max_tools: int = 10,
 ) -> ToolPlan:
     """Plan tools using keyword heuristics (no model required).

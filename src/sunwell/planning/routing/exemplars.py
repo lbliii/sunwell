@@ -17,14 +17,14 @@ class RoutingExemplar:
     Used for confidence calibration and self-verification.
     """
 
-    input: str                     # User request pattern
-    context_hints: tuple[str, ...] # Expected context signals
-    reasoning: str                 # Why this routing is correct
-    intent: Intent                 # Correct intent
-    lens: str                      # Correct lens
-    focus: tuple[str, ...]         # Correct focus terms
-    confidence: str                # HIGH | MEDIUM | LOW
-    tags: tuple[str, ...]          # For retrieval matching
+    input: str  # User request pattern
+    context_hints: tuple[str, ...]  # Expected context signals
+    reasoning: str  # Why this routing is correct
+    intent: Intent  # Correct intent
+    lens: str  # Correct lens
+    focus: tuple[str, ...]  # Correct focus terms
+    confidence: str  # HIGH | MEDIUM | LOW
+    tags: tuple[str, ...]  # For retrieval matching
 
 
 # Gold-standard exemplar bank
@@ -180,5 +180,3 @@ def match_exemplar(
                 best_match = exemplar
 
     return best_match, min(1.0, best_score)
-
-

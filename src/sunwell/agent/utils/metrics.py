@@ -42,9 +42,7 @@ class InferenceMetrics:
         >>> print(f"Average: {stats['avg_tokens_per_second']:.1f} tok/s")
     """
 
-    _samples: dict[str, list[InferenceSample]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    _samples: dict[str, list[InferenceSample]] = field(default_factory=lambda: defaultdict(list))
 
     def record(
         self,
@@ -134,6 +132,7 @@ class InferenceMetrics:
             Number of models saved
         """
         from sunwell.knowledge.project.state import resolve_state_dir
+
         metrics_dir = resolve_state_dir(project_path) / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
 
@@ -170,6 +169,7 @@ class InferenceMetrics:
             Number of models loaded
         """
         from sunwell.knowledge.project.state import resolve_state_dir
+
         metrics_file = resolve_state_dir(project_path) / "metrics" / "inference_metrics.json"
 
         if not metrics_file.exists():
@@ -349,6 +349,7 @@ def save_profiles_to_disk(
         Number of profiles saved
     """
     from sunwell.knowledge.project.state import resolve_state_dir
+
     metrics_dir = resolve_state_dir(project_path) / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
@@ -387,6 +388,7 @@ def load_profiles_from_disk(project_path: Path) -> dict[str, ModelPerformancePro
         Dict of model name to performance profile
     """
     from sunwell.knowledge.project.state import resolve_state_dir
+
     profiles_file = resolve_state_dir(project_path) / "metrics" / "model_profiles.json"
 
     if not profiles_file.exists():

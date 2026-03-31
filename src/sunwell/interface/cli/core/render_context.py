@@ -14,28 +14,21 @@ Tracks rendering state to enable proper visual hierarchy:
 RFC-131 Holy Light aesthetic with proper topology.
 """
 
-from __future__ import annotations
-
 import os
 from dataclasses import dataclass, field
 from enum import Enum
 from time import time
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from rich.console import Console
-    from sunwell.interface.cli.progress.status_bar import StatusBar
-
+from sunwell.interface.cli.progress.status_bar import StatusBar
 
 # =============================================================================
 # ACCESSIBILITY
 # =============================================================================
 
+
 def should_reduce_motion() -> bool:
     """Check if animations should be disabled."""
-    return bool(
-        os.environ.get("SUNWELL_REDUCED_MOTION") or os.environ.get("NO_COLOR")
-    )
+    return bool(os.environ.get("SUNWELL_REDUCED_MOTION") or os.environ.get("NO_COLOR"))
 
 
 def is_plain_mode() -> bool:
@@ -57,11 +50,11 @@ class RenderPhase(Enum):
 
 # Tree drawing characters
 TREE = {
-    "branch": "├─",      # Non-last child
-    "last": "└─",        # Last child
-    "pipe": "│ ",        # Continuation
-    "space": "  ",       # No continuation
-    "top": "┌─",         # First/top of group
+    "branch": "├─",  # Non-last child
+    "last": "└─",  # Last child
+    "pipe": "│ ",  # Continuation
+    "space": "  ",  # No continuation
+    "top": "┌─",  # First/top of group
 }
 
 

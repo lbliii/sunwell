@@ -69,7 +69,7 @@ class ContextAssembler:
             elif isinstance(item, ChunkSummary):
                 # Summary from cold tier
                 parts.append(f"[Earlier context: {item.summary}]")
-            elif hasattr(item, 'summary') and item.summary:
+            elif hasattr(item, "summary") and item.summary:
                 parts.append(f"[Context: {item.summary}]")
 
         return "\n\n".join(parts)
@@ -149,6 +149,7 @@ class ContextAssembler:
         # If we have focus, apply weighting
         if self._focus and self._focus.topics:
             from sunwell.memory.simulacrum.context.focus import FocusFilter
+
             focus_filter = FocusFilter(self._focus)
 
             # Score and reorder by focus relevance
@@ -228,10 +229,12 @@ class ContextAssembler:
                 system_parts.append(f"- [{learning.category}] {learning.fact}")
 
         if system_parts:
-            messages.append({
-                "role": "system",
-                "content": "\n".join(system_parts),
-            })
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "\n".join(system_parts),
+                }
+            )
 
         # 2. Get context from hierarchical chunks
         if self._chunk_manager:
@@ -252,17 +255,21 @@ class ContextAssembler:
                     # COLD tier: summary only
                     stats["cold_summaries"] += 1
                     stats["compression_applied"] = True
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"[Earlier context: {item.summary}]",
-                    })
-                elif hasattr(item, 'summary') and item.summary:
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": f"[Earlier context: {item.summary}]",
+                        }
+                    )
+                elif hasattr(item, "summary") and item.summary:
                     # WARM tier: has summary
                     stats["warm_summaries"] += 1
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"[Context: {item.summary}]",
-                    })
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": f"[Context: {item.summary}]",
+                        }
+                    )
         else:
             # Fallback: recent turns from DAG
             recent = self._dag.get_recent_turns(10)

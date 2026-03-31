@@ -12,7 +12,6 @@ RFC-130: Now integrates with PersistentMemory to prefetch context from
 similar past goals, enabling "memory-informed" warm starts.
 """
 
-
 import asyncio
 from pathlib import Path
 from types import MappingProxyType
@@ -144,9 +143,7 @@ async def execute_prefetch(
     async def _do_prefetch() -> PrefetchedContext:
         # Run all prefetch operations in parallel
         files_task = asyncio.create_task(_read_files(plan.files_to_read, project_path))
-        learnings_task = asyncio.create_task(
-            _load_learnings(plan.learnings_to_load, project_path)
-        )
+        learnings_task = asyncio.create_task(_load_learnings(plan.learnings_to_load, project_path))
         dag_task = asyncio.create_task(_fetch_dag_nodes(plan.dag_nodes_to_fetch, project_path))
 
         # Wait for all tasks
@@ -181,9 +178,7 @@ async def _read_files(paths: tuple[str, ...], project_path: Path) -> dict[str, s
     return files
 
 
-async def _load_learnings(
-    ids: tuple[str, ...], project_path: Path
-) -> tuple[Learning, ...]:
+async def _load_learnings(ids: tuple[str, ...], project_path: Path) -> tuple[Learning, ...]:
     """Load learnings by ID from memory store.
 
     Phase 4.1: Uses LearningCache for fast O(1) lookups when available,
@@ -224,9 +219,7 @@ async def _load_learnings(
         return ()
 
 
-async def _fetch_dag_nodes(
-    ids: tuple[str, ...], project_path: Path
-) -> tuple[Any, ...]:
+async def _fetch_dag_nodes(ids: tuple[str, ...], project_path: Path) -> tuple[Any, ...]:
     """Fetch DAG nodes for conversation history.
 
     Placeholder - implement based on Simulacrum DAG structure.

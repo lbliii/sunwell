@@ -43,7 +43,9 @@ DEFAULT_LAYOUT = SurfaceLayout(
         size="full",
         props=_EMPTY_PROPS,
     ),
-    secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),),
+    secondary=(
+        SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),
+    ),
     contextual=(),
     arrangement="standard",
 )
@@ -52,25 +54,37 @@ DEFAULT_LAYOUT = SurfaceLayout(
 DOMAIN_DEFAULTS: dict[str, SurfaceLayout] = {
     "software": SurfaceLayout(
         primary=SurfacePrimitive(id="CodeEditor", category="code", size="full", props=_EMPTY_PROPS),
-        secondary=(SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),),
+        secondary=(
+            SurfacePrimitive(id="FileTree", category="code", size="sidebar", props=_EMPTY_PROPS),
+        ),
         contextual=(),
         arrangement="standard",
     ),
     "documentation": SurfaceLayout(
-        primary=SurfacePrimitive(id="ProseEditor", category="writing", size="full", props=_EMPTY_PROPS),
-        secondary=(SurfacePrimitive(id="Outline", category="writing", size="sidebar", props=_EMPTY_PROPS),),
+        primary=SurfacePrimitive(
+            id="ProseEditor", category="writing", size="full", props=_EMPTY_PROPS
+        ),
+        secondary=(
+            SurfacePrimitive(id="Outline", category="writing", size="sidebar", props=_EMPTY_PROPS),
+        ),
         contextual=(),
         arrangement="standard",
     ),
     "planning": SurfaceLayout(
         primary=SurfacePrimitive(id="Kanban", category="planning", size="full", props=_EMPTY_PROPS),
-        secondary=(SurfacePrimitive(id="GoalTree", category="planning", size="sidebar", props=_EMPTY_PROPS),),
+        secondary=(
+            SurfacePrimitive(
+                id="GoalTree", category="planning", size="sidebar", props=_EMPTY_PROPS
+            ),
+        ),
         contextual=(),
         arrangement="standard",
     ),
     "data": SurfaceLayout(
         primary=SurfacePrimitive(id="DataTable", category="data", size="full", props=_EMPTY_PROPS),
-        secondary=(SurfacePrimitive(id="Chart", category="data", size="panel", props=_EMPTY_PROPS),),
+        secondary=(
+            SurfacePrimitive(id="Chart", category="data", size="panel", props=_EMPTY_PROPS),
+        ),
         contextual=(),
         arrangement="standard",
     ),

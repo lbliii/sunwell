@@ -278,11 +278,13 @@ class SunwellHabits(HabitsProvider):
         result: list[dict] = []
         for habit in habits:
             completed = today_entries.get(habit.id, 0)
-            result.append({
-                "habit": habit.to_dict(),
-                "completed_today": completed,
-                "target": habit.target_count,
-                "is_complete": completed >= habit.target_count,
-            })
+            result.append(
+                {
+                    "habit": habit.to_dict(),
+                    "completed_today": completed,
+                    "target": habit.target_count,
+                    "is_complete": completed >= habit.target_count,
+                }
+            )
 
         return result

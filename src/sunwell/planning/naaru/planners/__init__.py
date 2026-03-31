@@ -1,13 +1,11 @@
-"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038, RFC-039, RFC-067, RFC-116.
+"""Task planners for RFC-032, RFC-034, RFC-036, RFC-038, RFC-067, RFC-116.
 
 Planners decompose goals into executable Task objects.
 
 Available Planners:
-- SelfImprovementPlanner: Find opportunities in Sunwell's codebase (RFC-019 behavior)
 - AgentPlanner: Decompose arbitrary user goals using LLM (RFC-032, RFC-034)
 - ArtifactPlanner: Discover artifacts, dependency resolution determines order (RFC-036)
 - HarmonicPlanner: Multi-candidate optimization with variance strategies (RFC-038)
-- ExpertiseAwareArtifactPlanner: Artifact planner with expertise injection (RFC-039)
 
 Planning Strategies:
 - SEQUENTIAL: Linear task dependencies (RFC-032)
@@ -27,15 +25,9 @@ RFC-116 Harmonic Scoring v2:
 """
 
 # RFC-067: Integration-Aware Planning (canonical: sunwell.integration)
-from sunwell.features.external.integration import (
-    decompose_with_wiring,
-)
+from sunwell.integration import decompose_with_wiring
 from sunwell.planning.naaru.planners.agent import AgentPlanner
 from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
-from sunwell.planning.naaru.planners.expertise_aware import (
-    ExpertiseAwareArtifactPlanner,
-    create_expertise_aware_planner,
-)
 from sunwell.planning.naaru.planners.harmonic import (
     HarmonicPlanner,
     PlanMetrics,
@@ -44,22 +36,17 @@ from sunwell.planning.naaru.planners.harmonic import (
     VarianceStrategy,
 )
 from sunwell.planning.naaru.planners.protocol import PlanningError, PlanningStrategy, TaskPlanner
-from sunwell.planning.naaru.planners.self_improvement import SelfImprovementPlanner
 
 __all__ = [
     "TaskPlanner",
     "PlanningError",
     "PlanningStrategy",
-    "SelfImprovementPlanner",
     "AgentPlanner",
     "ArtifactPlanner",
     # RFC-038: Harmonic Planning
     "HarmonicPlanner",
     "PlanMetrics",
     "VarianceStrategy",
-    # RFC-039: Expertise-Aware Planning
-    "ExpertiseAwareArtifactPlanner",
-    "create_expertise_aware_planner",
     # RFC-067: Integration-Aware Planning
     "decompose_with_wiring",
     # RFC-116: Harmonic Scoring v2

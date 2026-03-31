@@ -8,7 +8,6 @@ Replaces traditional RAG with a unified query across:
 - Temporal: "Recent conversation history"
 """
 
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -85,10 +84,12 @@ class UnifiedContext:
         if self.intelligence_context:
             system_parts.append(self.intelligence_context)
 
-        messages.append({
-            "role": "system",
-            "content": "\n".join(system_parts),
-        })
+        messages.append(
+            {
+                "role": "system",
+                "content": "\n".join(system_parts),
+            }
+        )
 
         # Recent conversation
         for turn in self.recent_turns:
@@ -205,7 +206,9 @@ class UnifiedContextAssembler:
                             if r_node.id not in {n.id for n, _ in memory_nodes}:
                                 # Discount related nodes slightly
                                 memory_nodes.append((r_node, score * 0.8))
-                                retrieval_sources["topological"] = retrieval_sources.get("topological", 0) + 1
+                                retrieval_sources["topological"] = (
+                                    retrieval_sources.get("topological", 0) + 1
+                                )
 
         # RFC-045: Add project intelligence (decisions, failures, patterns)
         intelligence_context = ""
@@ -234,9 +237,7 @@ class UnifiedContextAssembler:
             if similar_failures:
                 intelligence_parts.append("\n\n## ⚠️ Similar Past Failures")
                 for failure in similar_failures:
-                    intelligence_parts.append(
-                        f"- {failure.error_type}: {failure.description}"
-                    )
+                    intelligence_parts.append(f"- {failure.error_type}: {failure.description}")
                     intelligence_parts.append(f"  Error: {failure.error_message}")
                     if failure.root_cause:
                         intelligence_parts.append(f"  Root cause: {failure.root_cause}")
@@ -245,9 +246,7 @@ class UnifiedContextAssembler:
                 intelligence_context = "\n".join(intelligence_parts)
 
         # 4. Estimate tokens
-        estimated = self._estimate_tokens(
-            system_prompt, recent_turns, memory_nodes, learnings
-        )
+        estimated = self._estimate_tokens(system_prompt, recent_turns, memory_nodes, learnings)
 
         return UnifiedContext(
             system=system_prompt,

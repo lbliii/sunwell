@@ -5,6 +5,7 @@ from typing import TypedDict
 
 class PlanCandidateData(TypedDict, total=False):
     """Data for plan_candidate event (legacy)."""
+
     candidate_id: str  # Use candidate_id for matching
     artifact_count: int
     description: str
@@ -12,6 +13,7 @@ class PlanCandidateData(TypedDict, total=False):
 
 class PlanExpandedData(TypedDict, total=False):
     """Data for plan_expanded event."""
+
     new_tasks: int
     total_tasks: int
     reason: str
@@ -19,6 +21,7 @@ class PlanExpandedData(TypedDict, total=False):
 
 class PlanAssessData(TypedDict, total=False):
     """Data for plan_assess event."""
+
     complete: bool
     remaining_tasks: int
     assessment: str
@@ -26,6 +29,7 @@ class PlanAssessData(TypedDict, total=False):
 
 class PlanDiscoveryProgressData(TypedDict, total=False):
     """Data for plan_discovery_progress event (RFC-059)."""
+
     artifacts_discovered: int  # Required
     phase: str  # Required: "discovering" | "parsing" | "validating" | "building_graph" | "complete"
     total_estimated: int | None  # Optional: if known

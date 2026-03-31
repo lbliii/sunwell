@@ -24,29 +24,34 @@ console = Console()
 @click.command("scan")
 @click.argument("path", type=click.Path(exists=True), default=".")
 @click.option(
-    "--lens", "-l",
+    "--lens",
+    "-l",
     type=str,
     default=None,
     help="Lens to use for scanning (auto-detected if not specified)",
 )
 @click.option(
-    "--json", "json_output",
+    "--json",
+    "json_output",
     is_flag=True,
     help="Output as JSON (for CI/scripting)",
 )
 @click.option(
-    "--open", "open_studio",
+    "--open",
+    "open_studio",
     is_flag=True,
     help="Open results in Studio",
 )
 @click.option(
-    "--save", "-s",
+    "--save",
+    "-s",
     type=click.Path(),
     default=None,
     help="Save State DAG to file",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output including all nodes",
 )
@@ -98,16 +103,18 @@ def scan(
         - conf.py, mkdocs.yml → Documentation project
         - pyproject.toml, package.json → Code project
     """
-    asyncio.run(_scan_async(
-        path=path,
-        lens_name=lens,
-        json_output=json_output,
-        open_studio=open_studio,
-        save=save,
-        verbose=verbose,
-        link_paths=link,
-        no_detect=no_detect,
-    ))
+    asyncio.run(
+        _scan_async(
+            path=path,
+            lens_name=lens,
+            json_output=json_output,
+            open_studio=open_studio,
+            save=save,
+            verbose=verbose,
+            link_paths=link,
+            no_detect=no_detect,
+        )
+    )
 
 
 async def _scan_async(
@@ -139,6 +146,7 @@ async def _scan_async(
     if lens_name:
         try:
             from sunwell.planning.lens.manager import LensManager
+
             manager = LensManager()
             lens = await manager.get_lens_detail(lens_name)
         except Exception as e:
@@ -187,11 +195,12 @@ async def _scan_async(
 
         if high_confidence and not json_output:
             console.print(
-                "\n[cyan]💡 Found related projects "
-                "(use --link to enable drift detection):[/cyan]"
+                "\n[cyan]💡 Found related projects (use --link to enable drift detection):[/cyan]"
             )
             for link in high_confidence[:3]:
-                console.print(f"   {link.confidence*100:.0f}% {link.target.name} ({link.language})")
+                console.print(
+                    f"   {link.confidence * 100:.0f}% {link.target.name} ({link.language})"
+                )
             console.print(f"   [dim]Run: sunwell workspace link {root} --target <path>[/dim]\n")
 
     # Build State DAG with progress indicator
@@ -315,7 +324,7 @@ def _display_results(dag, verbose: bool) -> None:
         console.print(f"  • Fix {len(dag.critical_nodes)} critical issues")
     if dag.unhealthy_nodes:
         console.print(f"  • Review {len(dag.unhealthy_nodes)} unhealthy nodes")
-    console.print(f'  • sunwell scan {dag.root} --open [dim]View in Studio[/dim]')
+    console.print(f"  • sunwell scan {dag.root} --open [dim]View in Studio[/dim]")
     console.print(f'  • sunwell "Fix issues in {dag.root.name}" [dim]Auto-fix with agent[/dim]')
 
 
@@ -412,10 +421,7 @@ def _update_environment_from_dag(root: Path, dag, json_output: bool) -> None:
 
         if not json_output:
             health_pct = dag.overall_health * 100
-            console.print(
-                f"[dim]Environment updated: {root.name} "
-                f"({health_pct:.0f}% health)[/dim]"
-            )
+            console.print(f"[dim]Environment updated: {root.name} ({health_pct:.0f}% health)[/dim]")
 
     except Exception as e:
         # Don't fail the scan if environment update fails

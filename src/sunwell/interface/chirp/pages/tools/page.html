@@ -1,0 +1,117 @@
+{% extends "_layout.html" %}
+{% block page_content %}
+{% from "chirpui/layout.html" import container, grid, stack, page_header, section_header %}
+{% from "chirpui/card.html" import card %}
+
+{% call container() %}
+{% call stack(gap="lg") %}
+
+    {% call page_header("Tool Inspector", subtitle="Browse and test MCP tools") %}{% end %}
+
+    {# Summary Stats #}
+    {% call grid(cols=3, gap="md") %}
+        {% call card(variant="stats") %}
+            <div class="chirpui-stack chirpui-stack--xs" style="text-align: center;">
+                <div class="chirpui-font-2xl chirpui-ui-bold chirpui-font-mono" style="color: var(--chirpui-accent);">{{ total_tools }}</div>
+                <div class="chirpui-ui-xs chirpui-text-muted" style="text-transform: uppercase; letter-spacing: 0.05em;">Total Tools</div>
+            </div>
+        {% end %}
+        {% call card(variant="stats") %}
+            <div class="chirpui-stack chirpui-stack--xs" style="text-align: center;">
+                <div class="chirpui-font-2xl chirpui-ui-bold chirpui-font-mono" style="color: var(--chirpui-accent);">{{ categories | length }}</div>
+                <div class="chirpui-ui-xs chirpui-text-muted" style="text-transform: uppercase; letter-spacing: 0.05em;">Categories</div>
+            </div>
+        {% end %}
+        {% call card(variant="stats") %}
+            <div class="chirpui-stack chirpui-stack--xs" style="text-align: center;">
+                <div class="chirpui-font-2xl chirpui-ui-bold chirpui-font-mono" style="color: var(--chirpui-accent);">/mcp</div>
+                <div class="chirpui-ui-xs chirpui-text-muted" style="text-transform: uppercase; letter-spacing: 0.05em;">Endpoint</div>
+            </div>
+        {% end %}
+    {% end %}
+
+    {# Tool List by Category #}
+    {% for category, tools in tools_by_category.items() %}
+    <section>
+    {% call stack(gap="md") %}
+        {% call section_header(
+            (category | title) ~ " Tools",
+            subtitle=tools | length ~ " available",
+            icon=category_icons.get(category, "◆")
+        ) %}{% end %}
+
+        {% call grid(gap="md") %}
+            {% for tool in tools %}
+                {% call card() %}
+                    <div class="chirpui-stack chirpui-stack--sm">
+                        <div class="chirpui-cluster" style="justify-content: space-between; align-items: center;">
+                            <h3 class="chirpui-font-mono" style="color: var(--chirpui-accent);">{{ tool.name }}</h3>
+                            <button class="chirpui-btn chirpui-btn--sm chirpui-btn--secondary"
+                                    hx-get="/tools/{{ tool.name }}/test"
+                                    hx-target="#tool-test-modal"
+                                    hx-swap="innerHTML"
+                                    onclick="document.getElementById('tool-test-modal').style.display='flex'">
+                                Test
+                            </button>
+                        </div>
+
+                        <p class="chirpui-text-muted chirpui-ui-sm">{{ tool.description }}</p>
+
+                        <div class="chirpui-stack chirpui-stack--xs chirpui-ui-xs chirpui-text-muted">
+                            <span>
+                                <strong>Required:</strong>
+                                {% if tool.required %}
+                                    {{ tool.required | join(', ') }}
+                                {% else %}
+                                    None
+                                {% end %}
+                            </span>
+                            <span><strong>Optional:</strong> {{ tool.optional_count }}</span>
+                        </div>
+
+                        <details class="chirpui-surface chirpui-surface--muted" style="border-radius: var(--chirpui-radius);">
+                            <summary style="padding: var(--chirpui-spacing-xs) var(--chirpui-spacing-sm); cursor: pointer;" class="chirpui-ui-sm chirpui-text-muted">View Schema</summary>
+                            <pre style="margin: 0; padding: var(--chirpui-spacing-md); overflow-x: auto;"><code class="chirpui-ui-xs chirpui-font-mono">{{ tool.schema_json }}</code></pre>
+                        </details>
+
+                        <div class="chirpui-cluster chirpui-cluster--sm" style="padding-top: var(--chirpui-spacing-sm); border-top: 1px solid var(--chirpui-border);">
+                            <button class="chirpui-btn chirpui-btn--ghost chirpui-btn--sm"
+                                    onclick="navigator.clipboard.writeText('{{ tool.name }}')">
+                                Copy Name
+                            </button>
+                            <button class="chirpui-btn chirpui-btn--ghost chirpui-btn--sm"
+                                    onclick="copyCurlCommand('{{ tool.name }}')">
+                                Copy curl
+                            </button>
+                        </div>
+                    </div>
+                {% end %}
+            {% end %}
+        {% end %}
+    {% end %}
+    </section>
+    {% end %}
+
+    {# Tool Test Modal #}
+    <div id="tool-test-modal" class="chirpui-modal" style="display: none;">
+    </div>
+
+{% end %}
+{% end %}
+{% end %}
+
+{% block scripts %}
+<script>
+function copyCurlCommand(toolName) {
+    const cmd = `curl -X POST http://localhost:8000/mcp \\
+  -H "Content-Type: application/json" \\
+  -d '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"${toolName}","arguments":{}}}'`;
+    navigator.clipboard.writeText(cmd);
+}
+
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('tool-test-modal');
+    if (e.target === modal) modal.style.display = 'none';
+});
+</script>
+{% end %}

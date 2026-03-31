@@ -16,7 +16,6 @@ micro_abc123	0-10	User introduced themselves	identity|capabilities
 micro_def456	10-20	Tested file limitations	tools|limitations
 """
 
-
 import contextlib
 from typing import TYPE_CHECKING
 
@@ -62,12 +61,14 @@ class CTFEncoder:
             # Escape content to protect separators
             content = CTFEncoder._escape_content(turn.content)
 
-            row = FIELD_SEP.join([
-                turn.turn_type.value,
-                content,
-                turn.timestamp,
-                turn.model or NULL_VALUE,
-            ])
+            row = FIELD_SEP.join(
+                [
+                    turn.turn_type.value,
+                    content,
+                    turn.timestamp,
+                    turn.model or NULL_VALUE,
+                ]
+            )
             lines.append(row)
 
         return RECORD_SEP.join(lines)
@@ -135,12 +136,14 @@ class CTFDecoder:
             # Unescape content
             content = CTFDecoder._unescape_content(data.get("content", ""))
 
-            turns.append(Turn(
-                content=content,
-                turn_type=TurnType(data.get("role", "user")),
-                timestamp=data.get("timestamp", ""),
-                model=data.get("model") if data.get("model") != NULL_VALUE else None,
-            ))
+            turns.append(
+                Turn(
+                    content=content,
+                    turn_type=TurnType(data.get("role", "user")),
+                    timestamp=data.get("timestamp", ""),
+                    model=data.get("model") if data.get("model") != NULL_VALUE else None,
+                )
+            )
 
         return turns
 
@@ -172,12 +175,14 @@ def encode_chunk_summaries(summaries: list[dict]) -> str:
         if isinstance(turn_range, (list, tuple)) and len(turn_range) == 2:
             turn_range = f"{turn_range[0]}-{turn_range[1]}"
 
-        row = FIELD_SEP.join([
-            s.get("chunk_id", ""),
-            str(turn_range),
-            CTFEncoder._escape_content(s.get("summary", ""), max_len=500),
-            "|".join(s.get("themes", [])),
-        ])
+        row = FIELD_SEP.join(
+            [
+                s.get("chunk_id", ""),
+                str(turn_range),
+                CTFEncoder._escape_content(s.get("summary", ""), max_len=500),
+                "|".join(s.get("themes", [])),
+            ]
+        )
         lines.append(row)
 
     return RECORD_SEP.join(lines)
@@ -211,11 +216,13 @@ def decode_chunk_summaries(ctf_content: str) -> list[dict]:
                 with contextlib.suppress(ValueError):
                     turn_range = (int(parts[0]), int(parts[1]))
 
-            summaries.append({
-                "chunk_id": values[0],
-                "turn_range": turn_range,
-                "summary": CTFDecoder._unescape_content(values[2]),
-                "themes": [t for t in values[3].split("|") if t],
-            })
+            summaries.append(
+                {
+                    "chunk_id": values[0],
+                    "turn_range": turn_range,
+                    "summary": CTFDecoder._unescape_content(values[2]),
+                    "themes": [t for t in values[3].split("|") if t],
+                }
+            )
 
     return summaries

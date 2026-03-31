@@ -275,9 +275,7 @@ class VerificationEvent:
     ]
 
     message: str = ""
-    data: MappingProxyType[str, Any] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
+    data: MappingProxyType[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
 
 # =============================================================================

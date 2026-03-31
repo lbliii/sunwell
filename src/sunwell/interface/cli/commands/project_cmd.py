@@ -34,11 +34,19 @@ def project() -> None:
 @click.argument("path", type=click.Path(), default=".")
 @click.option("--id", "project_id", help="Project identifier (default: directory name)")
 @click.option("--name", "project_name", help="Human-readable name (default: same as id)")
-@click.option("--trust", type=click.Choice(["discovery", "read_only", "workspace", "full"]),
-              default="workspace", help="Default trust level for agent")
+@click.option(
+    "--trust",
+    type=click.Choice(["discovery", "read_only", "workspace", "full"]),
+    default="workspace",
+    help="Default trust level for agent",
+)
 @click.option("--no-register", is_flag=True, help="Don't add to global registry")
-@click.option("--state-dir", "state_dir", type=click.Path(),
-              help="Store runtime state externally (default: in-tree .sunwell/)")
+@click.option(
+    "--state-dir",
+    "state_dir",
+    type=click.Path(),
+    help="Store runtime state externally (default: in-tree .sunwell/)",
+)
 def init_cmd(
     path: str,
     project_id: str | None,
@@ -123,7 +131,7 @@ def init_cmd(
 
     if default_binding:
         console.print("[dim]You can now run:[/dim]")
-        console.print("  [cyan]sunwell \"your goal here\"[/cyan]")
+        console.print('  [cyan]sunwell "your goal here"[/cyan]')
         console.print("  [cyan]sunwell chat[/cyan]")
     else:
         console.print("[yellow]No default binding configured.[/yellow]")
@@ -131,7 +139,7 @@ def init_cmd(
         console.print("  [cyan]sunwell setup[/cyan]")
         console.print()
         console.print("[dim]Or run directly with a goal:[/dim]")
-        console.print("  [cyan]sunwell \"your goal here\"[/cyan]")
+        console.print('  [cyan]sunwell "your goal here"[/cyan]')
 
 
 @project.command(name="list")
@@ -560,7 +568,9 @@ def rename_cmd(project_id: str, new_id: str, name: str | None) -> None:
 
     try:
         result = manager.rename(project_id, new_id=new_id, new_name=name)
-        console.print(f"[green]✓[/green] Project renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]")
+        console.print(
+            f"[green]✓[/green] Project renamed: [cyan]{result.old_id}[/cyan] → [cyan]{result.new_id}[/cyan]"
+        )
         if result.runs_updated > 0:
             console.print(f"  Runs updated: {result.runs_updated}")
     except ValueError as e:
@@ -598,7 +608,11 @@ def move_cmd(project_id: str, new_path: str) -> None:
 
 
 @project.command(name="cleanup")
-@click.option("--dry-run/--no-dry-run", default=True, help="Only report what would be cleaned (default: dry-run)")
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=True,
+    help="Only report what would be cleaned (default: dry-run)",
+)
 @click.option("--confirm", is_flag=True, help="Actually perform cleanup (same as --no-dry-run)")
 def cleanup_cmd(dry_run: bool, confirm: bool) -> None:
     """Find and clean up orphaned project data (RFC-141).
@@ -659,8 +673,7 @@ def cleanup_cmd(dry_run: bool, confirm: bool) -> None:
 
 @project.command(name="state-dir")
 @click.argument("project_id", required=False)
-@click.option("--set", "new_dir", type=click.Path(),
-              help="Set external state directory")
+@click.option("--set", "new_dir", type=click.Path(), help="Set external state directory")
 def state_dir_cmd(project_id: str | None, new_dir: str | None) -> None:
     """Show or change where runtime state is stored.
 
@@ -727,8 +740,9 @@ def state_dir_cmd(project_id: str | None, new_dir: str | None) -> None:
 
 @project.command(name="externalize")
 @click.argument("project_id", required=False)
-@click.option("--target", type=click.Path(),
-              help="Target directory for state (default: XDG data home)")
+@click.option(
+    "--target", type=click.Path(), help="Target directory for state (default: XDG data home)"
+)
 @click.option("--confirm", is_flag=True, help="Actually move files (default: dry-run)")
 def externalize_cmd(project_id: str | None, target: str | None, confirm: bool) -> None:
     """Move in-tree state to an external directory.
@@ -781,9 +795,7 @@ def externalize_cmd(project_id: str | None, target: str | None, confirm: bool) -
 
     # Already external?
     if proj.manifest and proj.manifest.state_dir:
-        console.print(
-            f"[yellow]State is already external:[/yellow] {proj.manifest.state_dir}"
-        )
+        console.print(f"[yellow]State is already external:[/yellow] {proj.manifest.state_dir}")
         raise SystemExit(1)
 
     # Discover what to move
@@ -815,7 +827,7 @@ def externalize_cmd(project_id: str | None, target: str | None, confirm: bool) -
 
     console.print("[bold]Will move:[/bold]")
     for src, dst in to_move:
-        label = f"  {src.name}/"  if src.is_dir() else f"  {src.name}"
+        label = f"  {src.name}/" if src.is_dir() else f"  {src.name}"
         console.print(label)
 
     if to_skip:
@@ -900,10 +912,12 @@ def info_cmd(project_id: str | None) -> None:
         raise SystemExit(1) from None
 
     console.print()
-    console.print(Panel(
-        f"[bold]{project.name}[/bold]",
-        subtitle=project.id,
-    ))
+    console.print(
+        Panel(
+            f"[bold]{project.name}[/bold]",
+            subtitle=project.id,
+        )
+    )
 
     console.print(f"  [dim]Root:[/dim] {project.root}")
     console.print(f"  [dim]Type:[/dim] {project.workspace_type.value}")
@@ -933,8 +947,13 @@ def info_cmd(project_id: str | None) -> None:
 @click.argument("path", type=click.Path(exists=True), default=".")
 @click.option("--json", "output_json", is_flag=True, help="Output as JSON")
 @click.option("--fresh", is_flag=True, help="Force fresh analysis (skip cache)")
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
+)
 @click.option("--model", "-m", default=None, help="Model to use for LLM classification")
 @async_command
 async def analyze_cmd(
@@ -986,9 +1005,7 @@ async def _analyze(
 
         output = json.dumps(analysis.to_cache_dict(), indent=2, ensure_ascii=False)
         # Sanitize: remove control characters except newlines/tabs
-        sanitized = "".join(
-            c for c in output if not (ord(c) < 32 and c not in "\n\r\t")
-        )
+        sanitized = "".join(c for c in output if not (ord(c) < 32 and c not in "\n\r\t"))
         sys.stdout.write(sanitized)
         sys.stdout.write("\n")
         sys.stdout.flush()
@@ -1095,9 +1112,7 @@ def _display_analysis(analysis) -> None:
 
     # Workspace suggestion
     console.print()
-    console.print(
-        f"[dim]Suggested workspace: {analysis.suggested_workspace_primary}[/dim]"
-    )
+    console.print(f"[dim]Suggested workspace: {analysis.suggested_workspace_primary}[/dim]")
     console.print()
 
 
@@ -1127,9 +1142,7 @@ def signals_cmd(path: str, output_json: bool) -> None:
             "has_backlog": signals.has_backlog,
             "markdown_count": signals.markdown_count,
             "git_branch": signals.git_status.branch if signals.git_status else None,
-            "git_commit_count": (
-                signals.git_status.commit_count if signals.git_status else 0
-            ),
+            "git_commit_count": (signals.git_status.commit_count if signals.git_status else 0),
         }
         console.print(json.dumps(result, indent=2))
         return
@@ -1173,9 +1186,7 @@ def signals_cmd(path: str, output_json: bool) -> None:
     if signals.git_status:
         table.add_row("Git", "Branch", signals.git_status.branch)
         table.add_row("Git", "Commits", str(signals.git_status.commit_count))
-        table.add_row(
-            "Git", "Uncommitted", "✓" if signals.git_status.uncommitted_changes else "✗"
-        )
+        table.add_row("Git", "Uncommitted", "✓" if signals.git_status.uncommitted_changes else "✗")
 
     console.print(table)
     console.print()

@@ -1,6 +1,5 @@
 """Anthropic (Claude) model adapter with tool calling support (RFC-012)."""
 
-
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
@@ -99,26 +98,30 @@ class AnthropicModel:
                     if msg.content:
                         content_blocks.append({"type": "text", "text": msg.content})
                     for tc in msg.tool_calls:
-                        content_blocks.append({
-                            "type": "tool_use",
-                            "id": tc.id,
-                            "name": tc.name,
-                            "input": tc.arguments,
-                        })
+                        content_blocks.append(
+                            {
+                                "type": "tool_use",
+                                "id": tc.id,
+                                "name": tc.name,
+                                "input": tc.arguments,
+                            }
+                        )
                     if content_blocks:
                         messages.append({"role": "assistant", "content": content_blocks})
                 elif msg.role == "tool":
                     # Tool result goes in a user message with tool_result block
-                    messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": msg.tool_call_id,
-                                "content": msg.content or "",
-                            }
-                        ],
-                    })
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": msg.tool_call_id,
+                                    "content": msg.content or "",
+                                }
+                            ],
+                        }
+                    )
 
         return messages, system_prompt
 
@@ -215,11 +218,13 @@ class AnthropicModel:
             if block.type == "text":
                 content = sanitize_llm_content(block.text)
             elif block.type == "tool_use":
-                tool_calls.append(ToolCall(
-                    id=block.id,
-                    name=block.name,
-                    arguments=_sanitize_dict_values(block.input),
-                ))
+                tool_calls.append(
+                    ToolCall(
+                        id=block.id,
+                        name=block.name,
+                        arguments=_sanitize_dict_values(block.input),
+                    )
+                )
 
         return GenerateResult(
             content=content,

@@ -1,6 +1,5 @@
 """Opportunity discovery for RFC-016 Autonomous Mode."""
 
-
 import re
 import uuid
 from dataclasses import dataclass
@@ -78,6 +77,7 @@ class OpportunityDiscoverer:
 
         # Check what error patterns the FailureAnalyzer already knows
         from sunwell.features.mirror.analysis import FailureAnalyzer
+
         analyzer = FailureAnalyzer()
         known_patterns = set(analyzer.known_patterns.keys())
 
@@ -95,22 +95,21 @@ class OpportunityDiscoverer:
 
         for pattern, desc in potential_patterns:
             # Check if already covered
-            already_covered = any(
-                pattern.lower() in known.lower()
-                for known in known_patterns
-            )
+            already_covered = any(pattern.lower() in known.lower() for known in known_patterns)
 
             if not already_covered:
-                opportunities.append(Opportunity(
-                    id=f"err_{pattern.lower()}_{uuid.uuid4().hex[:6]}",
-                    category=OpportunityCategory.ERROR_HANDLING,
-                    description=f"Add {pattern} error pattern recognition",
-                    target_module="sunwell.mirror.analysis",
-                    priority=0.85,
-                    estimated_effort="small",
-                    risk_level=RiskLevel.LOW,
-                    details={"pattern": pattern, "description": desc},
-                ))
+                opportunities.append(
+                    Opportunity(
+                        id=f"err_{pattern.lower()}_{uuid.uuid4().hex[:6]}",
+                        category=OpportunityCategory.ERROR_HANDLING,
+                        description=f"Add {pattern} error pattern recognition",
+                        target_module="sunwell.mirror.analysis",
+                        priority=0.85,
+                        estimated_effort="small",
+                        risk_level=RiskLevel.LOW,
+                        details={"pattern": pattern, "description": desc},
+                    )
+                )
 
         return opportunities
 
@@ -134,16 +133,18 @@ class OpportunityDiscoverer:
             test_file = test_dir / f"test_{module_name}.py"
 
             if not test_file.exists():
-                opportunities.append(Opportunity(
-                    id=f"test_{module_name}_{uuid.uuid4().hex[:6]}",
-                    category=OpportunityCategory.TESTING,
-                    description=f"Add tests for {module}",
-                    target_module=module,
-                    priority=0.7,
-                    estimated_effort="medium",
-                    risk_level=RiskLevel.LOW,
-                    details={"missing_test_file": str(test_file)},
-                ))
+                opportunities.append(
+                    Opportunity(
+                        id=f"test_{module_name}_{uuid.uuid4().hex[:6]}",
+                        category=OpportunityCategory.TESTING,
+                        description=f"Add tests for {module}",
+                        target_module=module,
+                        priority=0.7,
+                        estimated_effort="medium",
+                        risk_level=RiskLevel.LOW,
+                        details={"missing_test_file": str(test_file)},
+                    )
+                )
 
         return opportunities[:10]  # Limit to top 10
 
@@ -160,16 +161,18 @@ class OpportunityDiscoverer:
 
         for name, pattern, improvement in patterns_to_check:
             # This is simplified - real implementation would search files
-            opportunities.append(Opportunity(
-                id=f"perf_{name.replace(' ', '_')}_{uuid.uuid4().hex[:6]}",
-                category=OpportunityCategory.PERFORMANCE,
-                description=f"Optimize {name} → use {improvement}",
-                target_module="sunwell.*",
-                priority=0.6,
-                estimated_effort="medium",
-                risk_level=RiskLevel.MEDIUM,
-                details={"pattern": pattern, "improvement": improvement},
-            ))
+            opportunities.append(
+                Opportunity(
+                    id=f"perf_{name.replace(' ', '_')}_{uuid.uuid4().hex[:6]}",
+                    category=OpportunityCategory.PERFORMANCE,
+                    description=f"Optimize {name} → use {improvement}",
+                    target_module="sunwell.*",
+                    priority=0.6,
+                    estimated_effort="medium",
+                    risk_level=RiskLevel.MEDIUM,
+                    details={"pattern": pattern, "improvement": improvement},
+                )
+            )
 
         return opportunities
 
@@ -183,36 +186,41 @@ class OpportunityDiscoverer:
         for module in modules:
             try:
                 from sunwell.features.mirror.introspection import SourceIntrospector
+
                 introspector = SourceIntrospector(self.workspace)
                 structure = introspector.get_module_structure(module)
 
                 # Check classes without docstrings
                 for cls in structure.get("classes", []):
                     if not cls.get("docstring"):
-                        opportunities.append(Opportunity(
-                            id=f"doc_{cls['name']}_{uuid.uuid4().hex[:6]}",
-                            category=OpportunityCategory.DOCUMENTATION,
-                            description=f"Add docstring to {cls['name']}",
-                            target_module=module,
-                            priority=0.4,
-                            estimated_effort="trivial",
-                            risk_level=RiskLevel.TRIVIAL,
-                            details={"class_name": cls["name"]},
-                        ))
+                        opportunities.append(
+                            Opportunity(
+                                id=f"doc_{cls['name']}_{uuid.uuid4().hex[:6]}",
+                                category=OpportunityCategory.DOCUMENTATION,
+                                description=f"Add docstring to {cls['name']}",
+                                target_module=module,
+                                priority=0.4,
+                                estimated_effort="trivial",
+                                risk_level=RiskLevel.TRIVIAL,
+                                details={"class_name": cls["name"]},
+                            )
+                        )
 
                 # Check functions without docstrings
                 for func in structure.get("functions", []):
                     if not func.get("docstring") and not func["name"].startswith("_"):
-                        opportunities.append(Opportunity(
-                            id=f"doc_{func['name']}_{uuid.uuid4().hex[:6]}",
-                            category=OpportunityCategory.DOCUMENTATION,
-                            description=f"Add docstring to {func['name']}()",
-                            target_module=module,
-                            priority=0.3,
-                            estimated_effort="trivial",
-                            risk_level=RiskLevel.TRIVIAL,
-                            details={"function_name": func["name"]},
-                        ))
+                        opportunities.append(
+                            Opportunity(
+                                id=f"doc_{func['name']}_{uuid.uuid4().hex[:6]}",
+                                category=OpportunityCategory.DOCUMENTATION,
+                                description=f"Add docstring to {func['name']}()",
+                                target_module=module,
+                                priority=0.3,
+                                estimated_effort="trivial",
+                                risk_level=RiskLevel.TRIVIAL,
+                                details={"function_name": func["name"]},
+                            )
+                        )
             except Exception:
                 continue
 
@@ -237,16 +245,18 @@ class OpportunityDiscoverer:
                     tag, message = match.groups()
                     module = str(py_file.relative_to(src_dir)).replace("/", ".").replace(".py", "")
 
-                    opportunities.append(Opportunity(
-                        id=f"quality_{tag.lower()}_{uuid.uuid4().hex[:6]}",
-                        category=OpportunityCategory.CODE_QUALITY,
-                        description=f"Address {tag}: {message[:50]}",
-                        target_module=f"sunwell.{module}",
-                        priority=0.5 if tag == "FIXME" else 0.4,
-                        estimated_effort="small",
-                        risk_level=RiskLevel.MEDIUM,
-                        details={"tag": tag, "message": message},
-                    ))
+                    opportunities.append(
+                        Opportunity(
+                            id=f"quality_{tag.lower()}_{uuid.uuid4().hex[:6]}",
+                            category=OpportunityCategory.CODE_QUALITY,
+                            description=f"Address {tag}: {message[:50]}",
+                            target_module=f"sunwell.{module}",
+                            priority=0.5 if tag == "FIXME" else 0.4,
+                            estimated_effort="small",
+                            risk_level=RiskLevel.MEDIUM,
+                            details={"tag": tag, "message": message},
+                        )
+                    )
             except Exception:
                 continue
 

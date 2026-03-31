@@ -38,7 +38,9 @@ def get_workspace() -> Path:
 @click.option("--limit", "-l", default=10, help="Number of notifications to show")
 @click.option("--today", "-t", is_flag=True, help="Show only today's notifications")
 @click.option(
-    "--type", "-T", "notification_type",
+    "--type",
+    "-T",
+    "notification_type",
     type=click.Choice(["info", "success", "warning", "error", "waiting"]),
     help="Filter by notification type",
 )
@@ -69,10 +71,10 @@ def notifications(
     # If a subcommand is being called, don't run the default behavior
     if ctx.invoked_subcommand is not None:
         return
-    
+
     workspace = get_workspace()
     store = get_notification_store(workspace)
-    
+
     # Get notifications based on filters
     if undelivered:
         records = store.get_undelivered()
@@ -90,18 +92,18 @@ def notifications(
             return
     else:
         records = store.get_recent(limit=limit)
-    
+
     if not records:
         if as_json:
             click.echo(json.dumps([], indent=2))
         else:
             console.print("[dim]No notifications found.[/dim]")
         return
-    
+
     if as_json:
         click.echo(json.dumps([r.to_dict() for r in records], indent=2))
         return
-    
+
     # Display as table
     table = Table(show_header=True, header_style="bold")
     table.add_column("Time", style="dim", width=19)
@@ -109,7 +111,7 @@ def notifications(
     table.add_column("Title", style="cyan")
     table.add_column("Message")
     table.add_column("✓", justify="center", width=3)
-    
+
     type_colors = {
         "info": "blue",
         "success": "green",
@@ -117,7 +119,7 @@ def notifications(
         "error": "red",
         "waiting": "magenta",
     }
-    
+
     for record in records:
         # Format timestamp
         try:
@@ -125,24 +127,24 @@ def notifications(
             time_str = ts.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             time_str = record.timestamp[:19]
-        
+
         # Type with color
         color = type_colors.get(record.type, "white")
         type_str = f"[{color}]{record.type}[/{color}]"
-        
+
         # Delivery status
         delivered_str = "[green]✓[/green]" if record.delivered else "[red]✗[/red]"
-        
+
         # Truncate message if too long
         message = record.message
         if len(message) > 50:
             message = message[:47] + "..."
-        
+
         table.add_row(time_str, type_str, record.title, message, delivered_str)
-    
+
     console.print(f"\n[bold]Notification History[/bold] ({len(records)} shown)\n")
     console.print(table)
-    
+
     # Show total count
     total = store.count()
     if total > len(records):
@@ -161,18 +163,18 @@ def clear(force: bool) -> None:
     """
     workspace = get_workspace()
     store = get_notification_store(workspace)
-    
+
     count = store.count()
-    
+
     if count == 0:
         console.print("[dim]No notifications to clear.[/dim]")
         return
-    
+
     if not force:
         if not click.confirm(f"Clear {count} notifications?"):
             console.print("[dim]Cancelled.[/dim]")
             return
-    
+
     store.clear()
     console.print(f"[green]✓ Cleared {count} notifications[/green]")
 
@@ -192,11 +194,11 @@ def prune(keep: int) -> None:
     """
     workspace = get_workspace()
     store = get_notification_store(workspace)
-    
+
     count_before = store.count()
     removed = store.prune(keep_recent=keep)
     count_after = store.count()
-    
+
     if removed > 0:
         console.print(f"[green]✓ Pruned {removed} notifications[/green]")
         console.print(f"[dim]Before: {count_before} → After: {count_after}[/dim]")
@@ -216,29 +218,28 @@ def stats(as_json: bool) -> None:
     """
     workspace = get_workspace()
     store = get_notification_store(workspace)
-    
+
     records = list(store._read_all())
-    
+
     if not records:
         if as_json:
             click.echo(json.dumps({"total": 0}, indent=2))
         else:
             console.print("[dim]No notifications found.[/dim]")
         return
-    
+
     # Calculate stats
     total = len(records)
     delivered = sum(1 for r in records if r.delivered)
-    
+
     by_type: dict[str, int] = {}
     for r in records:
         by_type[r.type] = by_type.get(r.type, 0) + 1
-    
+
     today_count = sum(
-        1 for r in records
-        if datetime.fromisoformat(r.timestamp).date() == datetime.now().date()
+        1 for r in records if datetime.fromisoformat(r.timestamp).date() == datetime.now().date()
     )
-    
+
     stats_data = {
         "total": total,
         "delivered": delivered,
@@ -247,17 +248,17 @@ def stats(as_json: bool) -> None:
         "today": today_count,
         "by_type": by_type,
     }
-    
+
     if as_json:
         click.echo(json.dumps(stats_data, indent=2))
         return
-    
+
     console.print("\n[bold]Notification Statistics[/bold]\n")
     console.print(f"Total:       {total}")
     console.print(f"Delivered:   {delivered} ({stats_data['delivery_rate']}%)")
     console.print(f"Undelivered: {total - delivered}")
     console.print(f"Today:       {today_count}")
-    
+
     console.print("\n[bold]By Type:[/bold]")
     type_colors = {
         "info": "blue",

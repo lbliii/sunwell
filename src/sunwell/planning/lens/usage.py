@@ -56,10 +56,7 @@ def record_lens_activation(lens_name: str) -> None:
 
     # Keep only last 30 days of activations
     cutoff = datetime.now() - timedelta(days=30)
-    activations[lens_name] = [
-        ts for ts in lens_entries
-        if datetime.fromisoformat(ts) > cutoff
-    ]
+    activations[lens_name] = [ts for ts in lens_entries if datetime.fromisoformat(ts) > cutoff]
 
     _save_usage_data(data)
 
@@ -100,10 +97,7 @@ def get_lens_usage(lens_name: str) -> dict:
     history = []
     for i in range(6, -1, -1):  # 6 days ago to today
         day = today - timedelta(days=i)
-        count = sum(
-            1 for ts in timestamps
-            if ts.date() == day
-        )
+        count = sum(1 for ts in timestamps if ts.date() == day)
         history.append(count)
 
     return {
@@ -124,10 +118,7 @@ def get_most_used_lenses(limit: int = 5) -> list[tuple[str, int]]:
     data = _load_usage_data()
     activations = data.get("lens_activations", {})
 
-    usage_counts = [
-        (name, len(entries))
-        for name, entries in activations.items()
-    ]
+    usage_counts = [(name, len(entries)) for name, entries in activations.items()]
 
     usage_counts.sort(key=lambda x: x[1], reverse=True)
     return usage_counts[:limit]

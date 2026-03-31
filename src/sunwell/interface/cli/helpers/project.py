@@ -4,7 +4,9 @@ import re
 
 # Pre-compiled patterns for project name extraction (avoid recompiling per call)
 _RE_PROJECT_NAME_PATTERNS = (
-    re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)"),
+    re.compile(
+        r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:app|api|tool|site|website|service)"
+    ),
     re.compile(r"(?:build|create|make|write)\s+(?:a\s+)?(.+?)\s+(?:with|using)"),
     re.compile(r"(?:build|create|make)\s+(?:a\s+)?(.+?)$"),
 )

@@ -4,8 +4,6 @@ Uses content hashing to detect when a file is moved/renamed
 rather than deleted and recreated.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from sunwell.memory.lineage.models import compute_content_hash, generate_artifact_id

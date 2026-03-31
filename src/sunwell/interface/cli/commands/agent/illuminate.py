@@ -1,6 +1,5 @@
 """Illuminate command for agent CLI."""
 
-
 import asyncio
 from pathlib import Path
 
@@ -12,18 +11,21 @@ console = Console()
 
 @click.command()
 @click.option(
-    "--goals", "-g",
+    "--goals",
+    "-g",
     multiple=True,
     required=True,
     help="Goals for self-improvement",
 )
 @click.option(
-    "--time", "-t",
+    "--time",
+    "-t",
     default=120,
     help="Max execution time in seconds",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show detailed output",
 )
@@ -94,7 +96,7 @@ async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
 
         # Show final summary
         if results.get("completed_proposals"):
-            count = len(results['completed_proposals'])
+            count = len(results["completed_proposals"])
             console.print(f"\n[bold]Completed {count} proposals[/bold]")
 
     except KeyboardInterrupt:
@@ -103,5 +105,5 @@ async def _illuminate(goals: list[str], time: int, verbose: bool) -> None:
         console.print(f"\n[red]Error: {e}[/red]")
         if verbose:
             import traceback
-            console.print(traceback.format_exc())
 
+            console.print(traceback.format_exc())

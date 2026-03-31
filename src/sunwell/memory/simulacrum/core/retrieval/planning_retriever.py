@@ -132,7 +132,9 @@ class PlanningRetriever:
 
             # Calculate how many candidates to rerank
             rerank_limit = limit_per_category * 6  # 6 categories
-            candidates_to_rerank = scored[: rerank_limit * self._reranker.config.overretrieve_multiplier]
+            candidates_to_rerank = scored[
+                : rerank_limit * self._reranker.config.overretrieve_multiplier
+            ]
 
             if len(candidates_to_rerank) >= self._reranker.config.min_candidates_for_reranking:
                 # Rerank asynchronously
@@ -168,9 +170,9 @@ class PlanningRetriever:
                 patterns.append(learning)
 
         # RFC-022: Include episodes for learning from past sessions
-        failed_episodes = [
-            ep for ep in self._episodes if ep.outcome == "failed"
-        ][:limit_per_category]
+        failed_episodes = [ep for ep in self._episodes if ep.outcome == "failed"][
+            :limit_per_category
+        ]
         dead_end_summaries = tuple(ep.summary for ep in failed_episodes)
 
         return PlanningContext(
@@ -295,7 +297,9 @@ class PlanningRetriever:
             import asyncio
 
             rerank_limit = limit_per_category * 6
-            candidates_to_rerank = scored[: rerank_limit * self._reranker.config.overretrieve_multiplier]
+            candidates_to_rerank = scored[
+                : rerank_limit * self._reranker.config.overretrieve_multiplier
+            ]
 
             if len(candidates_to_rerank) >= self._reranker.config.min_candidates_for_reranking:
                 reranked = await self._reranker.rerank(
@@ -329,9 +333,9 @@ class PlanningRetriever:
                 patterns.append(learning)
 
         # Include episodes
-        failed_episodes = [
-            ep for ep in self._episodes if ep.outcome == "failed"
-        ][:limit_per_category]
+        failed_episodes = [ep for ep in self._episodes if ep.outcome == "failed"][
+            :limit_per_category
+        ]
         dead_end_summaries = tuple(ep.summary for ep in failed_episodes)
 
         return PlanningContext(

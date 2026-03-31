@@ -12,7 +12,6 @@ Examples:
     [TOOL:list_expertise_areas()]
 """
 
-
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -38,10 +37,7 @@ if TYPE_CHECKING:
 #
 # Examples that may fail:
 #   [TOOL:verify("print('a)')")] - the ')' inside the string breaks parsing
-TOOL_TAG_PATTERN = re.compile(
-    r'\[TOOL:(\w+)\(([^)]*)\)\]',
-    re.DOTALL
-)
+TOOL_TAG_PATTERN = re.compile(r"\[TOOL:(\w+)\(([^)]*)\)\]", re.DOTALL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,11 +67,13 @@ def parse_tool_tags(text: str) -> list[ParsedToolCall]:
         # Parse arguments - handle simple quoted strings
         arguments = _parse_arguments(name, args_str)
 
-        calls.append(ParsedToolCall(
-            name=name,
-            arguments=arguments,
-            raw_match=match.group(0),
-        ))
+        calls.append(
+            ParsedToolCall(
+                name=name,
+                arguments=arguments,
+                raw_match=match.group(0),
+            )
+        )
 
     return calls
 
@@ -93,8 +91,9 @@ def _parse_arguments(tool_name: str, args_str: str) -> dict[str, str]:
 
     # Remove surrounding quotes if present
     args_str = args_str.strip()
-    if (args_str.startswith('"') and args_str.endswith('"')) or \
-       (args_str.startswith("'") and args_str.endswith("'")):
+    if (args_str.startswith('"') and args_str.endswith('"')) or (
+        args_str.startswith("'") and args_str.endswith("'")
+    ):
         args_str = args_str[1:-1]
 
     # Map tool names to expected argument names
@@ -117,7 +116,7 @@ def strip_tool_tags(text: str) -> str:
 
     Useful for getting the non-tool content from model output.
     """
-    return TOOL_TAG_PATTERN.sub('', text).strip()
+    return TOOL_TAG_PATTERN.sub("", text).strip()
 
 
 def has_tool_tags(text: str) -> bool:
@@ -167,6 +166,7 @@ def get_prompted_tools_system() -> str:
 # =============================================================================
 # Integration with Benchmark Runner
 # =============================================================================
+
 
 def convert_to_tool_calls(parsed: list[ParsedToolCall]) -> list[ToolCall]:
     """Convert parsed tool tags to ToolCall objects for consistency.

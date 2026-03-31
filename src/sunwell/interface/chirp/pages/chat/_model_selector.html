@@ -1,0 +1,13 @@
+{#- Model selector for chat header - includes session_id from form via hx-include #}
+<div id="chat-model-selector-wrapper" style="display: flex; align-items: center; gap: var(--chirpui-spacing-xs);">
+  <select name="model" id="chat-model-selector" class="chirpui-select chirpui-ui-sm" style="min-width: 140px;"
+          hx-post="/chat/model"
+          hx-target="#chat-model-selector"
+          hx-swap="outerHTML"
+          hx-include="[name=session_id]"
+          hx-trigger="change">
+    {% for m in models %}
+    <option value="{{ m }}" {{ "selected" if m == current_model else "" }}>{{ m }}</option>
+    {% end %}
+  </select>
+</div>

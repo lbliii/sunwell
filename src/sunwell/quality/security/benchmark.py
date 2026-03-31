@@ -10,7 +10,6 @@ Measures performance overhead of security features:
 Results help tune configurations and identify bottlenecks.
 """
 
-
 import json
 import statistics
 import tempfile
@@ -222,12 +221,15 @@ def benchmark_permission_analysis(iterations: int = 100) -> BenchmarkResult:
         p95_ms=stats["p95"],
         p99_ms=stats["p99"],
         metadata=(
-            ("permissions_count", (
-                len(scope.filesystem_read)
-                + len(scope.filesystem_write)
-                + len(scope.network_allow)
-                + len(scope.shell_allow)
-            )),
+            (
+                "permissions_count",
+                (
+                    len(scope.filesystem_read)
+                    + len(scope.filesystem_write)
+                    + len(scope.network_allow)
+                    + len(scope.shell_allow)
+                ),
+            ),
         ),
     )
 
@@ -500,11 +502,10 @@ def benchmark_risk_computation(iterations: int = 500) -> BenchmarkResult:
         p99_ms=stats["p99"],
         metadata=(
             ("flag_count", len(flags)),
-            ("permission_count", (
-                len(scope.filesystem_write)
-                + len(scope.shell_allow)
-                + len(scope.network_allow)
-            )),
+            (
+                "permission_count",
+                (len(scope.filesystem_write) + len(scope.shell_allow) + len(scope.network_allow)),
+            ),
         ),
     )
 

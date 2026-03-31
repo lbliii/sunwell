@@ -1,6 +1,5 @@
 """Lens data model - the core expertise container."""
 
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -8,13 +7,13 @@ from typing import TYPE_CHECKING
 from sunwell.foundation.schema.models.framework import Framework
 from sunwell.foundation.schema.models.heuristic import AntiHeuristic, CommunicationStyle, Heuristic
 from sunwell.foundation.schema.models.persona import Persona
+from sunwell.foundation.schema.models.types import LensReference, SemanticVersion, Tier
 from sunwell.foundation.schema.models.validator import (
     DeterministicValidator,
     HeuristicValidator,
     SchemaValidator,
 )
 from sunwell.foundation.schema.models.workflow import Refiner, Workflow
-from sunwell.foundation.schema.models.types import LensReference, SemanticVersion, Tier
 
 if TYPE_CHECKING:
     from sunwell.foundation.schema.models.skill import Skill, SkillRetryPolicy

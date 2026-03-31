@@ -143,17 +143,19 @@ Integrate Chirp's built-in MCP tool system (`@app.tool()`) into Sunwell UI, expo
 - Filter by category, status
 - Sparkline charts for call volume
 
-**Template**:
+**Template** (hybrid routing: polling or POST→fragment; avoid page-load SSE):
 ```html
 {% from "chirpui/card.html" import card %}
 {% from "chirpui/badge.html" import badge %}
 
 {% call card(title="Activity", collapsible=true) %}
-  <div hx-get="/activity/feed" hx-trigger="load" hx-swap="beforeend">
-    <!-- SSE events append here -->
+  {# Polling: GET returns Fragment; avoid sse-connect on initial load (causes infinite spinner) #}
+  <div hx-get="/activity/feed" hx-trigger="every 5s" hx-swap="innerHTML">
+    <p class="chirpui-text-muted">Loading...</p>
   </div>
 {% end %}
 ```
+Note: `/activity/feed` must return a Fragment (HTML), not EventStream. For chat-style streaming, use `sse-connect` only inside fragments returned from POST (see chat).
 
 ### Tool Inspector
 **Location**: `/tools`

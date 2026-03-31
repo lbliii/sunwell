@@ -8,20 +8,16 @@ This module implements the core registry that:
 - Generates usage guidance for active tools
 """
 
-from __future__ import annotations
-
 import importlib
 import inspect
 import pkgutil
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from sunwell.knowledge.project import Project
+from sunwell.memory.simulacrum.core.store import SimulacrumStore
 from sunwell.models import Tool
 from sunwell.tools.registry.base import BaseTool, ToolContext
-
-if TYPE_CHECKING:
-    from sunwell.knowledge.project import Project
-    from sunwell.memory.simulacrum.core.store import SimulacrumStore
 
 
 @dataclass(slots=True)
@@ -216,9 +212,7 @@ class DynamicToolRegistry:
         guidance_parts = []
         for tool in self.active_tools.values():
             if tool.metadata.usage_guidance:
-                guidance_parts.append(
-                    f"**{tool.metadata.name}**: {tool.metadata.usage_guidance}"
-                )
+                guidance_parts.append(f"**{tool.metadata.name}**: {tool.metadata.usage_guidance}")
         if not guidance_parts:
             return ""
         return "<tool_guidance>\n" + "\n".join(guidance_parts) + "\n</tool_guidance>"

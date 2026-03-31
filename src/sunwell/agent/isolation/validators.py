@@ -36,12 +36,12 @@ class ValidationResult:
     """The pattern that matched (for debugging)."""
 
     @classmethod
-    def ok(cls) -> "ValidationResult":
+    def ok(cls) -> ValidationResult:
         """Create a passing validation result."""
         return cls(valid=True)
 
     @classmethod
-    def fail(cls, message: str, pattern: str | None = None) -> "ValidationResult":
+    def fail(cls, message: str, pattern: str | None = None) -> ValidationResult:
         """Create a failing validation result."""
         return cls(valid=False, message=message, pattern_matched=pattern)
 
@@ -114,10 +114,7 @@ class ContentSanityValidator:
         # Check each forbidden pattern
         for pattern, description in ContentSanityValidator._compiled_patterns or []:
             if pattern.search(content):
-                message = (
-                    f"Content appears to be tool output, not file content "
-                    f"({description})"
-                )
+                message = f"Content appears to be tool output, not file content ({description})"
                 if path:
                     message = f"{path}: {message}"
 
@@ -156,10 +153,7 @@ class ContentSanityValidator:
         Returns:
             Mapping of path -> ValidationResult
         """
-        return {
-            path: self.validate(content, path)
-            for path, content in files.items()
-        }
+        return {path: self.validate(content, path) for path, content in files.items()}
 
     def validate_all_pass(
         self,

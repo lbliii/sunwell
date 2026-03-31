@@ -66,7 +66,9 @@ class ExtractClaimsTool(BaseTool):
 
         output = ["**Factual Claims Found:**\n"]
         for i, (claim, confidence) in enumerate(claims, 1):
-            confidence_label = "HIGH" if confidence > 0.7 else "MEDIUM" if confidence > 0.4 else "LOW"
+            confidence_label = (
+                "HIGH" if confidence > 0.7 else "MEDIUM" if confidence > 0.4 else "LOW"
+            )
             output.append(f"{i}. [{confidence_label}] {claim}")
 
         output.append(f"\nTotal: {len(claims)} claim(s) extracted")
@@ -94,18 +96,30 @@ class ExtractClaimsTool(BaseTool):
             # Contains numbers/statistics
             (re.compile(r"\b\d+(?:\.\d+)?%?\b"), 0.9),
             # Contains dates
-            (re.compile(r"\b(?:19|20)\d{2}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b", re.IGNORECASE), 0.85),
+            (
+                re.compile(
+                    r"\b(?:19|20)\d{2}\b|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\b",
+                    re.IGNORECASE,
+                ),
+                0.85,
+            ),
             # "According to" patterns
             (re.compile(r"\baccording to\b", re.IGNORECASE), 0.9),
             # Comparative statements
-            (re.compile(r"\b(?:more|less|greater|fewer|higher|lower)\s+than\b", re.IGNORECASE), 0.75),
+            (
+                re.compile(r"\b(?:more|less|greater|fewer|higher|lower)\s+than\b", re.IGNORECASE),
+                0.75,
+            ),
             # Definitive statements
             (re.compile(r"\b(?:always|never|all|none|every)\b", re.IGNORECASE), 0.6),
         ]
 
         # Opinion indicators (lower confidence or skip)
         opinion_patterns = [
-            re.compile(r"\b(?:I think|I believe|in my opinion|perhaps|maybe|might|could|should)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:I think|I believe|in my opinion|perhaps|maybe|might|could|should)\b",
+                re.IGNORECASE,
+            ),
             re.compile(r"^\s*(?:perhaps|maybe|probably)", re.IGNORECASE),
         ]
 

@@ -4,8 +4,6 @@ Provides hierarchical Table of Contents structures optimized for
 in-context LLM reasoning about codebase structure.
 """
 
-from __future__ import annotations
-
 import json
 import re
 from dataclasses import dataclass, field
@@ -292,9 +290,7 @@ class ProjectToc:
 
             toc = cls(root_id=data["root_id"])
             toc.generated_at = (
-                datetime.fromisoformat(data["generated_at"])
-                if data.get("generated_at")
-                else None
+                datetime.fromisoformat(data["generated_at"]) if data.get("generated_at") else None
             )
             toc.file_count = data.get("file_count", 0)
 

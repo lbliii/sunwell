@@ -50,7 +50,7 @@ class StagedFile:
     """When the file was staged."""
 
     @classmethod
-    def create(cls, path: str, content: str, task_id: str) -> "StagedFile":
+    def create(cls, path: str, content: str, task_id: str) -> StagedFile:
         """Create a staged file with computed checksum."""
         checksum = hashlib.sha256(content.encode()).hexdigest()
         return cls(
@@ -96,9 +96,7 @@ class StagingBuffer:
     _lock: threading.Lock = field(default_factory=threading.Lock)
     """Lock for thread-safe access."""
 
-    _validator: ContentSanityValidator = field(
-        default_factory=ContentSanityValidator
-    )
+    _validator: ContentSanityValidator = field(default_factory=ContentSanityValidator)
     """Content validator for staged files."""
 
     def stage(self, path: str, content: str, task_id: str) -> StagedFile:
@@ -182,9 +180,7 @@ class StagingBuffer:
         """
         with self._lock:
             return {
-                path: staged
-                for path, staged in self._files.items()
-                if staged.task_id == task_id
+                path: staged for path, staged in self._files.items() if staged.task_id == task_id
             }
 
     def validate(self) -> dict[str, ValidationResult]:
@@ -262,9 +258,7 @@ class StagingBuffer:
                 self._files.clear()
             else:
                 to_remove = [
-                    path
-                    for path, staged in self._files.items()
-                    if staged.task_id == task_id
+                    path for path, staged in self._files.items() if staged.task_id == task_id
                 ]
                 for path in to_remove:
                     del self._files[path]
@@ -386,10 +380,7 @@ class FallbackIsolation:
                 strategy_used=strategy,
                 files_merged=(),
                 conflicts=tuple(issues.keys()),
-                error="; ".join(
-                    f"{path}: {result.message}"
-                    for path, result in issues.items()
-                ),
+                error="; ".join(f"{path}: {result.message}" for path, result in issues.items()),
             )
 
         # Write files

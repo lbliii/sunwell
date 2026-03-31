@@ -11,7 +11,6 @@ than the OpenAI-compatible /v1/chat endpoint for identity enforcement.
 See: https://docs.ollama.com/api/generate
 """
 
-
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -166,11 +165,13 @@ class OllamaModel:
                         ]
                     messages.append(assistant_msg)
                 elif msg.role == "tool":
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": msg.tool_call_id,
-                        "content": msg.content or "",
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": msg.tool_call_id,
+                            "content": msg.content or "",
+                        }
+                    )
 
         return messages
 
@@ -253,7 +254,11 @@ class OllamaModel:
             kwargs["tools"] = converted_tools
             if tool_choice:
                 kwargs["tool_choice"] = self._convert_tool_choice(tool_choice)
-            logger.debug("OllamaModel: Passing %d tools, tool_choice=%s", len(converted_tools), kwargs.get("tool_choice"))
+            logger.debug(
+                "OllamaModel: Passing %d tools, tool_choice=%s",
+                len(converted_tools),
+                kwargs.get("tool_choice"),
+            )
 
         if opts.max_tokens:
             kwargs["max_tokens"] = opts.max_tokens
@@ -291,7 +296,9 @@ class OllamaModel:
                 prompt_tokens=usage.prompt_tokens if usage else 0,
                 completion_tokens=usage.completion_tokens if usage else 0,
                 total_tokens=usage.total_tokens if usage else 0,
-            ) if usage else None,
+            )
+            if usage
+            else None,
             finish_reason=response.choices[0].finish_reason,
         )
 

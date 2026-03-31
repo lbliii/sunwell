@@ -57,13 +57,6 @@ from .base import (
     TaskStartData,
 )
 from .briefing import BriefingLoadedData, BriefingSavedData
-from .contract import (
-    ContractVerifyFailData,
-    ContractVerifyPassData,
-    ContractVerifyStartData,
-    MethodMismatchData,
-    TierResultData,
-)
 from .constellation import (
     AutonomousActionBlockedData,
     CheckpointFoundData,
@@ -72,6 +65,13 @@ from .constellation import (
     PhaseCompleteData,
     SpecialistCompletedData,
     SpecialistSpawnedData,
+)
+from .contract import (
+    ContractVerifyFailData,
+    ContractVerifyPassData,
+    ContractVerifyStartData,
+    MethodMismatchData,
+    TierResultData,
 )
 from .convergence import (
     ConvergenceBudgetExceededData,
@@ -156,6 +156,13 @@ from .recovery import (
     RecoveryResolvedData,
     RecoverySavedData,
 )
+from .refinement import (
+    PlanRefineAttemptData,
+    PlanRefineCompleteData,
+    PlanRefineFinalData,
+    PlanRefineStartData,
+)
+from .registry import EVENT_SCHEMAS, REQUIRED_FIELDS
 from .reliability import (
     BudgetExhaustedData,
     BudgetWarningData,
@@ -166,13 +173,6 @@ from .reliability import (
     ReliabilityWarningData,
     TimeoutData,
 )
-from .refinement import (
-    PlanRefineAttemptData,
-    PlanRefineCompleteData,
-    PlanRefineFinalData,
-    PlanRefineStartData,
-)
-from .registry import EVENT_SCHEMAS, REQUIRED_FIELDS
 from .security import (
     AuditLogEntryData,
     SecurityApprovalReceivedData,

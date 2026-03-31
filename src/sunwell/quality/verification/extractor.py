@@ -8,7 +8,6 @@ Extract what the code *should* do from available sources:
 5. LLM inference from function name/context
 """
 
-
 import ast
 import json
 import re
@@ -192,9 +191,7 @@ class SpecificationExtractor:
             confidence=0.85,
         )
 
-    def _parse_docstring(
-        self, name: str, docstring: str
-    ) -> dict | None:
+    def _parse_docstring(self, name: str, docstring: str) -> dict | None:
         """Parse Google/NumPy style docstrings.
 
         Handles formats like:
@@ -337,9 +334,7 @@ class SpecificationExtractor:
                                 and isinstance(kw.value, ast.Constant)
                                 and kw.value.value
                             ):
-                                invariants.append(
-                                    f"{node.name} is immutable (frozen)"
-                                )
+                                invariants.append(f"{node.name} is immutable (frozen)")
 
         if not inputs and not outputs and not invariants:
             return None
@@ -418,9 +413,7 @@ class SpecificationExtractor:
                     ]
                     for keyword in edge_case_keywords:
                         if keyword in test_name.lower():
-                            edge_cases.append(
-                                f"Handles {test_name.replace('_', ' ')}"
-                            )
+                            edge_cases.append(f"Handles {test_name.replace('_', ' ')}")
                             break
 
                 # Extract assertions for postconditions
@@ -572,9 +565,7 @@ Output JSON:
         sorted_specs = sorted(specs, key=lambda s: s.confidence, reverse=True)
 
         # Take description from highest confidence source
-        description = next(
-            (s.description for s in sorted_specs if s.description), ""
-        )
+        description = next((s.description for s in sorted_specs if s.description), "")
 
         # Merge all unique inputs/outputs/conditions
         all_inputs: list[InputSpec] = []

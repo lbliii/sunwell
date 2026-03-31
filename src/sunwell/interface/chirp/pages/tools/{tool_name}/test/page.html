@@ -1,0 +1,63 @@
+{% block tool_test %}
+<div class="chirpui-modal__content">
+    <div class="chirpui-cluster" style="justify-content: space-between; align-items: center; margin-bottom: var(--chirpui-spacing-md); padding-bottom: var(--chirpui-spacing-md); border-bottom: 1px solid var(--chirpui-border);">
+        <h2 class="chirpui-font-mono" style="margin: 0; color: var(--chirpui-accent);">Test {{ tool_name }}</h2>
+        <button class="chirpui-btn chirpui-btn--ghost chirpui-btn--sm" onclick="hideModal()">&times;</button>
+    </div>
+
+    <p class="chirpui-text-muted" style="margin-bottom: var(--chirpui-spacing-md);">{{ description }}</p>
+
+    <form hx-post="/tools/{{ tool_name }}/execute"
+          hx-target="#test-result"
+          hx-swap="innerHTML">
+
+        <div class="chirpui-stack chirpui-stack--md" style="margin: var(--chirpui-spacing-lg) 0;">
+            <h3 class="chirpui-ui-xs chirpui-text-muted" style="text-transform: uppercase; letter-spacing: 0.05em;">Parameters</h3>
+
+            {% if parameters %}
+                {% for param_name, param_info in parameters.items() %}
+                <div class="chirpui-field">
+                    <label class="chirpui-field__label" for="{{ param_name }}">
+                        {{ param_name }}
+                        {% if param_name in required %}
+                            <span style="color: var(--chirpui-accent);">*</span>
+                        {% end %}
+                        <span class="chirpui-ui-xs chirpui-text-muted chirpui-font-mono">({{ param_info.type }})</span>
+                    </label>
+
+                    {% if param_info.type == "string" %}
+                        <input type="text" name="{{ param_name }}" id="{{ param_name }}"
+                               class="chirpui-field__input"
+                               {% if param_name in required %}required{% end %}>
+                    {% elif param_info.type == "integer" %}
+                        <input type="number" name="{{ param_name }}" id="{{ param_name }}"
+                               class="chirpui-field__input"
+                               {% if param_name in required %}required{% end %}>
+                    {% elif param_info.type == "array" %}
+                        <input type="text" name="{{ param_name }}" id="{{ param_name }}"
+                               placeholder="Comma-separated values"
+                               class="chirpui-field__input"
+                               {% if param_name in required %}required{% end %}>
+                    {% else %}
+                        <textarea name="{{ param_name }}" id="{{ param_name }}"
+                                  class="chirpui-field__input" rows="3"
+                                  {% if param_name in required %}required{% end %}></textarea>
+                    {% end %}
+                </div>
+                {% end %}
+            {% else %}
+                <p class="chirpui-text-muted">No parameters required</p>
+            {% end %}
+        </div>
+
+        <div class="chirpui-form-actions" style="padding-top: var(--chirpui-spacing-md); border-top: 1px solid var(--chirpui-border);">
+            <button type="submit" class="chirpui-btn chirpui-btn--primary">Execute Tool</button>
+            <button type="button" onclick="hideModal()" class="chirpui-btn chirpui-btn--ghost">Cancel</button>
+        </div>
+    </form>
+
+    <div id="test-result" class="chirpui-surface chirpui-surface--muted chirpui-font-mono chirpui-ui-sm"
+         style="margin-top: var(--chirpui-spacing-lg); padding: var(--chirpui-spacing-md); border-radius: var(--chirpui-radius); min-height: 100px;">
+    </div>
+</div>
+{% end %}

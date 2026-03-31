@@ -1,6 +1,5 @@
 """Signal handling for graceful interruption in the Naaru architecture."""
 
-
 import asyncio
 import signal
 import sys
@@ -14,14 +13,14 @@ from pathlib import Path
 class StopReason(Enum):
     """Reason for stopping the autonomous loop."""
 
-    USER_INTERRUPT = "user_interrupt"      # Ctrl+C or SIGTERM
-    STOP_COMMAND = "stop_command"          # sunwell autonomous stop
-    TIME_LIMIT = "time_limit"              # Max hours reached
-    PROPOSAL_LIMIT = "proposal_limit"      # Max proposals reached
-    FAILURE_LIMIT = "failure_limit"        # Too many consecutive failures
-    IDLE = "idle"                          # No more work to do
-    ERROR = "error"                        # Unrecoverable error
-    COMPLETED = "completed"                # All opportunities processed
+    USER_INTERRUPT = "user_interrupt"  # Ctrl+C or SIGTERM
+    STOP_COMMAND = "stop_command"  # sunwell autonomous stop
+    TIME_LIMIT = "time_limit"  # Max hours reached
+    PROPOSAL_LIMIT = "proposal_limit"  # Max proposals reached
+    FAILURE_LIMIT = "failure_limit"  # Too many consecutive failures
+    IDLE = "idle"  # No more work to do
+    ERROR = "error"  # Unrecoverable error
+    COMPLETED = "completed"  # All opportunities processed
 
 
 @dataclass
@@ -130,6 +129,7 @@ class SignalHandler:
 
     async def start_file_watcher(self) -> None:
         """Start watching for stop file (async)."""
+
         async def watch():
             while not self._stop_requested:
                 if self._stop_file.exists():

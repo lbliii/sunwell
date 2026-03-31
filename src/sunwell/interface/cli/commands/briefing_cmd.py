@@ -4,7 +4,6 @@ The briefing provides instant orientation at session start, acting as
 "Twitter for LLMs" where the character constraint enforces salience.
 """
 
-
 import json
 from pathlib import Path
 
@@ -59,7 +58,9 @@ def briefing_show(path: str) -> None:
 
     if not briefing_obj:
         console.print("[yellow]No briefing found.[/yellow]")
-        console.print(f"[dim]Looking in: {project_path / '.sunwell' / 'memory' / 'briefing.json'}[/dim]")
+        console.print(
+            f"[dim]Looking in: {project_path / '.sunwell' / 'memory' / 'briefing.json'}[/dim]"
+        )
         console.print("\n[dim]Tip: A briefing is created automatically when you run a goal.[/dim]")
         return
 
@@ -75,7 +76,9 @@ def briefing_show(path: str) -> None:
     # Build content
     lines = []
     lines.append(f"[bold]Mission:[/bold] {briefing_obj.mission}")
-    lines.append(f"[bold]Status:[/bold] [{status_color}]{briefing_obj.status.value.replace('_', ' ').title()}[/{status_color}]")
+    lines.append(
+        f"[bold]Status:[/bold] [{status_color}]{briefing_obj.status.value.replace('_', ' ').title()}[/{status_color}]"
+    )
     lines.append(f"[bold]Progress:[/bold] {briefing_obj.progress}")
     lines.append("")
     lines.append(f"[bold]Last Action:[/bold] {briefing_obj.last_action}")
@@ -96,7 +99,9 @@ def briefing_show(path: str) -> None:
 
     if briefing_obj.hot_files:
         lines.append("")
-        lines.append(f"[bold]Focus Files:[/bold] {', '.join(f'[cyan]{f}[/cyan]' for f in briefing_obj.hot_files)}")
+        lines.append(
+            f"[bold]Focus Files:[/bold] {', '.join(f'[cyan]{f}[/cyan]' for f in briefing_obj.hot_files)}"
+        )
 
     # Dispatch hints
     if briefing_obj.predicted_skills or briefing_obj.suggested_lens:
@@ -165,7 +170,9 @@ def briefing_clear(path: str) -> None:
 @click.option("--progress", default="Starting fresh.", help="Brief progress summary")
 @click.option("--next-action", "-n", help="What should happen next")
 @click.option("--hazard", "-h", multiple=True, help="Things to avoid (can specify multiple)")
-@click.option("--hot-file", "-f", multiple=True, help="Files currently relevant (can specify multiple)")
+@click.option(
+    "--hot-file", "-f", multiple=True, help="Files currently relevant (can specify multiple)"
+)
 def briefing_create(
     path: str,
     mission: str,
@@ -193,7 +200,9 @@ def briefing_create(
 
     briefing_obj = Briefing(
         mission=mission,
-        status=BriefingStatus.NOT_STARTED if progress == "Starting fresh." else BriefingStatus.IN_PROGRESS,
+        status=BriefingStatus.NOT_STARTED
+        if progress == "Starting fresh."
+        else BriefingStatus.IN_PROGRESS,
         progress=progress,
         last_action="Briefing created manually.",
         next_action=next_action or "Begin planning.",

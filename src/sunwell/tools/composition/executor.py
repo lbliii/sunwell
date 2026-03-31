@@ -109,13 +109,15 @@ class ComposedToolExecutor:
         for i, step in enumerate(composed_tool.steps):
             # Check condition
             if not step.should_run(arguments):
-                step_results.append(StepResult(
-                    step_index=i,
-                    tool_name=step.tool_name,
-                    success=True,
-                    output="(skipped by condition)",
-                    skipped=True,
-                ))
+                step_results.append(
+                    StepResult(
+                        step_index=i,
+                        tool_name=step.tool_name,
+                        success=True,
+                        output="(skipped by condition)",
+                        skipped=True,
+                    )
+                )
                 continue
 
             # Resolve arguments
@@ -123,9 +125,12 @@ class ComposedToolExecutor:
 
             logger.debug(
                 "Step %d: %s(%s)",
-                i, step.tool_name,
-                {k: v[:50] + "..." if isinstance(v, str) and len(v) > 50 else v
-                 for k, v in resolved_args.items()}
+                i,
+                step.tool_name,
+                {
+                    k: v[:50] + "..." if isinstance(v, str) and len(v) > 50 else v
+                    for k, v in resolved_args.items()
+                },
             )
 
             # Create tool call
@@ -141,12 +146,14 @@ class ComposedToolExecutor:
             try:
                 result = await self.tool_executor.execute(tool_call)
 
-                step_results.append(StepResult(
-                    step_index=i,
-                    tool_name=step.tool_name,
-                    success=result.success,
-                    output=result.output,
-                ))
+                step_results.append(
+                    StepResult(
+                        step_index=i,
+                        tool_name=step.tool_name,
+                        success=result.success,
+                        output=result.output,
+                    )
+                )
 
                 if result.success:
                     completed_steps.append((step, resolved_args))
@@ -157,12 +164,14 @@ class ComposedToolExecutor:
 
             except Exception as e:
                 logger.exception("Step %d failed with exception", i)
-                step_results.append(StepResult(
-                    step_index=i,
-                    tool_name=step.tool_name,
-                    success=False,
-                    output=str(e),
-                ))
+                step_results.append(
+                    StepResult(
+                        step_index=i,
+                        tool_name=step.tool_name,
+                        success=False,
+                        output=str(e),
+                    )
+                )
                 error = f"Step {i} ({step.tool_name}) raised exception: {e}"
                 if composed_tool.stop_on_error:
                     break
@@ -191,20 +200,24 @@ class ComposedToolExecutor:
 
                 try:
                     result = await self.tool_executor.execute(rollback_call)
-                    rollback_results.append(StepResult(
-                        step_index=j,
-                        tool_name=tool_name,
-                        success=result.success,
-                        output=result.output,
-                    ))
+                    rollback_results.append(
+                        StepResult(
+                            step_index=j,
+                            tool_name=tool_name,
+                            success=result.success,
+                            output=result.output,
+                        )
+                    )
                 except Exception as e:
                     logger.warning("Rollback step %d failed: %s", j, e)
-                    rollback_results.append(StepResult(
-                        step_index=j,
-                        tool_name=tool_name,
-                        success=False,
-                        output=str(e),
-                    ))
+                    rollback_results.append(
+                        StepResult(
+                            step_index=j,
+                            tool_name=tool_name,
+                            success=False,
+                            output=str(e),
+                        )
+                    )
 
         return ComposedResult(
             name=composed_tool.name,

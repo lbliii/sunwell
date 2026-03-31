@@ -214,7 +214,7 @@ class Naaru:
             return None
 
         if self._integration_verifier is None:
-            from sunwell.features.external.integration import IntegrationVerifier
+            from sunwell.integration import IntegrationVerifier
 
             self._integration_verifier = IntegrationVerifier(
                 project_root=self.workspace,
@@ -228,6 +228,7 @@ class Naaru:
     def _generate_specialist_id(self, role: str) -> str:
         """Generate a unique specialist ID."""
         import uuid
+
         short_id = uuid.uuid4().hex[:8]
         return f"specialist-{role}-{short_id}"
 
@@ -419,14 +420,16 @@ class Naaru:
                     prompt_parts.append(f"  {key}: {parent_context[key]}")
             prompt_parts.append("")
 
-        prompt_parts.extend([
-            "INSTRUCTIONS:",
-            "1. Focus ONLY on the specified task",
-            "2. Be concise — you have limited token budget",
-            "3. Provide actionable output the parent agent can use",
-            "",
-            "OUTPUT:",
-        ])
+        prompt_parts.extend(
+            [
+                "INSTRUCTIONS:",
+                "1. Focus ONLY on the specified task",
+                "2. Be concise — you have limited token budget",
+                "3. Provide actionable output the parent agent can use",
+                "",
+                "OUTPUT:",
+            ]
+        )
 
         return "\n".join(prompt_parts)
 
@@ -501,11 +504,13 @@ class Naaru:
 
         for goal in goals:
             # Dispatch goal to analysis workers
-            self.bus.dispatch(NaaruMessage(
-                region=NaaruRegion.ANALYSIS,
-                type=MessageType.PROPOSAL,
-                payload={"goal": goal, "mode": "illuminate"},
-            ))
+            self.bus.dispatch(
+                NaaruMessage(
+                    region=NaaruRegion.ANALYSIS,
+                    type=MessageType.PROPOSAL,
+                    payload={"goal": goal, "mode": "illuminate"},
+                )
+            )
 
         # Run workers with timeout
         async def run_workers() -> None:
@@ -629,9 +634,7 @@ class Naaru:
         total_tokens = 0
 
         for worker in self.workers:
-            worker_stats[f"{worker.region.value}_{getattr(worker, 'worker_id', 0)}"] = (
-                worker.stats
-            )
+            worker_stats[f"{worker.region.value}_{getattr(worker, 'worker_id', 0)}"] = worker.stats
 
             if isinstance(worker, ExecutiveWorker):
                 completed_proposals = worker.completed_proposals

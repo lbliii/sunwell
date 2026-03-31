@@ -108,7 +108,8 @@ def env_scan(path: str, reset: bool) -> None:
 
 @env.command("list")
 @click.option(
-    "--type", "-t",
+    "--type",
+    "-t",
     type=str,
     default=None,
     help="Filter by project type (python, docs, go, node)",
@@ -120,7 +121,8 @@ def env_scan(path: str, reset: bool) -> None:
     help="Sort order",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show all details",
 )
@@ -220,7 +222,8 @@ def env_list(type: str | None, sort: str, verbose: bool) -> None:
 
 @env.command("patterns")
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     is_flag=True,
     help="Show example projects for each pattern",
 )
@@ -365,7 +368,8 @@ def env_reference() -> None:
 @env_reference.command("add")
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
-    "--category", "-c",
+    "--category",
+    "-c",
     type=str,
     required=True,
     help="Category for this reference (e.g., docs, python)",

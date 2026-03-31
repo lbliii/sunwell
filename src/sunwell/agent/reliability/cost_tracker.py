@@ -138,10 +138,9 @@ class SessionCostTracker:
             CostEntry with calculated cost
         """
         cost_config = get_model_cost(model)
-        cost_usd = (
-            (input_tokens / 1000) * cost_config.input_per_1k +
-            (output_tokens / 1000) * cost_config.output_per_1k
-        )
+        cost_usd = (input_tokens / 1000) * cost_config.input_per_1k + (
+            output_tokens / 1000
+        ) * cost_config.output_per_1k
 
         entry = CostEntry(
             timestamp=datetime.now(),
@@ -218,7 +217,9 @@ class SessionCostTracker:
                 round(self.budget_remaining, 6) if self.budget_remaining is not None else None
             ),
             "budget_percentage_used": (
-                round(self.budget_percentage_used, 1) if self.budget_percentage_used is not None else None
+                round(self.budget_percentage_used, 1)
+                if self.budget_percentage_used is not None
+                else None
             ),
             "is_over_budget": self.is_over_budget,
         }

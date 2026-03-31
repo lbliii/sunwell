@@ -40,7 +40,6 @@ Example:
     >>> refined = await resonance.refine(proposal, rejection)
 """
 
-
 import asyncio
 import uuid
 from dataclasses import dataclass, field
@@ -268,7 +267,9 @@ class Resonance:
         if self.config.feedback_format == "bullet":
             issues_text = "\n".join(f"- {issue}" for issue in issues) if issues else feedback
         elif self.config.feedback_format == "structured":
-            issues_text = "ISSUES:\n" + "\n".join(f"{i+1}. {issue}" for i, issue in enumerate(issues))
+            issues_text = "ISSUES:\n" + "\n".join(
+                f"{i + 1}. {issue}" for i, issue in enumerate(issues)
+            )
             if feedback:
                 issues_text += f"\n\nJUDGE FEEDBACK:\n{feedback}"
         else:  # prose
@@ -390,7 +391,9 @@ Code only, no explanations:"""
         return (
             ResonanceResult(
                 refined_code=result.refined_code if result else proposal.get("diff", ""),
-                refined_proposal_id=result.refined_proposal_id if result else proposal.get("proposal_id", ""),
+                refined_proposal_id=result.refined_proposal_id
+                if result
+                else proposal.get("proposal_id", ""),
                 original_proposal_id=proposal.get("proposal_id", "unknown"),
                 attempts=all_attempts,
                 total_tokens=total_tokens,
@@ -406,7 +409,9 @@ Code only, no explanations:"""
 
         if stats["refinements_successful"] > 0:
             # Calculate average attempts to success (simplified)
-            stats["success_rate"] = stats["refinements_successful"] / max(1, stats["refinements_attempted"])
+            stats["success_rate"] = stats["refinements_successful"] / max(
+                1, stats["refinements_attempted"]
+            )
         else:
             stats["success_rate"] = 0.0
 
@@ -449,7 +454,9 @@ async def demo() -> None:
 
     # Mock model for demo
     class MockModel:
-        async def generate(self, prompt: str, options: dict[str, str | int | float] | None = None) -> str:  # type: ignore[empty-body]
+        async def generate(
+            self, prompt: str, options: dict[str, str | int | float] | None = None
+        ) -> str:  # type: ignore[empty-body]
             class MockResult:
                 content = '''def example(x: int) -> int:
     """Example function with proper docstring.
@@ -518,4 +525,5 @@ async def demo() -> None:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(demo())

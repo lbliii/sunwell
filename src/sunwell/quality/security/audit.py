@@ -12,7 +12,6 @@ Each entry includes:
 - HMAC signature for tamper detection
 """
 
-
 import hashlib
 import hmac
 import json
@@ -92,9 +91,7 @@ class AuditEntry:
             skill_name=data["skill_name"],
             dag_id=data["dag_id"],
             user_id=data["user_id"],
-            requested_permissions=PermissionScope.from_dict(
-                data["requested_permissions"]
-            ),
+            requested_permissions=PermissionScope.from_dict(data["requested_permissions"]),
             action=data["action"],
             details=data["details"],
             inputs_hash=data["inputs_hash"],
@@ -169,9 +166,7 @@ class LocalAuditLog:
         self.storage.parent.mkdir(parents=True, exist_ok=True)
 
         # Compute entry hash (includes previous hash)
-        entry_hash = self._compute_hash(
-            {**entry_data, "previous_hash": self._last_hash}
-        )
+        entry_hash = self._compute_hash({**entry_data, "previous_hash": self._last_hash})
 
         # Sign the entry
         signature = hmac.new(
@@ -408,10 +403,7 @@ class S3ObjectLockBackend:
         if self._s3 is None:
             raise RuntimeError("boto3 not available for S3 backend")
 
-        key = (
-            f"{self.prefix}"
-            f"{entry.timestamp.isoformat()}_{entry.entry_hash[:8]}.json"
-        )
+        key = f"{self.prefix}{entry.timestamp.isoformat()}_{entry.entry_hash[:8]}.json"
 
         retention_date = datetime.now() + timedelta(days=self.retention_days)
 
@@ -580,17 +572,19 @@ class AuditLogManager:
         Returns:
             The created AuditEntry
         """
-        return self.backend.append({
-            "timestamp": datetime.now(),
-            "skill_name": skill_name,
-            "dag_id": dag_id,
-            "user_id": user_id or self.default_user_id,
-            "requested_permissions": permissions,
-            "action": "execute",
-            "details": details or f"Executed {skill_name}",
-            "inputs_hash": inputs_hash,
-            "outputs_hash": outputs_hash,
-        })
+        return self.backend.append(
+            {
+                "timestamp": datetime.now(),
+                "skill_name": skill_name,
+                "dag_id": dag_id,
+                "user_id": user_id or self.default_user_id,
+                "requested_permissions": permissions,
+                "action": "execute",
+                "details": details or f"Executed {skill_name}",
+                "inputs_hash": inputs_hash,
+                "outputs_hash": outputs_hash,
+            }
+        )
 
     def record_violation(
         self,
@@ -614,17 +608,19 @@ class AuditLogManager:
         Returns:
             The created AuditEntry
         """
-        return self.backend.append({
-            "timestamp": datetime.now(),
-            "skill_name": skill_name,
-            "dag_id": dag_id,
-            "user_id": user_id or self.default_user_id,
-            "requested_permissions": permissions,
-            "action": "violation",
-            "details": f"{violation_type}: {evidence}",
-            "inputs_hash": "",
-            "outputs_hash": None,
-        })
+        return self.backend.append(
+            {
+                "timestamp": datetime.now(),
+                "skill_name": skill_name,
+                "dag_id": dag_id,
+                "user_id": user_id or self.default_user_id,
+                "requested_permissions": permissions,
+                "action": "violation",
+                "details": f"{violation_type}: {evidence}",
+                "inputs_hash": "",
+                "outputs_hash": None,
+            }
+        )
 
     def record_denied(
         self,
@@ -646,17 +642,19 @@ class AuditLogManager:
         Returns:
             The created AuditEntry
         """
-        return self.backend.append({
-            "timestamp": datetime.now(),
-            "skill_name": skill_name,
-            "dag_id": dag_id,
-            "user_id": user_id or self.default_user_id,
-            "requested_permissions": permissions,
-            "action": "denied",
-            "details": f"Permission denied: {reason}",
-            "inputs_hash": "",
-            "outputs_hash": None,
-        })
+        return self.backend.append(
+            {
+                "timestamp": datetime.now(),
+                "skill_name": skill_name,
+                "dag_id": dag_id,
+                "user_id": user_id or self.default_user_id,
+                "requested_permissions": permissions,
+                "action": "denied",
+                "details": f"Permission denied: {reason}",
+                "inputs_hash": "",
+                "outputs_hash": None,
+            }
+        )
 
     def record_error(
         self,
@@ -678,14 +676,16 @@ class AuditLogManager:
         Returns:
             The created AuditEntry
         """
-        return self.backend.append({
-            "timestamp": datetime.now(),
-            "skill_name": skill_name,
-            "dag_id": dag_id,
-            "user_id": user_id or self.default_user_id,
-            "requested_permissions": permissions,
-            "action": "error",
-            "details": f"Error: {error}",
-            "inputs_hash": "",
-            "outputs_hash": None,
-        })
+        return self.backend.append(
+            {
+                "timestamp": datetime.now(),
+                "skill_name": skill_name,
+                "dag_id": dag_id,
+                "user_id": user_id or self.default_user_id,
+                "requested_permissions": permissions,
+                "action": "error",
+                "details": f"Error: {error}",
+                "inputs_hash": "",
+                "outputs_hash": None,
+            }
+        )

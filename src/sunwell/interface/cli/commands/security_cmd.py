@@ -9,7 +9,6 @@ Provides:
 - sunwell security policy: Show/validate security policy
 """
 
-
 import hashlib
 import json as json_lib
 import os
@@ -140,7 +139,9 @@ def analyze(
         _print_permission_analysis(skills, total_scope, final_risk)
 
     else:
-        console.print("[yellow]No target specified. Use --lens, --skill, or provide a path.[/yellow]")
+        console.print(
+            "[yellow]No target specified. Use --lens, --skill, or provide a path.[/yellow]"
+        )
         console.print("\nExamples:")
         console.print("  sunwell security analyze --lens coder.lens")
         console.print("  sunwell security analyze ./skills/deploy.skill.yaml")
@@ -470,8 +471,12 @@ def _log_trust_all_approval() -> None:
 
 @security.command()
 @click.option("--skill", "-s", help="Filter by skill name")
-@click.option("--action", "-a", type=click.Choice(["execute", "violation", "denied", "error"]),
-              help="Filter by action type")
+@click.option(
+    "--action",
+    "-a",
+    type=click.Choice(["execute", "violation", "denied", "error"]),
+    help="Filter by action type",
+)
 @click.option("--since", help="Show entries since (ISO date or relative like '1h', '1d')")
 @click.option("--limit", "-n", default=50, help="Maximum entries to show")
 @click.option("--verify", is_flag=True, help="Verify audit log integrity")
@@ -530,12 +535,14 @@ def audit(
         since_dt = _parse_since(since)
 
     # Query entries
-    entries = list(backend.query(
-        skill_name=skill,
-        action=action,
-        since=since_dt,
-        limit=limit,
-    ))
+    entries = list(
+        backend.query(
+            skill_name=skill,
+            action=action,
+            since=since_dt,
+            limit=limit,
+        )
+    )
 
     if json_output:
         output = [e.to_dict() for e in entries]
@@ -628,8 +635,7 @@ def verify_cmd(ctx, json_output: bool) -> None:
 
 
 @security.command()
-@click.option("--file", "-f", "file_path", type=click.Path(exists=True),
-              help="File to scan")
+@click.option("--file", "-f", "file_path", type=click.Path(exists=True), help="File to scan")
 @click.option("--stdin", is_flag=True, help="Read content from stdin")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context

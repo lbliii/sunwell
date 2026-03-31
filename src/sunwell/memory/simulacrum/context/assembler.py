@@ -12,7 +12,6 @@ This enables "infinite" conversations by keeping the active context
 within model limits while preserving access to full history.
 """
 
-
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -61,10 +60,12 @@ class AssembledContext:
             for l in self.learnings:
                 system_parts.append(f"- [{l.category}] {l.fact}")
 
-        messages.append({
-            "role": "system",
-            "content": "\n".join(system_parts),
-        })
+        messages.append(
+            {
+                "role": "system",
+                "content": "\n".join(system_parts),
+            }
+        )
 
         # Retrieved historical turns as actual conversation messages
         # (Not as system context - small models ignore system messages)
@@ -114,9 +115,9 @@ class ContextAssembler:
 
         # Embed all turns for retrieval
         turns_to_embed = [
-            t for t in self.dag.turns.values()
-            if t.id not in self.dag.compressed
-            and t.id not in self.dag.dead_ends
+            t
+            for t in self.dag.turns.values()
+            if t.id not in self.dag.compressed and t.id not in self.dag.dead_ends
         ]
 
         if turns_to_embed:
@@ -165,9 +166,7 @@ class ContextAssembler:
             )
 
         # 4. Estimate tokens
-        estimated = self._estimate_tokens(
-            system_prompt, recent_turns, retrieved, learnings
-        )
+        estimated = self._estimate_tokens(system_prompt, recent_turns, retrieved, learnings)
 
         # 5. Compress if over budget
         compression_applied = False
@@ -214,11 +213,7 @@ class ContextAssembler:
         # Sort by score and return top
         scores.sort(key=lambda x: x[1], reverse=True)
 
-        return [
-            self.dag.turns[tid]
-            for tid, _ in scores[:limit]
-            if tid in self.dag.turns
-        ]
+        return [self.dag.turns[tid] for tid, _ in scores[:limit] if tid in self.dag.turns]
 
     async def _compress(
         self,
@@ -240,10 +235,12 @@ class ContextAssembler:
             return turns, False
 
         # Generate summary
-        compress_text = "\n\n".join([
-            f"{'User' if t.turn_type == TurnType.USER else 'Assistant'}: {t.content}"
-            for t in to_compress
-        ])
+        compress_text = "\n\n".join(
+            [
+                f"{'User' if t.turn_type == TurnType.USER else 'Assistant'}: {t.content}"
+                for t in to_compress
+            ]
+        )
 
         summary_prompt = f"""Summarize this conversation excerpt in 2-3 sentences,
 preserving key facts, decisions, and any code/technical details:

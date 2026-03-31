@@ -124,10 +124,14 @@ class ArtifactPlanner:
             CyclicDependencyError: If artifacts form a dependency cycle
         """
         # RFC-059: Emit discovery start
-        events.emit_event(self.event_callback, "plan_discovery_progress", {
-            "artifacts_discovered": 0,
-            "phase": "discovering",
-        })
+        events.emit_event(
+            self.event_callback,
+            "plan_discovery_progress",
+            {
+                "artifacts_discovered": 0,
+                "phase": "discovering",
+            },
+        )
 
         # Complexity gate: trivial goals skip full discovery
         if self.router is not None:
@@ -138,10 +142,14 @@ class ArtifactPlanner:
                 if decision.complexity == Complexity.TRIVIAL:
                     graph = self._trivial_artifact(goal)
                     # RFC-059: Emit complete for trivial case
-                    events.emit_event(self.event_callback, "plan_discovery_progress", {
-                        "artifacts_discovered": len(graph),
-                        "phase": "complete",
-                    })
+                    events.emit_event(
+                        self.event_callback,
+                        "plan_discovery_progress",
+                        {
+                            "artifacts_discovered": len(graph),
+                            "phase": "complete",
+                        },
+                    )
                     return graph
             except Exception:
                 pass  # Fall through to full discovery on router failure

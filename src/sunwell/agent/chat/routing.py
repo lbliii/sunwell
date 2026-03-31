@@ -27,6 +27,9 @@ from sunwell.agent.chat.checkpoint import (
     ensure_checkpoint_response,
 )
 from sunwell.agent.chat.state import LoopState, append_to_history
+
+# Import PlanResult at runtime for type alias (not just TYPE_CHECKING)
+from sunwell.agent.core.agent import PlanResult
 from sunwell.agent.events import AgentEvent
 from sunwell.agent.intent import (
     IntentClassification,
@@ -34,9 +37,6 @@ from sunwell.agent.intent import (
     format_path,
     requires_approval,
 )
-
-# Import PlanResult at runtime for type alias (not just TYPE_CHECKING)
-from sunwell.agent.core.agent import PlanResult
 
 if TYPE_CHECKING:
     from sunwell.agent.background import BackgroundManager
@@ -49,9 +49,7 @@ if TYPE_CHECKING:
 
 # Type aliases for callback functions
 GenerateResponseFn = Callable[[str], Coroutine[Any, Any, str]]
-ExecuteGoalFn = Callable[
-    [str], AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]
-]
+ExecuteGoalFn = Callable[[str], AsyncIterator[tuple[LoopState, str | ChatCheckpoint | AgentEvent]]]
 # Plan function returns PlanResult with TaskGraph and metrics
 PlanGoalFn = Callable[[str], Coroutine[Any, Any, PlanResult]]
 # Execute with precomputed plan
@@ -234,10 +232,9 @@ def _create_write_execution_generator(
 
             # Check if we should suggest trust upgrade
             if approval_tracker is not None and auto_approve_config is not None:
-                if (
-                    approval_tracker.should_suggest_upgrade(path)
-                    and not auto_approve_config.has_rule(path)
-                ):
+                if approval_tracker.should_suggest_upgrade(
+                    path
+                ) and not auto_approve_config.has_rule(path):
                     # Get approval pattern for context
                     pattern = approval_tracker.get_pattern(path)
                     approval_count = pattern.approval_count if pattern else 0
@@ -291,6 +288,7 @@ def _create_write_execution_generator(
 
                 # Use plan-based estimation
                 from dataclasses import replace
+
                 from sunwell.agent.estimation import estimate_from_plan
 
                 estimate = estimate_from_plan(
@@ -308,6 +306,7 @@ def _create_write_execution_generator(
 
                     # Format duration string
                     from sunwell.agent.estimation import format_duration
+
                     time_str = format_duration(estimate.seconds)
 
                     # Build message with plan summary
@@ -317,9 +316,7 @@ def _create_write_execution_generator(
                             f"typically {format_duration(estimate.confidence_low)}-"
                             f"{format_duration(estimate.confidence_high)}"
                         )
-                        message_parts.append(
-                            f"Estimated: **{time_str}** ({confidence_str})"
-                        )
+                        message_parts.append(f"Estimated: **{time_str}** ({confidence_str})")
                     else:
                         message_parts.append(f"Estimated: **{time_str}**")
                     message_parts.append("")

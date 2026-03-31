@@ -211,8 +211,8 @@ def _build_instructions(state: RecoveryState) -> str:
 
     return f"""### Instructions
 
-1. **Focus on fixing these files**: {', '.join(failed_paths) or 'None'}
-2. **DO NOT regenerate these files** (they are correct): {', '.join(passed_paths) or 'None'}
+1. **Focus on fixing these files**: {", ".join(failed_paths) or "None"}
+2. **DO NOT regenerate these files** (they are correct): {", ".join(passed_paths) or "None"}
 3. **Read the error details carefully** — they tell you exactly what's wrong
 4. **Fix the root cause** — don't just suppress errors
 5. **Maintain consistency** with the passed artifacts (same style, same patterns)

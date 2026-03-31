@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 @dataclass(slots=True)
 class ExpertiseRetriever:
     """Retrieves relevant heuristics from a lens using semantic search.
-    
+
     Uses embeddings to find heuristics that match a query semantically,
     enabling on-demand expertise retrieval during agent execution.
     """
@@ -62,10 +62,10 @@ class ExpertiseRetriever:
 
     async def retrieve(self, query: str) -> list[Heuristic]:
         """Retrieve top-k most relevant heuristics for a query.
-        
+
         Args:
             query: Search query
-            
+
         Returns:
             List of heuristics ordered by relevance (most relevant first)
         """
@@ -97,7 +97,7 @@ class ExpertiseRetriever:
 
         # Sort by similarity (descending) and return top-k
         scores.sort(key=lambda x: x[0], reverse=True)
-        return [heuristic for _, heuristic in scores[:self.top_k]]
+        return [heuristic for _, heuristic in scores[: self.top_k]]
 
     @staticmethod
     def _cosine_similarity(a: list[float], b: list[float]) -> float:

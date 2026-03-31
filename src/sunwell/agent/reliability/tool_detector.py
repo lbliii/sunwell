@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
+
 class ToolFailureType(Enum):
     """Types of tool calling failures."""
 
@@ -157,12 +158,7 @@ def detect_tool_failure(
         )
 
     # Case 2: Tools available but conversation-style response for an action
-    if (
-        is_action
-        and tools_available > 0
-        and tool_calls_total == 0
-        and response_text
-    ):
+    if is_action and tools_available > 0 and tool_calls_total == 0 and response_text:
         # Check for hallucinated completion
         if _COMPLETION_PATTERN.search(response_text):
             return ToolReliabilityResult(
@@ -217,11 +213,7 @@ def detect_blocked_tool_pattern(
         return None
 
     # Blocked tools + no successful calls + completion phrases = suspicious
-    if (
-        tool_calls_total == 0
-        and response_text
-        and _COMPLETION_PATTERN.search(response_text)
-    ):
+    if tool_calls_total == 0 and response_text and _COMPLETION_PATTERN.search(response_text):
         tool_names = [t[0] for t in blocked_tools]
         return ToolReliabilityResult(
             failure_type=ToolFailureType.INVALID_TOOL_ARGS,

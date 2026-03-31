@@ -3,7 +3,6 @@
 Cross-check verification signals to compute final confidence.
 """
 
-
 from sunwell.quality.verification.types import (
     BehavioralExecutionResult,
     DeepVerificationResult,
@@ -99,9 +98,7 @@ class ConfidenceTriangulator:
         )
 
         # Check for contradictions (reduces confidence)
-        has_contradiction = self._detect_contradictions(
-            perspective_results, execution_results
-        )
+        has_contradiction = self._detect_contradictions(perspective_results, execution_results)
         if has_contradiction:
             raw_confidence *= 0.8  # 20% penalty for contradictions
 
@@ -116,11 +113,7 @@ class ConfidenceTriangulator:
             or execution_results.pass_rate >= 0.8
         )
 
-        passed = (
-            raw_confidence >= 0.7
-            and not has_critical_issues
-            and tests_pass_threshold
-        )
+        passed = raw_confidence >= 0.7 and not has_critical_issues and tests_pass_threshold
 
         # Collect recommendations
         recommendations = self._collect_recommendations(perspective_results, issues)

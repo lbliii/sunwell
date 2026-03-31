@@ -1,36 +1,25 @@
-"""Observatory page - Agent execution visualization.
+"""Observatory page - Agent execution visualization."""
 
-TODO Phase 2: Add Canvas visualizations
-- ResonanceWave
-- PrismFracture
-- ExecutionCinema
-- MemoryLattice
-"""
-
-from chirp import Page
 from sunwell.interface.chirp.services import SessionService
 
 
-def get(session_svc: SessionService) -> Page:
+def get(session_svc: SessionService) -> dict:
     """Render observatory page."""
-    # Load actual runs from BackgroundManager
     sessions = session_svc.list_sessions(limit=50)
 
-    # Convert to runs format for template
-    runs = []
-    for session in sessions:
-        runs.append({
+    runs = [
+        {
             "id": session["id"],
             "goal": session["goal"],
             "status": session["status"],
             "started": session["started_at"] or 0.0,
-            "events": session["tasks_completed"],  # Use tasks as proxy for events
-        })
+            "events": session["tasks_completed"],
+        }
+        for session in sessions
+    ]
 
-    return Page(
-        "observatory/page.html",
-        "content",
-        current_page="observatory",
-        runs=runs,
-        title="Observatory",
-    )
+    return {
+        "runs": runs,
+        "page_title": "Observatory - Sunwell Studio",
+        "breadcrumb_label": "Observatory",
+    }

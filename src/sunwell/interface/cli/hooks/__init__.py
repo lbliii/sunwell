@@ -9,7 +9,7 @@ Example hooks.toml:
     on = ["session:end"]
     run = "git add -A && git commit -m '${SUNWELL_SESSION_SUMMARY}'"
     requires = ["git"]
-    
+
     [[hooks]]
     name = "notify-complete"
     on = ["task:complete"]

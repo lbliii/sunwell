@@ -12,7 +12,6 @@ Example:
     >>> sunwell self proposals list  # List proposals
 """
 
-
 import json
 import sys
 from typing import TYPE_CHECKING
@@ -95,13 +94,17 @@ def source_find(module: str, symbol: str, as_json: bool) -> None:
         sys.exit(1)
 
     if as_json:
-        click.echo(json.dumps({
-            "name": result.name,
-            "kind": result.kind,
-            "line": result.line,
-            "signature": result.signature,
-            "docstring": result.docstring,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "name": result.name,
+                    "kind": result.kind,
+                    "line": result.line,
+                    "signature": result.signature,
+                    "docstring": result.docstring,
+                }
+            )
+        )
     else:
         click.echo(f"Symbol: {result.name}")
         click.echo(f"Kind: {result.kind}")
@@ -123,15 +126,19 @@ def source_search(query: str, limit: int, as_json: bool) -> None:
     results = Self.get().source.search(query, limit=limit)
 
     if as_json:
-        click.echo(json.dumps([
-            {
-                "module": r.module,
-                "symbol": r.symbol,
-                "score": r.score,
-                "snippet": r.snippet,
-            }
-            for r in results
-        ]))
+        click.echo(
+            json.dumps(
+                [
+                    {
+                        "module": r.module,
+                        "symbol": r.symbol,
+                        "score": r.score,
+                        "snippet": r.snippet,
+                    }
+                    for r in results
+                ]
+            )
+        )
     else:
         click.echo(f"Search results for '{query}':")
         for r in results:
@@ -160,12 +167,16 @@ def analysis_patterns(scope: str, as_json: bool) -> None:
     report = Self.get().analysis.analyze_patterns()
 
     if as_json:
-        click.echo(json.dumps({
-            "tool_frequencies": report.tool_frequencies,
-            "avg_latency_ms": report.avg_latency_ms,
-            "error_rate": report.error_rate,
-            "top_errors": report.top_errors,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "tool_frequencies": report.tool_frequencies,
+                    "avg_latency_ms": report.avg_latency_ms,
+                    "error_rate": report.error_rate,
+                    "top_errors": report.top_errors,
+                }
+            )
+        )
     else:
         click.echo("Tool Usage Patterns:")
         click.echo(f"  Average latency: {report.avg_latency_ms:.0f}ms")
@@ -190,18 +201,22 @@ def analysis_failures(limit: int, as_json: bool) -> None:
     failures = Self.get().analysis.get_recent_failures(limit=limit)
 
     if as_json:
-        click.echo(json.dumps({
-            "total_failures": len(failures),
-            "by_category": {},  # Would need to compute
-            "recent": [
+        click.echo(
+            json.dumps(
                 {
-                    "tool_name": f.tool_name,
-                    "error": f.error,
-                    "timestamp": f.timestamp.isoformat() if f.timestamp else None,
+                    "total_failures": len(failures),
+                    "by_category": {},  # Would need to compute
+                    "recent": [
+                        {
+                            "tool_name": f.tool_name,
+                            "error": f.error,
+                            "timestamp": f.timestamp.isoformat() if f.timestamp else None,
+                        }
+                        for f in failures
+                    ],
                 }
-                for f in failures
-            ],
-        }))
+            )
+        )
     else:
         click.echo(f"Recent Failures ({len(failures)}):")
         for f in failures:
@@ -234,16 +249,20 @@ def proposals_list(status: str | None, as_json: bool) -> None:
         all_proposals = [p for p in all_proposals if p.status == status_enum]
 
     if as_json:
-        click.echo(json.dumps([
-            {
-                "id": p.id,
-                "title": p.title,
-                "status": p.status.value,
-                "created_at": p.created_at.isoformat(),
-                "files_changed": len(p.changes),
-            }
-            for p in all_proposals
-        ]))
+        click.echo(
+            json.dumps(
+                [
+                    {
+                        "id": p.id,
+                        "title": p.title,
+                        "status": p.status.value,
+                        "created_at": p.created_at.isoformat(),
+                        "files_changed": len(p.changes),
+                    }
+                    for p in all_proposals
+                ]
+            )
+        )
     else:
         click.echo(f"Proposals ({len(all_proposals)}):")
         for p in all_proposals:
@@ -271,28 +290,34 @@ def proposals_show(proposal_id: str, as_json: bool) -> None:
         sys.exit(1)
 
     if as_json:
-        click.echo(json.dumps({
-            "id": proposal.id,
-            "title": proposal.title,
-            "description": proposal.description,
-            "status": proposal.status.value,
-            "changes": [
+        click.echo(
+            json.dumps(
                 {
-                    "path": c.path,
-                    "change_type": c.change_type,
-                    "diff_preview": c.diff[:500] if c.diff else None,
+                    "id": proposal.id,
+                    "title": proposal.title,
+                    "description": proposal.description,
+                    "status": proposal.status.value,
+                    "changes": [
+                        {
+                            "path": c.path,
+                            "change_type": c.change_type,
+                            "diff_preview": c.diff[:500] if c.diff else None,
+                        }
+                        for c in proposal.changes
+                    ],
+                    "test_result": {
+                        "passed": proposal.test_result.passed,
+                        "tests_run": proposal.test_result.tests_run,
+                        "tests_passed": proposal.test_result.tests_passed,
+                        "tests_failed": proposal.test_result.tests_failed,
+                        "duration_ms": proposal.test_result.duration_ms,
+                    }
+                    if proposal.test_result
+                    else None,
+                    "created_at": proposal.created_at.isoformat(),
                 }
-                for c in proposal.changes
-            ],
-            "test_result": {
-                "passed": proposal.test_result.passed,
-                "tests_run": proposal.test_result.tests_run,
-                "tests_passed": proposal.test_result.tests_passed,
-                "tests_failed": proposal.test_result.tests_failed,
-                "duration_ms": proposal.test_result.duration_ms,
-            } if proposal.test_result else None,
-            "created_at": proposal.created_at.isoformat(),
-        }))
+            )
+        )
     else:
         click.echo(f"Proposal: {proposal.title}")
         click.echo(f"ID: {proposal.id}")
@@ -319,13 +344,17 @@ def proposals_test(proposal_id: str, as_json: bool) -> None:
     result = Self.get().proposals.test(proposal)
 
     if as_json:
-        click.echo(json.dumps({
-            "passed": result.passed,
-            "tests_run": result.tests_run,
-            "tests_passed": result.tests_passed,
-            "tests_failed": result.tests_failed,
-            "duration_ms": result.duration_ms,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "passed": result.passed,
+                    "tests_run": result.tests_run,
+                    "tests_passed": result.tests_passed,
+                    "tests_failed": result.tests_failed,
+                    "duration_ms": result.duration_ms,
+                }
+            )
+        )
     else:
         status = "✅ PASSED" if result.passed else "❌ FAILED"
         click.echo(f"\nTest Result: {status}")
@@ -360,11 +389,15 @@ def proposals_apply(proposal_id: str, as_json: bool) -> None:
     result = Self.get().proposals.apply(proposal)
 
     if as_json:
-        click.echo(json.dumps({
-            "success": result.success,
-            "commit_hash": result.commit_hash,
-            "message": result.message,
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "success": result.success,
+                    "commit_hash": result.commit_hash,
+                    "message": result.message,
+                }
+            )
+        )
     else:
         if result.success:
             click.echo("✅ Applied successfully")
@@ -421,14 +454,18 @@ def summary(as_json: bool) -> None:
     patterns = self_instance.analysis.analyze_patterns()
 
     if as_json:
-        click.echo(json.dumps({
-            "modules_count": len(modules),
-            "recent_executions": sum(patterns.tool_frequencies.values()),
-            "error_rate": patterns.error_rate,
-            "pending_proposals": pending,
-            "applied_proposals": applied,
-            "source_root": str(self_instance._source_root),
-        }))
+        click.echo(
+            json.dumps(
+                {
+                    "modules_count": len(modules),
+                    "recent_executions": sum(patterns.tool_frequencies.values()),
+                    "error_rate": patterns.error_rate,
+                    "pending_proposals": pending,
+                    "applied_proposals": applied,
+                    "source_root": str(self_instance._source_root),
+                }
+            )
+        )
     else:
         click.echo("Self-Knowledge Summary")
         click.echo("=" * 40)

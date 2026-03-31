@@ -67,8 +67,7 @@ def print_plan_details(
                 else:
                     # Show numbers by default
                     dep_nums = [
-                        str(j + 1) for j, t in enumerate(task_list)
-                        if t["id"] in task["depends_on"]
+                        str(j + 1) for j, t in enumerate(task_list) if t["id"] in task["depends_on"]
                     ]
                     deps = f" [neutral.dim](←{','.join(dep_nums)})[/]" if dep_nums else ""
 

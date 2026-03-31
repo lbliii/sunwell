@@ -92,9 +92,7 @@ class Identity:
     @classmethod
     def from_dict(cls, data: dict) -> Identity:
         """Deserialize from dictionary."""
-        observations = [
-            Observation.from_dict(o) for o in data.get("observations", [])
-        ]
+        observations = [Observation.from_dict(o) for o in data.get("observations", [])]
 
         last_digest = data.get("last_digest")
         if isinstance(last_digest, str):

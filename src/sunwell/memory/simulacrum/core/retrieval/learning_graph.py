@@ -83,14 +83,10 @@ class LearningGraph:
         >>> count = graph.inbound_count("fact_2")  # Returns 1
     """
 
-    _outgoing: dict[str, list[LearningEdge]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    _outgoing: dict[str, list[LearningEdge]] = field(default_factory=lambda: defaultdict(list))
     """Outgoing edges: learning_id → list of edges."""
 
-    _incoming: dict[str, list[LearningEdge]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+    _incoming: dict[str, list[LearningEdge]] = field(default_factory=lambda: defaultdict(list))
     """Incoming edges: learning_id → list of edges."""
 
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -128,8 +124,7 @@ class LearningGraph:
                 for edge in self._outgoing[learning_id]:
                     if edge.target_id in self._incoming:
                         self._incoming[edge.target_id] = [
-                            e for e in self._incoming[edge.target_id]
-                            if e.source_id != learning_id
+                            e for e in self._incoming[edge.target_id] if e.source_id != learning_id
                         ]
                 del self._outgoing[learning_id]
 
@@ -138,8 +133,7 @@ class LearningGraph:
                 for edge in self._incoming[learning_id]:
                     if edge.source_id in self._outgoing:
                         self._outgoing[edge.source_id] = [
-                            e for e in self._outgoing[edge.source_id]
-                            if e.target_id != learning_id
+                            e for e in self._outgoing[edge.source_id] if e.target_id != learning_id
                         ]
                 del self._incoming[learning_id]
 
@@ -263,12 +257,14 @@ class LearningGraph:
         edges: list[dict] = []
         for edge_list in self._outgoing.values():
             for edge in edge_list:
-                edges.append({
-                    "source_id": edge.source_id,
-                    "target_id": edge.target_id,
-                    "relation_type": edge.relation_type.value,
-                    "weight": edge.weight,
-                })
+                edges.append(
+                    {
+                        "source_id": edge.source_id,
+                        "target_id": edge.target_id,
+                        "relation_type": edge.relation_type.value,
+                        "weight": edge.weight,
+                    }
+                )
 
         if not safe_json_dump({"edges": edges}, path):
             logger.error("Failed to save learning graph to %s", path)
@@ -332,23 +328,27 @@ def detect_relationships(
 
         # Check for supersedes relationship (existing marked as superseded by new)
         if existing.superseded_by == new_learning.id:
-            edges.append(LearningEdge(
-                source_id=new_learning.id,
-                target_id=existing.id,
-                relation_type=RelationType.ELABORATES,
-                weight=1.0,
-            ))
+            edges.append(
+                LearningEdge(
+                    source_id=new_learning.id,
+                    target_id=existing.id,
+                    relation_type=RelationType.ELABORATES,
+                    weight=1.0,
+                )
+            )
             continue
 
         # Check for source turn overlap → DERIVES_FROM
         existing_sources = set(existing.source_turns)
         if new_sources & existing_sources:
-            edges.append(LearningEdge(
-                source_id=new_learning.id,
-                target_id=existing.id,
-                relation_type=RelationType.DERIVES_FROM,
-                weight=0.8,
-            ))
+            edges.append(
+                LearningEdge(
+                    source_id=new_learning.id,
+                    target_id=existing.id,
+                    relation_type=RelationType.DERIVES_FROM,
+                    weight=0.8,
+                )
+            )
             continue
 
         # Check for keyword overlap → RELATED
@@ -356,8 +356,28 @@ def detect_relationships(
         overlap = new_words & existing_words
         # Exclude common stop words
         stop_words = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "to", "of",
-            "and", "in", "that", "it", "for", "on", "with", "as", "at", "by", "this", "i",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "to",
+            "of",
+            "and",
+            "in",
+            "that",
+            "it",
+            "for",
+            "on",
+            "with",
+            "as",
+            "at",
+            "by",
+            "this",
+            "i",
         }
         meaningful_overlap = overlap - stop_words
 
@@ -374,23 +394,34 @@ def detect_relationships(
         if len(meaningful_overlap) >= 3 and overlap_ratio >= similarity_threshold:
             # Same category suggests SUPPORTS, different suggests RELATED
             if new_learning.category == existing.category:
-                edges.append(LearningEdge(
-                    source_id=new_learning.id,
-                    target_id=existing.id,
-                    relation_type=RelationType.SUPPORTS,
-                    weight=overlap_ratio,
-                ))
+                edges.append(
+                    LearningEdge(
+                        source_id=new_learning.id,
+                        target_id=existing.id,
+                        relation_type=RelationType.SUPPORTS,
+                        weight=overlap_ratio,
+                    )
+                )
             else:
-                edges.append(LearningEdge(
-                    source_id=new_learning.id,
-                    target_id=existing.id,
-                    relation_type=RelationType.RELATED,
-                    weight=overlap_ratio * 0.8,
-                ))
+                edges.append(
+                    LearningEdge(
+                        source_id=new_learning.id,
+                        target_id=existing.id,
+                        relation_type=RelationType.RELATED,
+                        weight=overlap_ratio * 0.8,
+                    )
+                )
 
         # Check for contradiction markers
         contradiction_markers = {
-            "but", "however", "instead", "not", "don't", "doesn't", "failed", "wrong",
+            "but",
+            "however",
+            "instead",
+            "not",
+            "don't",
+            "doesn't",
+            "failed",
+            "wrong",
         }
         is_contradiction_candidate = (
             (new_words & contradiction_markers)
@@ -398,11 +429,13 @@ def detect_relationships(
             and (existing.category == "dead_end" or new_learning.category == "dead_end")
         )
         if is_contradiction_candidate:
-            edges.append(LearningEdge(
-                source_id=new_learning.id,
-                target_id=existing.id,
-                relation_type=RelationType.CONTRADICTS,
-                weight=0.7,
-            ))
+            edges.append(
+                LearningEdge(
+                    source_id=new_learning.id,
+                    target_id=existing.id,
+                    relation_type=RelationType.CONTRADICTS,
+                    weight=0.7,
+                )
+            )
 
     return edges

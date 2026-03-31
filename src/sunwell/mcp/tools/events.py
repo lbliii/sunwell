@@ -8,19 +8,14 @@ This maps to the Cursor article's emphasis on observability being
 critical for understanding multi-agent behavior.
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import mcp_json, omit_empty
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +58,7 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             manager = runtime.backlog if runtime else None
             if manager is None:
                 from sunwell.features.backlog.manager import BacklogManager
+
                 manager = BacklogManager(root=workspace)
 
             # Gather backlog stats
@@ -83,11 +79,13 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                 if goal.claimed_by is not None and goal.claimed_at is not None:
                     elapsed = (now - goal.claimed_at).total_seconds()
                     if elapsed > 300:  # 5 minutes
-                        stale_claims.append({
-                            "goal_id": goal_id,
-                            "worker_id": goal.claimed_by,
-                            "elapsed_seconds": int(elapsed),
-                        })
+                        stale_claims.append(
+                            {
+                                "goal_id": goal_id,
+                                "worker_id": goal.claimed_by,
+                                "elapsed_seconds": int(elapsed),
+                            }
+                        )
 
             # Get dead letter queue info
             dead_letter_info: dict = {"count": 0, "entries": []}
@@ -95,6 +93,7 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                 from sunwell.agent.coordination.parallel_executor import (
                     get_dead_letter_queue,
                 )
+
                 dlq = get_dead_letter_queue()
                 dead_letter_info = {
                     "count": dlq.count,
@@ -107,11 +106,14 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             error_budget_info: dict | None = None
             try:
                 from sunwell.agent.convergence.reconciler import Reconciler
+
                 # Check if a reconciler state file exists
                 from sunwell.knowledge.project.state import resolve_state_dir
+
                 reconciler_state = resolve_state_dir(workspace) / "convergence_state.json"
                 if reconciler_state.exists():
                     import json as json_mod
+
                     state = json_mod.loads(reconciler_state.read_text())
                     error_budget_info = state.get("error_budget")
             except Exception:
@@ -126,20 +128,14 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
 
             if stale_claims:
                 health = "degraded"
-                health_issues.append(
-                    f"{len(stale_claims)} stale claims (>5min without heartbeat)"
-                )
+                health_issues.append(f"{len(stale_claims)} stale claims (>5min without heartbeat)")
 
             if dead_letter_info["count"] > 5:
                 health = "degraded"
-                health_issues.append(
-                    f"{dead_letter_info['count']} tasks in dead letter queue"
-                )
+                health_issues.append(f"{dead_letter_info['count']} tasks in dead letter queue")
 
             if conflicts:
-                health_issues.append(
-                    f"{len(conflicts)} file conflicts between workers"
-                )
+                health_issues.append(f"{len(conflicts)} file conflicts between workers")
 
             if error_budget_info and not error_budget_info.get("within_budget", True):
                 health = "unhealthy"
@@ -148,6 +144,7 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Read pending handoffs count
             handoff_count = 0
             from sunwell.knowledge.project.state import resolve_state_dir
+
             handoff_path = resolve_state_dir(workspace) / "backlog" / "handoffs.jsonl"
             if handoff_path.exists():
                 try:
@@ -155,36 +152,45 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                 except OSError:
                     pass
 
-            return mcp_json(omit_empty({
-                "backlog": {
-                    "total_goals": total_goals,
-                    "completed": completed,
-                    "blocked": blocked,
-                    "pending": pending_count,
-                    "in_progress": in_progress,
-                },
-                "workers": omit_empty({
-                    "active_claims": claimed_count,
-                    "claims": {
-                        goal_id: worker_id
-                        for goal_id, worker_id in claims.items()
-                    },
-                    "stale_claims": stale_claims if stale_claims else None,
-                }),
-                "error_budget": error_budget_info,
-                "dead_letters": dead_letter_info if dead_letter_info["count"] > 0 else None,
-                "conflicts": conflicts if conflicts else None,
-                "handoffs_pending": handoff_count if handoff_count > 0 else None,
-                "health": health,
-                "health_issues": health_issues if health_issues else None,
-                "timestamp": datetime.now().isoformat(),
-            }), "compact")
+            return mcp_json(
+                omit_empty(
+                    {
+                        "backlog": {
+                            "total_goals": total_goals,
+                            "completed": completed,
+                            "blocked": blocked,
+                            "pending": pending_count,
+                            "in_progress": in_progress,
+                        },
+                        "workers": omit_empty(
+                            {
+                                "active_claims": claimed_count,
+                                "claims": {
+                                    goal_id: worker_id for goal_id, worker_id in claims.items()
+                                },
+                                "stale_claims": stale_claims if stale_claims else None,
+                            }
+                        ),
+                        "error_budget": error_budget_info,
+                        "dead_letters": dead_letter_info if dead_letter_info["count"] > 0 else None,
+                        "conflicts": conflicts if conflicts else None,
+                        "handoffs_pending": handoff_count if handoff_count > 0 else None,
+                        "health": health,
+                        "health_issues": health_issues if health_issues else None,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                ),
+                "compact",
+            )
 
         except Exception as e:
-            return mcp_json({
-                "error": str(e),
-                "health": "unknown",
-            }, "compact")
+            return mcp_json(
+                {
+                    "error": str(e),
+                    "health": "unknown",
+                },
+                "compact",
+            )
 
     @mcp.tool()
     def sunwell_events(
@@ -215,44 +221,52 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Read handoff events
             if not event_type or event_type == "handoff":
                 from sunwell.knowledge.project.state import resolve_state_dir
+
                 handoff_path = resolve_state_dir(workspace) / "backlog" / "handoffs.jsonl"
                 if handoff_path.exists():
                     try:
                         from sunwell.foundation.utils import safe_jsonl_load
+
                         for entry in safe_jsonl_load(handoff_path):
-                            events.append({
-                                "type": "handoff",
-                                "timestamp": entry.get("timestamp", ""),
-                                "data": {
-                                    "task_id": entry.get("task_id"),
-                                    "worker_id": entry.get("worker_id"),
-                                    "success": entry.get("success"),
-                                    "summary": entry.get("summary", "")[:200],
-                                    "findings_count": len(entry.get("findings", [])),
-                                    "concerns_count": len(entry.get("concerns", [])),
-                                },
-                            })
+                            events.append(
+                                {
+                                    "type": "handoff",
+                                    "timestamp": entry.get("timestamp", ""),
+                                    "data": {
+                                        "task_id": entry.get("task_id"),
+                                        "worker_id": entry.get("worker_id"),
+                                        "success": entry.get("success"),
+                                        "summary": entry.get("summary", "")[:200],
+                                        "findings_count": len(entry.get("findings", [])),
+                                        "concerns_count": len(entry.get("concerns", [])),
+                                    },
+                                }
+                            )
                     except Exception:
                         pass
 
             # Read completion events
             if not event_type or event_type == "completion":
                 from sunwell.knowledge.project.state import resolve_state_dir
+
                 completion_path = resolve_state_dir(workspace) / "backlog" / "completed.jsonl"
                 if completion_path.exists():
                     try:
                         from sunwell.foundation.utils import safe_jsonl_load
+
                         for entry in safe_jsonl_load(completion_path):
-                            events.append({
-                                "type": "completion",
-                                "timestamp": entry.get("timestamp", ""),
-                                "data": {
-                                    "goal_id": entry.get("goal_id"),
-                                    "success": entry.get("success"),
-                                    "duration_seconds": entry.get("duration_seconds"),
-                                    "files_changed": entry.get("files_changed", [])[:5],
-                                },
-                            })
+                            events.append(
+                                {
+                                    "type": "completion",
+                                    "timestamp": entry.get("timestamp", ""),
+                                    "data": {
+                                        "goal_id": entry.get("goal_id"),
+                                        "success": entry.get("success"),
+                                        "duration_seconds": entry.get("duration_seconds"),
+                                        "files_changed": entry.get("files_changed", [])[:5],
+                                    },
+                                }
+                            )
                     except Exception:
                         pass
 
@@ -265,10 +279,13 @@ def register_events_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Apply limit
             events = events[:limit]
 
-            return mcp_json({
-                "events": events,
-                "total_returned": len(events),
-            }, "compact")
+            return mcp_json(
+                {
+                    "events": events,
+                    "total_returned": len(events),
+                },
+                "compact",
+            )
 
         except Exception as e:
             return mcp_json({"error": str(e)}, "compact")

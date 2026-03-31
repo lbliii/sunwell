@@ -4,7 +4,6 @@ Allows users to import existing projects into the default Sunwell workspace,
 either by copying or symlinking.
 """
 
-
 import shutil
 import sys
 from pathlib import Path
@@ -95,18 +94,14 @@ def import_project(
     # Check for conflicts
     if target_path.exists():
         if target_path.is_symlink():
-            console.print(
-                "[yellow]⚠️  Target already exists as symlink[/yellow]"
-            )
+            console.print("[yellow]⚠️  Target already exists as symlink[/yellow]")
             if not yes:
                 if not Confirm.ask("Replace existing symlink?", default=False):
                     console.print("[dim]Cancelled[/dim]")
                     sys.exit(0)
             target_path.unlink()
         elif target_path.is_dir():
-            console.print(
-                "[yellow]⚠️  Target directory already exists[/yellow]"
-            )
+            console.print("[yellow]⚠️  Target directory already exists[/yellow]")
             if not yes:
                 choice = Prompt.ask(
                     "What would you like to do?",
@@ -175,6 +170,6 @@ def _shorten_path(path: Path) -> str:
     home = str(Path.home())
 
     if path_str.startswith(home):
-        return "~" + path_str[len(home):]
+        return "~" + path_str[len(home) :]
 
     return path_str

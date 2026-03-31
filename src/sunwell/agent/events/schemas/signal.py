@@ -5,6 +5,7 @@ from typing import Any, TypedDict
 
 class SignalData(TypedDict, total=False):
     """Data for signal event."""
+
     status: str  # Required: "extracting" | "extracted"
     signals: dict[str, Any] | None  # Signal extraction results
 

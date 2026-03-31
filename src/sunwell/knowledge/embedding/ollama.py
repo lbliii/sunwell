@@ -9,7 +9,6 @@ Recommended models:
 - qwen3-embedding (1024 dims, high quality)
 """
 
-
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -82,9 +81,7 @@ class OllamaEmbedding:
             try:
                 import httpx
             except ImportError as e:
-                raise ImportError(
-                    "httpx not installed. Run: pip install httpx"
-                ) from e
+                raise ImportError("httpx not installed. Run: pip install httpx") from e
             self._client = httpx.AsyncClient(timeout=60.0)
         return self._client
 
@@ -112,8 +109,7 @@ class OllamaEmbedding:
 
         # Truncate long texts to fit model context window
         truncated = [
-            t[:self.max_chars_per_text] if len(t) > self.max_chars_per_text else t
-            for t in texts
+            t[: self.max_chars_per_text] if len(t) > self.max_chars_per_text else t for t in texts
         ]
 
         # Check if we need to batch

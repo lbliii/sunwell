@@ -214,9 +214,12 @@ class WorkspaceRegistry:
         async def _index_background():
             try:
                 from sunwell.knowledge.workspace.workspace_index import WorkspaceSignatureIndex
+
                 index = WorkspaceSignatureIndex(ws)
                 stats = await index.scan_all()
-                logger.info(f"L1 indexing complete for {workspace_id}: {sum(stats.values())} signatures")
+                logger.info(
+                    f"L1 indexing complete for {workspace_id}: {sum(stats.values())} signatures"
+                )
             except Exception as e:
                 logger.warning(f"Background L1 indexing failed for {workspace_id}: {e}")
 
@@ -316,14 +319,13 @@ class WorkspaceRegistry:
 
         existing_ids = {p.id for p in ws.projects}
         if project_id not in existing_ids:
-            raise WorkspaceRegistryError(
-                f"Project {project_id} not in workspace {workspace_id}"
-            )
+            raise WorkspaceRegistryError(f"Project {project_id} not in workspace {workspace_id}")
 
         # Remove project and update dependencies
         new_projects = tuple(p for p in ws.projects if p.id != project_id)
         new_deps_edges = tuple(
-            (src, dep) for src, dep in ws.dependencies.edges
+            (src, dep)
+            for src, dep in ws.dependencies.edges
             if src != project_id and dep != project_id
         )
 
@@ -404,7 +406,7 @@ class WorkspaceRegistry:
             deps_dict = workspace.dependencies.to_dict()
             for src, deps in deps_dict.items():
                 deps_str = ", ".join(f'"{d}"' for d in deps)
-                lines.append(f'{src} = [{deps_str}]')
+                lines.append(f"{src} = [{deps_str}]")
             lines.append("")
 
         toml_path.write_text("\n".join(lines), encoding="utf-8")

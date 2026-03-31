@@ -186,12 +186,16 @@ class WorktreeManager:
         # Use --no-checkout to speed up creation, then checkout
         # This is faster for large repos
         try:
-            await self._run_git([
-                "worktree", "add",
-                "-b", branch_name,
-                str(worktree_path),
-                self._base_commit or "HEAD",
-            ])
+            await self._run_git(
+                [
+                    "worktree",
+                    "add",
+                    "-b",
+                    branch_name,
+                    str(worktree_path),
+                    self._base_commit or "HEAD",
+                ]
+            )
         except subprocess.CalledProcessError as e:
             # Branch might already exist from a previous run
             if b"already exists" in e.stderr:
@@ -200,12 +204,16 @@ class WorktreeManager:
                     await self._run_git(["branch", "-D", branch_name])
                 except subprocess.CalledProcessError:
                     pass
-                await self._run_git([
-                    "worktree", "add",
-                    "-b", branch_name,
-                    str(worktree_path),
-                    self._base_commit or "HEAD",
-                ])
+                await self._run_git(
+                    [
+                        "worktree",
+                        "add",
+                        "-b",
+                        branch_name,
+                        str(worktree_path),
+                        self._base_commit or "HEAD",
+                    ]
+                )
             else:
                 raise
 
@@ -348,22 +356,27 @@ class WorktreeManager:
             if strategy == MergeStrategy.FAST_FORWARD:
                 await self._run_git(["merge", "--ff-only", info.branch])
             elif strategy == MergeStrategy.THREE_WAY:
-                await self._run_git([
-                    "merge",
-                    "--no-edit",
-                    "-m", f"Merge {task_id} changes",
-                    info.branch,
-                ])
+                await self._run_git(
+                    [
+                        "merge",
+                        "--no-edit",
+                        "-m",
+                        f"Merge {task_id} changes",
+                        info.branch,
+                    ]
+                )
             elif strategy == MergeStrategy.ABORT_ON_CONFLICT:
                 # Try fast-forward first, then 3-way
                 try:
                     await self._run_git(["merge", "--ff-only", info.branch])
                 except subprocess.CalledProcessError:
-                    await self._run_git([
-                        "merge",
-                        "--no-commit",
-                        info.branch,
-                    ])
+                    await self._run_git(
+                        [
+                            "merge",
+                            "--no-commit",
+                            info.branch,
+                        ]
+                    )
                     # Check for conflicts
                     status = await self._run_git(["status", "--porcelain"])
                     if "UU" in status or "AA" in status or "DD" in status:
@@ -373,10 +386,13 @@ class WorktreeManager:
                             1, ["merge"], b"", b"Conflicts detected"
                         )
                     # Commit the merge
-                    await self._run_git([
-                        "commit",
-                        "-m", f"Merge {task_id} changes",
-                    ])
+                    await self._run_git(
+                        [
+                            "commit",
+                            "-m",
+                            f"Merge {task_id} changes",
+                        ]
+                    )
 
             logger.info(
                 "Merged worktree %s: %d files",
@@ -455,7 +471,7 @@ class WorktreeManager:
             except Exception as e:
                 logger.warning("Failed to cleanup worktree %s: %s", task_id, e)
 
-    async def __aenter__(self) -> "WorktreeManager":
+    async def __aenter__(self) -> WorktreeManager:
         """Async context manager entry."""
         return self
 

@@ -4,8 +4,6 @@ Builds hierarchical Table of Contents from directory structure and
 Python AST analysis. No LLM calls - deterministic generation.
 """
 
-from __future__ import annotations
-
 import ast
 import re
 from dataclasses import dataclass, field
@@ -20,73 +18,160 @@ from sunwell.knowledge.utils import (
 )
 
 # Directories to skip during scanning
-SKIP_DIRS: frozenset[str] = frozenset({
-    ".git",
-    ".sunwell",
-    ".venv",
-    ".venv-ft",  # Free-threaded Python venv
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    "__pycache__",
-    "node_modules",
-    "venv",
-    "dist",
-    "build",
-    ".tox",
-    ".nox",
-    "htmlcov",
-    ".coverage",
-    "eggs",
-    "*.egg-info",
-})
+SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".git",
+        ".sunwell",
+        ".venv",
+        ".venv-ft",  # Free-threaded Python venv
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "__pycache__",
+        "node_modules",
+        "venv",
+        "dist",
+        "build",
+        ".tox",
+        ".nox",
+        "htmlcov",
+        ".coverage",
+        "eggs",
+        "*.egg-info",
+    }
+)
 
 # File extensions to include as file nodes (non-Python)
-INCLUDE_EXTENSIONS: frozenset[str] = frozenset({
-    ".md",
-    ".rst",
-    ".txt",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".json",
-})
+INCLUDE_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".md",
+        ".rst",
+        ".txt",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".json",
+    }
+)
 
 # Concept keyword mappings for deterministic classification
 CONCEPT_KEYWORDS: dict[str, frozenset[str]] = {
-    "auth": frozenset({
-        "auth", "authentication", "authorization", "token", "session",
-        "login", "logout", "permission", "role", "credential", "oauth",
-        "jwt", "password", "security",
-    }),
-    "api": frozenset({
-        "api", "endpoint", "route", "handler", "request", "response",
-        "rest", "http", "websocket", "graphql", "rpc", "server", "client",
-    }),
-    "data": frozenset({
-        "model", "schema", "database", "query", "orm", "entity",
-        "repository", "store", "table", "record", "field", "migration",
-    }),
-    "config": frozenset({
-        "config", "settings", "configuration", "environment", "options",
-        "env", "setup", "initialize", "bootstrap",
-    }),
-    "test": frozenset({
-        "test", "mock", "fixture", "assert", "spec", "integration",
-        "unit", "e2e", "pytest", "unittest",
-    }),
-    "util": frozenset({
-        "util", "utility", "helper", "common", "shared", "tools",
-        "utils", "misc", "support",
-    }),
-    "core": frozenset({
-        "core", "base", "protocol", "interface", "abstract", "main",
-        "engine", "kernel", "foundation",
-    }),
-    "cli": frozenset({
-        "cli", "command", "arg", "parser", "console", "terminal",
-        "shell", "repl",
-    }),
+    "auth": frozenset(
+        {
+            "auth",
+            "authentication",
+            "authorization",
+            "token",
+            "session",
+            "login",
+            "logout",
+            "permission",
+            "role",
+            "credential",
+            "oauth",
+            "jwt",
+            "password",
+            "security",
+        }
+    ),
+    "api": frozenset(
+        {
+            "api",
+            "endpoint",
+            "route",
+            "handler",
+            "request",
+            "response",
+            "rest",
+            "http",
+            "websocket",
+            "graphql",
+            "rpc",
+            "server",
+            "client",
+        }
+    ),
+    "data": frozenset(
+        {
+            "model",
+            "schema",
+            "database",
+            "query",
+            "orm",
+            "entity",
+            "repository",
+            "store",
+            "table",
+            "record",
+            "field",
+            "migration",
+        }
+    ),
+    "config": frozenset(
+        {
+            "config",
+            "settings",
+            "configuration",
+            "environment",
+            "options",
+            "env",
+            "setup",
+            "initialize",
+            "bootstrap",
+        }
+    ),
+    "test": frozenset(
+        {
+            "test",
+            "mock",
+            "fixture",
+            "assert",
+            "spec",
+            "integration",
+            "unit",
+            "e2e",
+            "pytest",
+            "unittest",
+        }
+    ),
+    "util": frozenset(
+        {
+            "util",
+            "utility",
+            "helper",
+            "common",
+            "shared",
+            "tools",
+            "utils",
+            "misc",
+            "support",
+        }
+    ),
+    "core": frozenset(
+        {
+            "core",
+            "base",
+            "protocol",
+            "interface",
+            "abstract",
+            "main",
+            "engine",
+            "kernel",
+            "foundation",
+        }
+    ),
+    "cli": frozenset(
+        {
+            "cli",
+            "command",
+            "arg",
+            "parser",
+            "console",
+            "terminal",
+            "shell",
+            "repl",
+        }
+    ),
 }
 
 # Cross-reference patterns in comments
@@ -94,9 +179,7 @@ SEE_PATTERN = re.compile(r"#\s*[Ss]ee:?\s+([a-zA-Z0-9_./]+)", re.IGNORECASE)
 TODO_PATTERN = re.compile(r"#\s*TODO:?\s+(.+)$", re.IGNORECASE | re.MULTILINE)
 
 # Pre-compiled patterns for cross-reference extraction (avoid recompiling per call)
-_RE_TYPE_ANNOTATION = re.compile(
-    r":\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)"
-)
+_RE_TYPE_ANNOTATION = re.compile(r":\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)")
 _RE_LOWERCASE_WORDS = re.compile(r"[a-z]+")
 _RE_PYPROJECT_DESCRIPTION = re.compile(r'description\s*=\s*["\']([^"\']+)["\']')
 
@@ -181,9 +264,7 @@ class TocGenerator:
 
         # Set metadata
         toc.generated_at = datetime.now()
-        toc.file_count = sum(
-            1 for n in toc.nodes.values() if n.node_type in ("file", "module")
-        )
+        toc.file_count = sum(1 for n in toc.nodes.values() if n.node_type in ("file", "module"))
 
         return toc
 

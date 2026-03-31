@@ -37,15 +37,16 @@ async def generate_candidates(
     configs = get_variance_configs(planner.variance, planner.candidates)
 
     # RFC-058: Emit candidate generation start event
-    planner._emit_event("plan_candidate_start", {
-        "total_candidates": len(configs),
-        "variance_strategy": planner.variance.value,
-    })
+    planner._emit_event(
+        "plan_candidate_start",
+        {
+            "total_candidates": len(configs),
+            "variance_strategy": planner.variance.value,
+        },
+    )
 
     # Discover all plans in parallel
-    async def discover_with_config(
-        config: dict, index: int
-    ) -> CandidateResult | None:
+    async def discover_with_config(config: dict, index: int) -> CandidateResult | None:
         # Generate stable ID for this candidate
         candidate_id = f"candidate-{index}"
 
@@ -62,13 +63,16 @@ async def generate_candidates(
             }
 
             # Emit candidate generated event with ID
-            planner._emit_event("plan_candidate_generated", {
-                "candidate_id": candidate_id,
-                "artifact_count": len(graph),
-                "progress": index + 1,
-                "total_candidates": len(configs),
-                "variance_config": variance_config,
-            })
+            planner._emit_event(
+                "plan_candidate_generated",
+                {
+                    "candidate_id": candidate_id,
+                    "artifact_count": len(graph),
+                    "progress": index + 1,
+                    "total_candidates": len(configs),
+                    "variance_config": variance_config,
+                },
+            )
 
             return CandidateResult(
                 id=candidate_id,
@@ -87,11 +91,14 @@ async def generate_candidates(
     candidates = [r for r in results if isinstance(r, CandidateResult)]
 
     # RFC-058: Emit candidates complete event
-    planner._emit_event("plan_candidates_complete", {
-        "total_candidates": len(configs),
-        "successful_candidates": len(candidates),
-        "failed_candidates": len(configs) - len(candidates),
-    })
+    planner._emit_event(
+        "plan_candidates_complete",
+        {
+            "total_candidates": len(configs),
+            "successful_candidates": len(candidates),
+            "failed_candidates": len(configs) - len(candidates),
+        },
+    )
 
     return candidates
 

@@ -5,10 +5,10 @@ continues working, with notifications on completion.
 
 Usage:
     from sunwell.agent.background import BackgroundSession, BackgroundManager
-    
+
     manager = BackgroundManager(workspace)
     session = await manager.spawn(goal, model, tool_executor)
-    
+
     # Later, check status
     status = manager.get_session(session.session_id)
 """

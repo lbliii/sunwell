@@ -4,10 +4,9 @@ Provides tools for accessing Sunwell's memory system:
 briefings, persistent learnings, artifact lineage, and session tracking.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+from mcp.server.fastmcp import FastMCP
 
 from sunwell.mcp.formatting import (
     DEFAULT_FORMAT,
@@ -16,11 +15,7 @@ from sunwell.mcp.formatting import (
     resolve_format,
     truncate,
 )
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.mcp.runtime import MCPRuntime
+from sunwell.mcp.runtime import MCPRuntime
 
 
 def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> None:
@@ -68,37 +63,46 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                     fmt,
                 )
 
-            status_val = briefing.status.value if hasattr(briefing.status, "value") else str(briefing.status)
+            status_val = (
+                briefing.status.value if hasattr(briefing.status, "value") else str(briefing.status)
+            )
 
             if fmt == "summary":
-                return mcp_json(omit_empty({
-                    "mission": truncate(briefing.mission, 120),
-                    "status": status_val,
-                    "next_action": truncate(briefing.next_action, 120),
-                    "hazards": len(briefing.hazards),
-                    "blockers": len(briefing.blockers),
-                    "suggested_lens": briefing.suggested_lens,
-                    "complexity_estimate": briefing.complexity_estimate,
-                }), fmt)
+                return mcp_json(
+                    omit_empty(
+                        {
+                            "mission": truncate(briefing.mission, 120),
+                            "status": status_val,
+                            "next_action": truncate(briefing.next_action, 120),
+                            "hazards": len(briefing.hazards),
+                            "blockers": len(briefing.blockers),
+                            "suggested_lens": briefing.suggested_lens,
+                            "complexity_estimate": briefing.complexity_estimate,
+                        }
+                    ),
+                    fmt,
+                )
 
             # Compact: all fields, no prompt_text
-            data = omit_empty({
-                "mission": briefing.mission,
-                "status": status_val,
-                "progress": briefing.progress,
-                "last_action": briefing.last_action,
-                "next_action": briefing.next_action,
-                "hazards": list(briefing.hazards),
-                "blockers": list(briefing.blockers),
-                "hot_files": list(briefing.hot_files),
-                "related_learnings": list(briefing.related_learnings),
-                "predicted_skills": list(briefing.predicted_skills),
-                "suggested_lens": briefing.suggested_lens,
-                "complexity_estimate": briefing.complexity_estimate,
-                "estimated_files_touched": briefing.estimated_files_touched,
-                "updated_at": briefing.updated_at,
-                "session_id": briefing.session_id,
-            })
+            data = omit_empty(
+                {
+                    "mission": briefing.mission,
+                    "status": status_val,
+                    "progress": briefing.progress,
+                    "last_action": briefing.last_action,
+                    "next_action": briefing.next_action,
+                    "hazards": list(briefing.hazards),
+                    "blockers": list(briefing.blockers),
+                    "hot_files": list(briefing.hot_files),
+                    "related_learnings": list(briefing.related_learnings),
+                    "predicted_skills": list(briefing.predicted_skills),
+                    "suggested_lens": briefing.suggested_lens,
+                    "complexity_estimate": briefing.complexity_estimate,
+                    "estimated_files_touched": briefing.estimated_files_touched,
+                    "updated_at": briefing.updated_at,
+                    "session_id": briefing.session_id,
+                }
+            )
 
             if fmt == "full":
                 data["prompt_text"] = briefing.to_prompt()
@@ -151,6 +155,7 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
 
             if memory is None:
                 from sunwell.memory.facade import PersistentMemory
+
                 memory = PersistentMemory.load(ws)
 
             counts = {
@@ -169,36 +174,60 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Query simulacrum store for learnings/dead ends
             if memory.simulacrum and scope in ("all", "learnings", "deadends", "constraints"):
                 try:
-                    planning_ctx = runtime.run(
-                        memory.simulacrum.retrieve_for_planning(query, limit_per_category=limit)
-                    ) if runtime else None
+                    planning_ctx = (
+                        runtime.run(
+                            memory.simulacrum.retrieve_for_planning(query, limit_per_category=limit)
+                        )
+                        if runtime
+                        else None
+                    )
 
                     if planning_ctx:
                         if scope in ("all", "learnings"):
-                            learnings = planning_ctx.all_learnings if hasattr(planning_ctx, "all_learnings") else []
+                            learnings = (
+                                planning_ctx.all_learnings
+                                if hasattr(planning_ctx, "all_learnings")
+                                else []
+                            )
                             result["learnings"] = [
-                                omit_empty({
-                                    "fact": truncate(l.fact, trunc_len) if trunc_len else (l.fact if hasattr(l, "fact") else str(l)),
-                                    "confidence": getattr(l, "confidence", None),
-                                    "category": getattr(l, "category", None),
-                                })
+                                omit_empty(
+                                    {
+                                        "fact": truncate(l.fact, trunc_len)
+                                        if trunc_len
+                                        else (l.fact if hasattr(l, "fact") else str(l)),
+                                        "confidence": getattr(l, "confidence", None),
+                                        "category": getattr(l, "category", None),
+                                    }
+                                )
                                 for l in learnings[:limit]
                             ]
 
                         if scope in ("all", "deadends"):
                             dead_ends = memory.simulacrum.get_dead_ends()
                             result["dead_ends"] = [
-                                {"description": truncate(str(de), trunc_len) if trunc_len else str(de)}
+                                {
+                                    "description": truncate(str(de), trunc_len)
+                                    if trunc_len
+                                    else str(de)
+                                }
                                 for de in dead_ends[:limit]
                             ]
 
                         if scope in ("all", "constraints"):
-                            all_learnings = planning_ctx.all_learnings if hasattr(planning_ctx, "all_learnings") else []
+                            all_learnings = (
+                                planning_ctx.all_learnings
+                                if hasattr(planning_ctx, "all_learnings")
+                                else []
+                            )
                             result["constraints"] = [
-                                omit_empty({
-                                    "fact": truncate(l.fact, trunc_len) if trunc_len else (l.fact if hasattr(l, "fact") else str(l)),
-                                    "confidence": getattr(l, "confidence", None),
-                                })
+                                omit_empty(
+                                    {
+                                        "fact": truncate(l.fact, trunc_len)
+                                        if trunc_len
+                                        else (l.fact if hasattr(l, "fact") else str(l)),
+                                        "confidence": getattr(l, "confidence", None),
+                                    }
+                                )
                                 for l in all_learnings
                                 if getattr(l, "category", None) == "constraint"
                             ][:limit]
@@ -208,9 +237,11 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Query decision memory
             if memory.decisions and scope in ("all", "decisions"):
                 try:
-                    decisions = runtime.run(
-                        memory.decisions.find_relevant_decisions(query, top_k=limit)
-                    ) if runtime else []
+                    decisions = (
+                        runtime.run(memory.decisions.find_relevant_decisions(query, top_k=limit))
+                        if runtime
+                        else []
+                    )
                     result["decisions"] = [
                         {"decision": truncate(str(d), trunc_len) if trunc_len else str(d)}
                         for d in decisions[:limit]
@@ -221,9 +252,11 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             # Query failure memory
             if memory.failures and scope in ("all", "deadends"):
                 try:
-                    failures = runtime.run(
-                        memory.failures.check_similar_failures(query, top_k=limit)
-                    ) if runtime else []
+                    failures = (
+                        runtime.run(memory.failures.check_similar_failures(query, top_k=limit))
+                        if runtime
+                        else []
+                    )
                     result["failures"] = [
                         {"failure": truncate(str(f), trunc_len) if trunc_len else str(f)}
                         for f in failures[:limit]
@@ -268,7 +301,11 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             lineage = store.get_by_path(file_path)
             if not lineage:
                 return mcp_json(
-                    {"status": "no_lineage", "file": file_path, "message": f"No lineage tracked for {file_path}"},
+                    {
+                        "status": "no_lineage",
+                        "file": file_path,
+                        "message": f"No lineage tracked for {file_path}",
+                    },
                     fmt,
                 )
 
@@ -276,40 +313,49 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             dependencies = store.get_dependencies(file_path)
 
             if fmt == "summary":
-                return mcp_json(omit_empty({
-                    "file": lineage.path,
-                    "created_at": str(lineage.created_at),
-                    "human_edited": lineage.human_edited,
-                    "edit_count": len(lineage.edits),
-                    "import_count": len(lineage.imports),
-                    "dependent_count": len(dependents),
-                }), fmt)
+                return mcp_json(
+                    omit_empty(
+                        {
+                            "file": lineage.path,
+                            "created_at": str(lineage.created_at),
+                            "human_edited": lineage.human_edited,
+                            "edit_count": len(lineage.edits),
+                            "import_count": len(lineage.imports),
+                            "dependent_count": len(dependents),
+                        }
+                    ),
+                    fmt,
+                )
 
-            data = omit_empty({
-                "file": lineage.path,
-                "artifact_id": lineage.artifact_id,
-                "content_hash": lineage.content_hash,
-                "created_by_goal": lineage.created_by_goal,
-                "created_by_task": lineage.created_by_task,
-                "created_at": str(lineage.created_at),
-                "created_reason": lineage.created_reason,
-                "model": lineage.model,
-                "human_edited": lineage.human_edited,
-                "deleted_at": str(lineage.deleted_at) if lineage.deleted_at else None,
-                "edits": [
-                    omit_empty({
-                        "lines_added": getattr(e, "lines_added", None),
-                        "lines_removed": getattr(e, "lines_removed", None),
-                        "source": getattr(e, "source", None),
-                        "model": getattr(e, "model", None),
-                    })
-                    for e in lineage.edits
-                ],
-                "imports": list(lineage.imports),
-                "imported_by": list(lineage.imported_by),
-                "dependents": dependents,
-                "dependencies": dependencies,
-            })
+            data = omit_empty(
+                {
+                    "file": lineage.path,
+                    "artifact_id": lineage.artifact_id,
+                    "content_hash": lineage.content_hash,
+                    "created_by_goal": lineage.created_by_goal,
+                    "created_by_task": lineage.created_by_task,
+                    "created_at": str(lineage.created_at),
+                    "created_reason": lineage.created_reason,
+                    "model": lineage.model,
+                    "human_edited": lineage.human_edited,
+                    "deleted_at": str(lineage.deleted_at) if lineage.deleted_at else None,
+                    "edits": [
+                        omit_empty(
+                            {
+                                "lines_added": getattr(e, "lines_added", None),
+                                "lines_removed": getattr(e, "lines_removed", None),
+                                "source": getattr(e, "source", None),
+                                "model": getattr(e, "model", None),
+                            }
+                        )
+                        for e in lineage.edits
+                    ],
+                    "imports": list(lineage.imports),
+                    "imported_by": list(lineage.imported_by),
+                    "dependents": dependents,
+                    "dependencies": dependencies,
+                }
+            )
 
             return mcp_json(data, fmt)
         except Exception as e:
@@ -360,24 +406,34 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
                         tracker = SessionTracker.load(path)
                         summary = tracker.get_summary()
                         if fmt == "summary":
-                            sessions.append(omit_empty({
-                                "session_id": summary.session_id,
-                                "goals_completed": summary.goals_completed,
-                                "files_modified": summary.files_modified,
-                                "total_duration_seconds": summary.total_duration_seconds,
-                            }))
+                            sessions.append(
+                                omit_empty(
+                                    {
+                                        "session_id": summary.session_id,
+                                        "goals_completed": summary.goals_completed,
+                                        "files_modified": summary.files_modified,
+                                        "total_duration_seconds": summary.total_duration_seconds,
+                                    }
+                                )
+                            )
                         else:
-                            sessions.append(omit_empty({
-                                "session_id": summary.session_id,
-                                "started_at": str(summary.started_at),
-                                "ended_at": str(summary.ended_at) if summary.ended_at else None,
-                                "goals_completed": summary.goals_completed,
-                                "goals_failed": summary.goals_failed,
-                                "files_created": summary.files_created,
-                                "files_modified": summary.files_modified,
-                                "learnings_added": summary.learnings_added,
-                                "total_duration_seconds": summary.total_duration_seconds,
-                            }))
+                            sessions.append(
+                                omit_empty(
+                                    {
+                                        "session_id": summary.session_id,
+                                        "started_at": str(summary.started_at),
+                                        "ended_at": str(summary.ended_at)
+                                        if summary.ended_at
+                                        else None,
+                                        "goals_completed": summary.goals_completed,
+                                        "goals_failed": summary.goals_failed,
+                                        "files_created": summary.files_created,
+                                        "files_modified": summary.files_modified,
+                                        "learnings_added": summary.learnings_added,
+                                        "total_duration_seconds": summary.total_duration_seconds,
+                                    }
+                                )
+                            )
                     except Exception:
                         continue
                 return mcp_json({"sessions": sessions, "total": len(sessions)}, fmt)
@@ -397,43 +453,52 @@ def register_memory_tools(mcp: FastMCP, runtime: MCPRuntime | None = None) -> No
             summary = tracker.get_summary()
 
             if fmt == "summary":
-                return mcp_json(omit_empty({
+                return mcp_json(
+                    omit_empty(
+                        {
+                            "session_id": summary.session_id,
+                            "goals_completed": summary.goals_completed,
+                            "goals_failed": summary.goals_failed,
+                            "files_modified": summary.files_modified,
+                            "lines_added": summary.lines_added,
+                            "total_duration_seconds": summary.total_duration_seconds,
+                        }
+                    ),
+                    fmt,
+                )
+
+            data = omit_empty(
+                {
                     "session_id": summary.session_id,
+                    "started_at": str(summary.started_at),
+                    "ended_at": str(summary.ended_at) if summary.ended_at else None,
+                    "source": summary.source,
+                    "goals_started": summary.goals_started,
                     "goals_completed": summary.goals_completed,
                     "goals_failed": summary.goals_failed,
+                    "files_created": summary.files_created,
                     "files_modified": summary.files_modified,
+                    "files_deleted": summary.files_deleted,
                     "lines_added": summary.lines_added,
+                    "lines_removed": summary.lines_removed,
+                    "learnings_added": summary.learnings_added,
+                    "dead_ends_recorded": summary.dead_ends_recorded,
                     "total_duration_seconds": summary.total_duration_seconds,
-                }), fmt)
-
-            data = omit_empty({
-                "session_id": summary.session_id,
-                "started_at": str(summary.started_at),
-                "ended_at": str(summary.ended_at) if summary.ended_at else None,
-                "source": summary.source,
-                "goals_started": summary.goals_started,
-                "goals_completed": summary.goals_completed,
-                "goals_failed": summary.goals_failed,
-                "files_created": summary.files_created,
-                "files_modified": summary.files_modified,
-                "files_deleted": summary.files_deleted,
-                "lines_added": summary.lines_added,
-                "lines_removed": summary.lines_removed,
-                "learnings_added": summary.learnings_added,
-                "dead_ends_recorded": summary.dead_ends_recorded,
-                "total_duration_seconds": summary.total_duration_seconds,
-                "planning_seconds": summary.planning_seconds,
-                "execution_seconds": summary.execution_seconds,
-            })
+                    "planning_seconds": summary.planning_seconds,
+                    "execution_seconds": summary.execution_seconds,
+                }
+            )
 
             if fmt == "full":
                 data["top_files"] = summary.top_files
                 data["goals"] = [
-                    omit_empty({
-                        "goal_id": g.goal_id if hasattr(g, "goal_id") else str(g),
-                        "goal": getattr(g, "goal", None),
-                        "status": getattr(g, "status", None),
-                    })
+                    omit_empty(
+                        {
+                            "goal_id": g.goal_id if hasattr(g, "goal_id") else str(g),
+                            "goal": getattr(g, "goal", None),
+                            "status": getattr(g, "status", None),
+                        }
+                    )
                     for g in summary.goals
                 ]
 

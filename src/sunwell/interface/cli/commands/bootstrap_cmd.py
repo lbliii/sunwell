@@ -3,7 +3,6 @@
 Commands for initializing and managing bootstrap intelligence.
 """
 
-
 import asyncio
 from pathlib import Path
 
@@ -54,13 +53,15 @@ def bootstrap_run(
         sunwell bootstrap run --no-llm     # Skip LLM (faster, deterministic)
         sunwell bootstrap run --report     # Preview without saving
     """
-    asyncio.run(_run_bootstrap(
-        no_llm=no_llm,
-        verbose=verbose,
-        report_only=report,
-        max_commits=max_commits,
-        max_age_days=max_age_days,
-    ))
+    asyncio.run(
+        _run_bootstrap(
+            no_llm=no_llm,
+            verbose=verbose,
+            report_only=report,
+            max_commits=max_commits,
+            max_age_days=max_age_days,
+        )
+    )
 
 
 @bootstrap.command(name="status")
@@ -141,8 +142,7 @@ async def _run_bootstrap(
 
         console.print("\n[green]✅ Bootstrap complete[/green]")
         console.print(
-            "\nRun [holy.gold]sunwell chat[/] to start. "
-            "Your patterns and decisions are ready."
+            "\nRun [holy.gold]sunwell chat[/] to start. Your patterns and decisions are ready."
         )
     else:
         console.print("\n[sunwell.warning]Report only — no changes saved[/]")
@@ -158,8 +158,10 @@ def _display_result(result, report_only: bool) -> None:
     # Git evidence
     if result.git_evidence:
         git = result.git_evidence
-        console.print(f"  [holy.gold]Git history:[/] {len(git.commits)} commits, "
-                      f"{len(git.contributor_stats)} contributors")
+        console.print(
+            f"  [holy.gold]Git history:[/] {len(git.commits)} commits, "
+            f"{len(git.contributor_stats)} contributors"
+        )
 
     # Code evidence
     if result.code_evidence:
@@ -177,8 +179,10 @@ def _display_result(result, report_only: bool) -> None:
 
         # Type hints
         hints = code.type_hint_usage
-        console.print(f"    • Type hints: {hints.level} "
-                      f"({hints.functions_with_hints}/{hints.functions_total} functions)")
+        console.print(
+            f"    • Type hints: {hints.level} "
+            f"({hints.functions_with_hints}/{hints.functions_total} functions)"
+        )
 
         # Docstrings
         docs = code.docstring_style
@@ -221,6 +225,7 @@ def _save_bootstrap_state(project_root: Path, result) -> None:
 
     # Get current HEAD commit
     import subprocess
+
     try:
         head = subprocess.check_output(
             ["git", "rev-parse", "HEAD"],
@@ -270,6 +275,7 @@ async def _show_status() -> None:
 
     # Check if update available
     from sunwell.knowledge import IncrementalBootstrap
+
     incremental = IncrementalBootstrap(project_root, context)
     current_head = await incremental._get_head_commit()
 

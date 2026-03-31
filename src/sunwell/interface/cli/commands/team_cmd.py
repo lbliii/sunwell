@@ -156,7 +156,9 @@ async def _list_decisions(
     console.print(table)
 
     if len(all_decisions) > limit:
-        console.print(f"\n[dim]Showing {limit} of {len(all_decisions)}. Use --limit to see more.[/dim]")
+        console.print(
+            f"\n[dim]Showing {limit} of {len(all_decisions)}. Use --limit to see more.[/dim]"
+        )
 
 
 @team.command()
@@ -398,13 +400,15 @@ async def _show_conflicts() -> None:
 
     console.print(f"[yellow]Found {len(contradictions)} potential contradictions:[/yellow]\n")
     for c in contradictions:
-        console.print(Panel(
-            f"[bold]Type:[/bold] {c.type}\n"
-            f"[bold]Local:[/bold] {c.local_version}\n"
-            f"[bold]Remote:[/bold] {c.remote_version}\n\n"
-            f"[bold]Suggestion:[/bold]\n{c.suggested_resolution}",
-            title="Conflict",
-        ))
+        console.print(
+            Panel(
+                f"[bold]Type:[/bold] {c.type}\n"
+                f"[bold]Local:[/bold] {c.local_version}\n"
+                f"[bold]Remote:[/bold] {c.remote_version}\n\n"
+                f"[bold]Suggestion:[/bold]\n{c.suggested_resolution}",
+                title="Conflict",
+            )
+        )
 
 
 @team.command()
@@ -590,7 +594,9 @@ async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
 
     intelligence_path = Path.cwd() / ".sunwell" / "intelligence"
     if not intelligence_path.exists():
-        console.print("[yellow]No personal decisions found (.sunwell/intelligence/ does not exist)[/yellow]")
+        console.print(
+            "[yellow]No personal decisions found (.sunwell/intelligence/ does not exist)[/yellow]"
+        )
         return
 
     personal_store = DecisionMemory(base_path=intelligence_path)
@@ -657,7 +663,9 @@ async def _migrate_decisions(dry_run: bool, migrate_all: bool) -> None:
         except Exception as e:
             console.print(f"  [red]✗[/red] {d.question[:50]}... ({e})")
 
-    console.print(f"\n[green]✓ Migrated {migrated}/{len(candidates)} decisions to team knowledge[/green]")
+    console.print(
+        f"\n[green]✓ Migrated {migrated}/{len(candidates)} decisions to team knowledge[/green]"
+    )
 
 
 @team.command()

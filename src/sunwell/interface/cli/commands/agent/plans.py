@@ -1,6 +1,5 @@
 """Plans command for agent CLI."""
 
-
 import click
 from rich.console import Console
 from rich.table import Table
@@ -93,4 +92,3 @@ def plans_cmd(list_plans: bool, clean: bool, delete_id: str | None, show_id: str
         )
 
     console.print(table)
-

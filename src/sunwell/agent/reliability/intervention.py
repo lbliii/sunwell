@@ -186,7 +186,7 @@ class InterventionDetector:
             severity = "warning" if remaining_ratio > 0.1 else "critical"
             return InterventionSignal(
                 reason=InterventionReason.BUDGET_LOW,
-                details=f"{remaining_ratio*100:.0f}% budget remaining",
+                details=f"{remaining_ratio * 100:.0f}% budget remaining",
                 severity=severity,
                 suggested_action="Consider stopping or extending budget",
             )

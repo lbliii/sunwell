@@ -12,7 +12,6 @@ Storage backends:
 - SQLite (for high-volume usage)
 """
 
-
 import hashlib
 import json
 import sqlite3
@@ -144,9 +143,7 @@ class FileApprovalCache(ApprovalCacheBackend):
         Args:
             storage_path: Path to cache file (default: ~/.sunwell/security/approvals.json)
         """
-        self.storage = storage_path or (
-            Path.home() / ".sunwell" / "security" / "approvals.json"
-        )
+        self.storage = storage_path or (Path.home() / ".sunwell" / "security" / "approvals.json")
         self._lock = threading.Lock()
         self._cache: dict[str, ApprovalRecord] = {}
         self._load()
@@ -159,9 +156,7 @@ class FileApprovalCache(ApprovalCacheBackend):
         try:
             with open(self.storage) as f:
                 data = json.load(f)
-            self._cache = {
-                k: ApprovalRecord.from_dict(v) for k, v in data.items()
-            }
+            self._cache = {k: ApprovalRecord.from_dict(v) for k, v in data.items()}
         except (json.JSONDecodeError, KeyError):
             self._cache = {}
 
@@ -202,9 +197,7 @@ class FileApprovalCache(ApprovalCacheBackend):
         """Remove expired approvals."""
         with self._lock:
             now = datetime.now()
-            expired = [
-                k for k, v in self._cache.items() if v.expires_at < now
-            ]
+            expired = [k for k, v in self._cache.items() if v.expires_at < now]
             for k in expired:
                 del self._cache[k]
             if expired:
@@ -216,9 +209,9 @@ class FileApprovalCache(ApprovalCacheBackend):
         with self._lock:
             now = datetime.now()
             active = [
-                v for v in self._cache.values()
-                if v.expires_at > now
-                and (user_id is None or v.user_id == user_id)
+                v
+                for v in self._cache.values()
+                if v.expires_at > now and (user_id is None or v.user_id == user_id)
             ]
             return sorted(active, key=lambda x: x.approved_at, reverse=True)
 
@@ -243,9 +236,7 @@ class SQLiteApprovalCache(ApprovalCacheBackend):
         Args:
             db_path: Path to database (default: ~/.sunwell/security/approvals.db)
         """
-        self.db_path = db_path or (
-            Path.home() / ".sunwell" / "security" / "approvals.db"
-        )
+        self.db_path = db_path or (Path.home() / ".sunwell" / "security" / "approvals.db")
         self._init_db()
 
     def _init_db(self) -> None:
@@ -474,11 +465,7 @@ class ApprovalCacheManager:
             SHA-256 hash of permissions + context
         """
         # Deterministic serialization
-        perm_dict = (
-            permissions.to_dict()
-            if hasattr(permissions, "to_dict")
-            else dict(permissions)
-        )
+        perm_dict = permissions.to_dict() if hasattr(permissions, "to_dict") else dict(permissions)
         content = json.dumps(
             {"permissions": perm_dict, "context_keys": sorted(context.keys())},
             sort_keys=True,

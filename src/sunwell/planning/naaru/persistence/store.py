@@ -239,11 +239,15 @@ class PlanStore:
 
         # Extract artifact IDs and task descriptions
         artifacts = tuple(execution.graph) if execution.graph else ()
-        tasks = tuple(
-            execution.graph[aid].description
-            for aid in execution.graph
-            if hasattr(execution.graph[aid], "description")
-        ) if execution.graph else ()
+        tasks = (
+            tuple(
+                execution.graph[aid].description
+                for aid in execution.graph
+                if hasattr(execution.graph[aid], "description")
+            )
+            if execution.graph
+            else ()
+        )
 
         # Compute diff from previous version
         prev = versions[-1] if versions else None

@@ -1,0 +1,41 @@
+{% block run_info %}
+{% from "chirpui/badge.html" import badge %}
+{% from "chirpui/alert.html" import alert %}
+
+<div class="chirpui-cluster" style="justify-content: space-between; align-items: center; margin-bottom: var(--chirpui-spacing-md);">
+    <h2>Run Information</h2>
+    {% if run.status == 'running' %}
+        {{ badge("Live", variant="error") }}
+    {% end %}
+</div>
+<dl class="chirpui-dl chirpui-dl--horizontal">
+    <dt>Status</dt>
+    <dd>{{ badge(run.status, variant="primary") }}</dd>
+
+    <dt>Started</dt>
+    <dd>{{ run.started_at | relative_time if run.started_at else 'N/A' }}</dd>
+
+    <dt>Duration</dt>
+    <dd>{{ run.duration | format_duration if run.duration else 'N/A' }}</dd>
+
+    <dt>Tasks Completed</dt>
+    <dd>{{ run.tasks_completed }}</dd>
+
+    <dt>Files Changed</dt>
+    <dd>{{ run.files_changed }}</dd>
+</dl>
+
+{% if is_active %}
+    <p class="chirpui-ui-xs chirpui-text-muted" style="text-align: center; margin-top: var(--chirpui-spacing-md); padding-top: var(--chirpui-spacing-md); border-top: 1px solid var(--chirpui-border);">
+        Auto-refreshing every 2 seconds...
+    </p>
+{% elif run.status == 'completed' %}
+    {% call alert(variant="success") %}
+        Session completed!
+    {% end %}
+{% elif run.status == 'failed' %}
+    {% call alert(variant="error") %}
+        Session failed. See error details below.
+    {% end %}
+{% end %}
+{% end %}

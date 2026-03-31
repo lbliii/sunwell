@@ -110,15 +110,17 @@ class SessionManager:
                         try:
                             with open(path) as f:
                                 meta = json.load(f)
-                            sessions.append({
-                                "id": path.stem,
-                                "uri": f"sunwell:session/{project_dir.name}/{path.stem}",
-                                "project": project_dir.name,
-                                "name": meta.get("name", path.stem),
-                                "created": meta.get("created"),
-                                "turns": meta.get("turn_count", 0),
-                                "path": str(path),
-                            })
+                            sessions.append(
+                                {
+                                    "id": path.stem,
+                                    "uri": f"sunwell:session/{project_dir.name}/{path.stem}",
+                                    "project": project_dir.name,
+                                    "name": meta.get("name", path.stem),
+                                    "created": meta.get("created"),
+                                    "turns": meta.get("turn_count", 0),
+                                    "path": str(path),
+                                }
+                            )
                         except (json.JSONDecodeError, OSError):
                             continue
 

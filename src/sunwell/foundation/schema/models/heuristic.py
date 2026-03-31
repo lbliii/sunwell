@@ -1,6 +1,5 @@
 """Heuristic data models."""
 
-
 from dataclasses import dataclass, field
 
 # =============================================================================

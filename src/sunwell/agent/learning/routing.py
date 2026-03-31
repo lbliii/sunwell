@@ -100,9 +100,9 @@ class RoutingOutcomeStore:
 
         with self._lock:
             matching = [
-                o for o in self.outcomes
-                if o.strategy == strategy
-                and min_conf <= o.confidence < max_conf
+                o
+                for o in self.outcomes
+                if o.strategy == strategy and min_conf <= o.confidence < max_conf
             ]
 
         if not matching:

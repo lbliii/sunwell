@@ -59,7 +59,7 @@ class JournalEntry:
     """Source line if applicable."""
 
     @classmethod
-    def from_learning(cls, learning: Learning) -> "JournalEntry":
+    def from_learning(cls, learning: Learning) -> JournalEntry:
         """Create a journal entry from a Learning object."""
         return cls(
             id=learning.id,
@@ -76,12 +76,12 @@ class JournalEntry:
         return json.dumps(asdict(self), ensure_ascii=False, separators=(",", ":"))
 
     @classmethod
-    def from_json(cls, line: str) -> "JournalEntry":
+    def from_json(cls, line: str) -> JournalEntry:
         """Deserialize from JSON string."""
         data = json.loads(line)
         return cls(**data)
 
-    def to_learning(self) -> "Learning":
+    def to_learning(self) -> Learning:
         """Convert back to a Learning object."""
         from sunwell.agent.learning.learning import Learning  # layer-exempt: pre-existing
 

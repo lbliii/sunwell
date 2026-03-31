@@ -5,10 +5,10 @@ supporting both conversation-only and code-only rewind modes.
 
 Usage:
     from sunwell.agent.rewind import SnapshotManager, RewindMode
-    
+
     manager = SnapshotManager(workspace)
     snapshot = manager.take_snapshot()
-    
+
     # Later, if needed
     result = manager.rewind_to(snapshot.id, mode=RewindMode.CODE_ONLY)
 """

@@ -3,7 +3,6 @@
 Extract intelligence from git history: commits, blame, authorship.
 """
 
-
 import asyncio
 import re
 from datetime import datetime
@@ -23,7 +22,8 @@ class GitScanner:
 
     # Decision signal patterns in commit messages (pre-compiled)
     DECISION_PATTERNS = tuple(
-        re.compile(p, re.IGNORECASE) for p in [
+        re.compile(p, re.IGNORECASE)
+        for p in [
             r"\b(decided|chose|selected|picked|switched to|moved to)\b",
             r"\b(instead of|over|rather than|not|rejected)\b",
             r"\b(because|since|due to|in order to|so that)\b",
@@ -32,7 +32,8 @@ class GitScanner:
     )
 
     FIX_PATTERNS = tuple(
-        re.compile(p) for p in [
+        re.compile(p)
+        for p in [
             r"^fix(\(.+\))?:",
             r"\b(fix|bugfix|hotfix|patch)\b",
             r"\b(resolve|close|closes)\s+#\d+",
@@ -40,7 +41,8 @@ class GitScanner:
     )
 
     REFACTOR_PATTERNS = tuple(
-        re.compile(p) for p in [
+        re.compile(p)
+        for p in [
             r"^refactor(\(.+\))?:",
             r"\b(refactor|restructure|reorganize|cleanup|clean up)\b",
         ]
@@ -116,13 +118,15 @@ class GitScanner:
         """Parse recent commits for decision signals."""
         # git log with custom format: SHA|author|date|subject
         # Then file names on following lines
-        result = await self._run_git([
-            "log",
-            f"--max-count={self.max_commits}",
-            f"--since={self.max_age_days} days ago",
-            "--format=%H|%an|%aI|%s",
-            "--name-only",
-        ])
+        result = await self._run_git(
+            [
+                "log",
+                f"--max-count={self.max_commits}",
+                f"--since={self.max_age_days} days ago",
+                "--format=%H|%an|%aI|%s",
+                "--name-only",
+            ]
+        )
 
         commits = []
         current_commit: dict | None = None
@@ -229,13 +233,15 @@ class GitScanner:
     async def _get_active_files(self) -> list[Path]:
         """Get recently modified Python files."""
         # Get files modified in last 90 days
-        result = await self._run_git([
-            "log",
-            "--since=90 days ago",
-            "--name-only",
-            "--format=",
-            "--diff-filter=M",
-        ])
+        result = await self._run_git(
+            [
+                "log",
+                "--since=90 days ago",
+                "--name-only",
+                "--format=",
+                "--diff-filter=M",
+            ]
+        )
 
         files = set()
         for line in result.split("\n"):
@@ -255,11 +261,13 @@ class GitScanner:
 
     async def _blame_file(self, file_path: Path) -> list[BlameRegion]:
         """Run git blame on a single file."""
-        result = await self._run_git([
-            "blame",
-            "--porcelain",
-            str(file_path),
-        ])
+        result = await self._run_git(
+            [
+                "blame",
+                "--porcelain",
+                str(file_path),
+            ]
+        )
 
         regions: list[BlameRegion] = []
         current_sha = ""
@@ -277,13 +285,15 @@ class GitScanner:
 
                     # If SHA changed, close previous region
                     if new_sha != current_sha and current_sha:
-                        regions.append(BlameRegion(
-                            start_line=current_start,
-                            end_line=line_num - 1,
-                            author=current_author,
-                            date=current_date,
-                            commit_sha=current_sha[:8],
-                        ))
+                        regions.append(
+                            BlameRegion(
+                                start_line=current_start,
+                                end_line=line_num - 1,
+                                author=current_author,
+                                date=current_date,
+                                commit_sha=current_sha[:8],
+                            )
+                        )
                         current_start = line_num
 
                     current_sha = new_sha
@@ -309,8 +319,7 @@ class GitScanner:
         current = regions[0]
 
         for region in regions[1:]:
-            if (region.author == current.author and
-                region.start_line == current.end_line + 1):
+            if region.author == current.author and region.start_line == current.end_line + 1:
                 # Merge with current
                 current = BlameRegion(
                     start_line=current.start_line,
@@ -345,12 +354,8 @@ class GitScanner:
 
             stats[author]["commits"] += 1
             stats[author]["files"].update(str(f) for f in commit.files_changed)
-            stats[author]["first_commit"] = min(
-                stats[author]["first_commit"], commit.date
-            )
-            stats[author]["last_commit"] = max(
-                stats[author]["last_commit"], commit.date
-            )
+            stats[author]["first_commit"] = min(stats[author]["first_commit"], commit.date)
+            stats[author]["last_commit"] = max(stats[author]["last_commit"], commit.date)
 
         return {
             author: ContributorStats(

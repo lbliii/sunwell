@@ -71,7 +71,7 @@ class Checkpoint:
         cls,
         entries: list[JournalEntry],
         metadata: dict | None = None,
-    ) -> "Checkpoint":
+    ) -> Checkpoint:
         """Create a checkpoint from journal entries."""
         return cls(
             timestamp=datetime.now().isoformat(),
@@ -92,7 +92,7 @@ class Checkpoint:
         )
 
     @classmethod
-    def from_json(cls, data: str) -> "Checkpoint":
+    def from_json(cls, data: str) -> Checkpoint:
         """Deserialize from JSON."""
         obj = json.loads(data)
         return cls(
@@ -231,7 +231,7 @@ class JournalCompactor:
         )
 
         # Keep the most recent N
-        to_delete = checkpoints[self._keep_checkpoints:]
+        to_delete = checkpoints[self._keep_checkpoints :]
         for checkpoint in to_delete:
             try:
                 checkpoint.unlink()

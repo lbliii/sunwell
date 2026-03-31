@@ -5,7 +5,7 @@ Tests entity graph construction, co-occurrence tracking, and graph operations.
 
 import pytest
 
-from sunwell.foundation.types.memory import Learning
+from sunwell.memory.simulacrum.core.turn import Learning
 from sunwell.memory.core.entities.types import Entity, EntityMention, EntityType
 from sunwell.memory.simulacrum.topology.entity_graph_builder import EntityGraphBuilder
 from sunwell.memory.simulacrum.topology.entity_node import EntityNode

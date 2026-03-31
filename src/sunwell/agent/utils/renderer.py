@@ -22,7 +22,6 @@ from typing import Protocol, TextIO
 from sunwell.agent.events import AgentEvent, EventType
 from sunwell.agent.events.types import event_to_dict
 
-
 # =============================================================================
 # Event Formatting (Shared Between Renderers)
 # =============================================================================
@@ -174,7 +173,10 @@ class RichRenderer:
 
             from rich.console import Console
 
-            from sunwell.interface.cli.core.theme import SUNWELL_THEME, should_reduce_motion  # layer-exempt: pre-existing
+            from sunwell.interface.cli.core.theme import (  # layer-exempt: pre-existing
+                SUNWELL_THEME,
+                should_reduce_motion,
+            )
 
             self.console = Console(theme=SUNWELL_THEME)
             self.rich_available = True
@@ -251,8 +253,7 @@ class RichRenderer:
                     case EventType.SIGNAL:
                         if event.data.get("status") == "extracting":
                             task_id = progress.add_task(
-                                "[holy.radiant]✦[/] Understanding goal...",
-                                total=None
+                                "[holy.radiant]✦[/] Understanding goal...", total=None
                             )
                         elif event.data.get("signals"):
                             if task_id is not None:
@@ -262,8 +263,7 @@ class RichRenderer:
                     case EventType.PLAN_START:
                         technique = event.data.get("technique", "unknown")
                         task_id = progress.add_task(
-                            f"[holy.radiant]✦[/] Illuminating ({technique})...",
-                            total=None
+                            f"[holy.radiant]✦[/] Illuminating ({technique})...", total=None
                         )
 
                     # RFC-058: Harmonic planning candidate visibility
@@ -273,7 +273,7 @@ class RichRenderer:
                         # Create a sub-progress for candidate generation
                         self._candidate_task_id = progress.add_task(
                             f"   [holy.gold]◇[/] Generating {total_candidates} candidates ({variance})...",
-                            total=total_candidates
+                            total=total_candidates,
                         )
 
                     case EventType.PLAN_CANDIDATE_GENERATED:
@@ -282,21 +282,27 @@ class RichRenderer:
                         total = event.data.get("total_candidates", 5)
                         style = event.data.get("variance_config", {}).get("prompt_style", "?")
 
-                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                        if (
+                            hasattr(self, "_candidate_task_id")
+                            and self._candidate_task_id is not None
+                        ):
                             progress.update(
                                 self._candidate_task_id,
                                 completed=prog,
-                                description=f"   [holy.gold]◇[/] [{prog}/{total}] {style}: {artifact_count} artifacts"
+                                description=f"   [holy.gold]◇[/] [{prog}/{total}] {style}: {artifact_count} artifacts",
                             )
 
                     case EventType.PLAN_CANDIDATES_COMPLETE:
-                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                        if (
+                            hasattr(self, "_candidate_task_id")
+                            and self._candidate_task_id is not None
+                        ):
                             total = event.data.get("total_candidates", 5)
                             successful = event.data.get("successful_candidates", total)
                             progress.update(
                                 self._candidate_task_id,
                                 completed=total,
-                                description=f"   [holy.success]◆[/] {successful} candidates generated"
+                                description=f"   [holy.success]◆[/] {successful} candidates generated",
                             )
 
                     case EventType.PLAN_CANDIDATE_SCORED:
@@ -304,21 +310,27 @@ class RichRenderer:
                         prog = event.data.get("progress", 1)
                         total = event.data.get("total_candidates", 5)
 
-                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                        if (
+                            hasattr(self, "_candidate_task_id")
+                            and self._candidate_task_id is not None
+                        ):
                             progress.update(
                                 self._candidate_task_id,
-                                description=f"   [holy.gold]·[/] Scoring [{prog}/{total}]: {score:.1f}"
+                                description=f"   [holy.gold]·[/] Scoring [{prog}/{total}]: {score:.1f}",
                             )
 
                     case EventType.PLAN_WINNER:
                         # Clean up candidate progress bar
-                        if hasattr(self, "_candidate_task_id") and self._candidate_task_id is not None:
+                        if (
+                            hasattr(self, "_candidate_task_id")
+                            and self._candidate_task_id is not None
+                        ):
                             selected = event.data.get("selected_candidate_id", "?")
                             score = event.data.get("score", 0)
                             progress.update(
                                 self._candidate_task_id,
                                 completed=event.data.get("total_candidates", 5),
-                                description=f"   [holy.success]★[/] Selected: {selected} (score: {score:.1f})"
+                                description=f"   [holy.success]★[/] Selected: {selected} (score: {score:.1f})",
                             )
                             # Keep it visible briefly, it will be cleaned up naturally
                             self._candidate_task_id = None
@@ -328,7 +340,7 @@ class RichRenderer:
 
                     case EventType.TASK_START:
                         self._tasks_total = max(self._tasks_total, 1)
-                        tid = event.data.get('task_id', 'task')
+                        tid = event.data.get("task_id", "task")
                         desc = f"[{self._tasks_completed + 1}/{self._tasks_total}] {tid}"
                         task_id = progress.add_task(desc, total=100)
 
@@ -407,9 +419,7 @@ class RichRenderer:
                         if content and is_complete:
                             # Truncate for display
                             display = content[:200] + "..." if len(content) > 200 else content
-                            self.console.print(
-                                f"   [neutral.dim]◜ {phase}: {display}[/]"
-                            )
+                            self.console.print(f"   [neutral.dim]◜ {phase}: {display}[/]")
 
                     case EventType.MODEL_COMPLETE:
                         if hasattr(self, "_model_task_id") and self._model_task_id is not None:
@@ -460,7 +470,10 @@ class RichRenderer:
 
         # Format path with colors
         path_parts = data.get("path", [])
-        from sunwell.interface.cli.progress.dag_path import format_dag_path  # layer-exempt: pre-existing
+        from sunwell.interface.cli.progress.dag_path import (
+            format_dag_path,  # layer-exempt: pre-existing
+        )
+
         path_text = format_dag_path(path_parts) if path_parts else path_formatted
 
         self.console.print()
@@ -564,9 +577,7 @@ class RichRenderer:
                 )
         elif not success:
             error = data.get("error", "unknown error")
-            self.console.print(
-                f"   [void.purple]✗[/] {tool_name} failed: {error[:50]}"
-            )
+            self.console.print(f"   [void.purple]✗[/] {tool_name} failed: {error[:50]}")
 
     def _render_fix_progress(self, data: dict) -> None:
         """Render fix progress with Holy Light styling (RFC-131)."""
@@ -674,70 +685,72 @@ class RichRenderer:
             case EventType.SIGNAL:
                 if event.data.get("signals"):
                     signals = event.data["signals"]
-                    print(f"✦ Understanding: complexity={signals.get('complexity', '?')}, "
-                          f"route={signals.get('planning_route', '?')}")
+                    print(
+                        f"✦ Understanding: complexity={signals.get('complexity', '?')}, "
+                        f"route={signals.get('planning_route', '?')}"
+                    )
             case EventType.PLAN_CANDIDATE_START:
-                total = event.data.get('total_candidates', 5)
-                variance = event.data.get('variance_strategy', 'prompting')
+                total = event.data.get("total_candidates", 5)
+                variance = event.data.get("variance_strategy", "prompting")
                 print(f"◇ Generating {total} candidates ({variance})...")
             case EventType.PLAN_CANDIDATE_GENERATED:
-                prog = event.data.get('progress', 1)
-                total = event.data.get('total_candidates', 5)
-                style = event.data.get('variance_config', {}).get('prompt_style', '?')
-                artifacts = event.data.get('artifact_count', 0)
+                prog = event.data.get("progress", 1)
+                total = event.data.get("total_candidates", 5)
+                style = event.data.get("variance_config", {}).get("prompt_style", "?")
+                artifacts = event.data.get("artifact_count", 0)
                 print(f"  ✧ [{prog}/{total}] {style}: {artifacts} artifacts")
             case EventType.PLAN_CANDIDATES_COMPLETE:
-                successful = event.data.get('successful_candidates', 0)
+                successful = event.data.get("successful_candidates", 0)
                 print(f"◆ {successful} candidates generated, scoring...")
             case EventType.PLAN_CANDIDATE_SCORED:
-                prog = event.data.get('progress', 1)
-                total = event.data.get('total_candidates', 5)
-                score = event.data.get('score', 0)
-                print(f"  · Scored [{prog}/{total}]: {score:.1f}", end='\r')
+                prog = event.data.get("progress", 1)
+                total = event.data.get("total_candidates", 5)
+                score = event.data.get("score", 0)
+                print(f"  · Scored [{prog}/{total}]: {score:.1f}", end="\r")
             case EventType.PLAN_WINNER:
-                tasks = event.data.get('tasks', 0)
-                gates = event.data.get('gates', 0)
-                technique = event.data.get('technique', 'unknown')
+                tasks = event.data.get("tasks", 0)
+                gates = event.data.get("gates", 0)
+                technique = event.data.get("technique", "unknown")
                 print(f"★ Plan ready ({technique}): {tasks} tasks, {gates} gates")
             case EventType.TOOL_COMPLETE:
                 # Show self-corrections prominently
-                if event.data.get('self_corrected'):
-                    tool = event.data.get('tool_name', 'tool')
-                    output = event.data.get('output', '')
+                if event.data.get("self_corrected"):
+                    tool = event.data.get("tool_name", "tool")
+                    output = event.data.get("output", "")
                     print(f"  ⚡ Self-corrected: {tool} - {output[:50]}")
             # RFC-081, RFC-131: Inference visibility with character shapes
             case EventType.MODEL_START:
-                model = event.data.get('model', 'model')
+                model = event.data.get("model", "model")
                 print(f"◎ Generating with {model}...")
             case EventType.MODEL_TOKENS:
-                tokens = event.data.get('token_count', 0)
-                tps = event.data.get('tokens_per_second')
+                tokens = event.data.get("token_count", 0)
+                tps = event.data.get("tokens_per_second")
                 tps_str = f" ({tps:.1f} tok/s)" if tps else ""
-                print(f"  ◎ {tokens} tokens{tps_str}", end='\r')
+                print(f"  ◎ {tokens} tokens{tps_str}", end="\r")
             case EventType.MODEL_THINKING:
-                content = event.data.get('content', '')
-                phase = event.data.get('phase', 'thinking')
-                is_complete = event.data.get('is_complete', False)
+                content = event.data.get("content", "")
+                phase = event.data.get("phase", "thinking")
+                is_complete = event.data.get("is_complete", False)
                 if content and is_complete:
                     display = content[:80] + "..." if len(content) > 80 else content
                     print(f"  ◜ {phase}: {display}")
             case EventType.MODEL_COMPLETE:
-                total = event.data.get('total_tokens', 0)
-                duration = event.data.get('duration_s', 0)
-                tps = event.data.get('tokens_per_second', 0)
+                total = event.data.get("total_tokens", 0)
+                duration = event.data.get("duration_s", 0)
+                tps = event.data.get("tokens_per_second", 0)
                 print(f"  ✓ {total} tokens in {duration:.1f}s ({tps:.1f} tok/s)")
             case EventType.MEMORY_LEARNING:
-                fact = event.data.get('fact', '')
+                fact = event.data.get("fact", "")
                 print(f"  ≡ Learned: {fact[:50]}...")
             case EventType.TOOL_LOOP_COMPLETE:
                 # Update telemetry state for simple renderer too
-                self._model_calls += event.data.get('model_calls', 0)
-                self._tool_calls += event.data.get('tool_calls_total', 0)
-                self._tokens_input += event.data.get('tokens_input', 0)
-                self._tokens_output += event.data.get('tokens_output', 0)
+                self._model_calls += event.data.get("model_calls", 0)
+                self._tool_calls += event.data.get("tool_calls_total", 0)
+                self._tokens_input += event.data.get("tokens_input", 0)
+                self._tokens_output += event.data.get("tokens_output", 0)
             case EventType.COMPLETE:
-                tasks = event.data.get('tasks_completed', 0)
-                dur = event.data.get('duration_s', 0)
+                tasks = event.data.get("tasks_completed", 0)
+                dur = event.data.get("duration_s", 0)
                 print(f"★ Complete: {tasks} tasks in {dur:.1f}s")
                 # Show telemetry if we have it
                 if self._model_calls > 0 or self._tool_calls > 0:
@@ -745,7 +758,9 @@ class RichRenderer:
                     print(f"  ├─ LLM calls: {self._model_calls}")
                     print(f"  ├─ Tool calls: {self._tool_calls}")
                     if total_tokens > 0:
-                        print(f"  └─ Tokens: {total_tokens:,} (in: {self._tokens_input:,}, out: {self._tokens_output:,})")
+                        print(
+                            f"  └─ Tokens: {total_tokens:,} (in: {self._tokens_input:,}, out: {self._tokens_output:,})"
+                        )
                 print("✦✧✦ Goal achieved")
 
 

@@ -209,9 +209,7 @@ def _list_available_tasks() -> None:
         console.print(f"    [dim]Features: {', '.join(task.expected_features)}[/dim]")
         console.print()
 
-    console.print(
-        "[dim]Or provide a custom prompt: sunwell eval --task \"your prompt here\"[/dim]"
-    )
+    console.print('[dim]Or provide a custom prompt: sunwell eval --task "your prompt here"[/dim]')
     console.print()
 
 
@@ -430,9 +428,10 @@ async def _run_evaluation(
 
     for run_num in range(runs):
         # Create temp directories for outputs
-        with tempfile.TemporaryDirectory() as single_shot_dir, \
-             tempfile.TemporaryDirectory() as sunwell_dir:
-
+        with (
+            tempfile.TemporaryDirectory() as single_shot_dir,
+            tempfile.TemporaryDirectory() as sunwell_dir,
+        ):
             single_shot_path = Path(single_shot_dir)
             sunwell_path = Path(sunwell_dir)
 
@@ -551,9 +550,7 @@ async def _run_evaluation(
                 git_commit = None
 
             # Estimate cost (rough approximation)
-            total_tokens = (
-                single_shot_result.total_tokens + sunwell_result.total_tokens
-            )
+            total_tokens = single_shot_result.total_tokens + sunwell_result.total_tokens
             # Rough estimate: $0.01 per 1K tokens for typical models
             estimated_cost = (total_tokens / 1000) * 0.01
 
@@ -572,12 +569,10 @@ async def _run_evaluation(
                 single_shot_result=single_shot_result,
                 sunwell_result=sunwell_result,
                 evaluation_details=EvaluationDetails(
-                    judge_rejections=tuple(
-                        f"Score: {s:.1f}" for s in sunwell_result.judge_scores
-                    ),
-                    resonance_fixes=(
-                        f"{sunwell_result.resonance_iterations} iterations",
-                    ) if sunwell_result.resonance_iterations > 0 else (),
+                    judge_rejections=tuple(f"Score: {s:.1f}" for s in sunwell_result.judge_scores),
+                    resonance_fixes=(f"{sunwell_result.resonance_iterations} iterations",)
+                    if sunwell_result.resonance_iterations > 0
+                    else (),
                 ),
                 input_tokens=single_shot_result.input_tokens + sunwell_result.input_tokens,
                 output_tokens=single_shot_result.output_tokens + sunwell_result.output_tokens,
@@ -613,6 +608,7 @@ async def _run_evaluation(
             }
         else:
             import statistics
+
             sunwell_scores = [r.sunwell_score for r in results]
             single_scores = [r.single_shot_score for r in results]
             improvements = [r.improvement_percent for r in results]
@@ -767,20 +763,23 @@ async def _run_evaluation_streaming(
         emit({"type": "error", "message": str(e)})
         sys.exit(1)
 
-    emit({
-        "type": "start",
-        "task": eval_task.name,
-        "model": model_name,
-        "estimated_minutes": eval_task.estimated_minutes,
-    })
+    emit(
+        {
+            "type": "start",
+            "task": eval_task.name,
+            "model": model_name,
+            "estimated_minutes": eval_task.estimated_minutes,
+        }
+    )
 
     single_shot_exec = SingleShotExecutor(model)
     sunwell_exec = SunwellFullStackExecutor(model, lens_name=lens)
     evaluator = FullStackEvaluator()
 
-    with tempfile.TemporaryDirectory() as single_shot_dir, \
-         tempfile.TemporaryDirectory() as sunwell_dir:
-
+    with (
+        tempfile.TemporaryDirectory() as single_shot_dir,
+        tempfile.TemporaryDirectory() as sunwell_dir,
+    ):
         single_shot_path = Path(single_shot_dir)
         sunwell_path = Path(sunwell_dir)
 
@@ -790,18 +789,22 @@ async def _run_evaluation_streaming(
         single_shot_result = await single_shot_exec.run(
             eval_task,
             single_shot_path,
-            on_file_created=lambda f: emit({
-                "type": "file_created",
-                "side": "single_shot",
-                "path": f,
-            }),
+            on_file_created=lambda f: emit(
+                {
+                    "type": "file_created",
+                    "side": "single_shot",
+                    "path": f,
+                }
+            ),
         )
 
-        emit({
-            "type": "single_shot_complete",
-            "files": list(single_shot_result.files),
-            "time_seconds": single_shot_result.time_seconds,
-        })
+        emit(
+            {
+                "type": "single_shot_complete",
+                "files": list(single_shot_result.files),
+                "time_seconds": single_shot_result.time_seconds,
+            }
+        )
 
         # Run Sunwell
         emit({"type": "phase", "phase": "sunwell"})
@@ -809,28 +812,36 @@ async def _run_evaluation_streaming(
         sunwell_result = await sunwell_exec.run(
             eval_task,
             sunwell_path,
-            on_file_created=lambda f: emit({
-                "type": "file_created",
-                "side": "sunwell",
-                "path": f,
-            }),
-            on_judge=lambda s, i: emit({
-                "type": "judge",
-                "score": s,
-                "issues": i,
-            }),
-            on_resonance=lambda n: emit({
-                "type": "resonance",
-                "iteration": n,
-            }),
+            on_file_created=lambda f: emit(
+                {
+                    "type": "file_created",
+                    "side": "sunwell",
+                    "path": f,
+                }
+            ),
+            on_judge=lambda s, i: emit(
+                {
+                    "type": "judge",
+                    "score": s,
+                    "issues": i,
+                }
+            ),
+            on_resonance=lambda n: emit(
+                {
+                    "type": "resonance",
+                    "iteration": n,
+                }
+            ),
         )
 
-        emit({
-            "type": "sunwell_complete",
-            "files": list(sunwell_result.files),
-            "time_seconds": sunwell_result.time_seconds,
-            "lens": sunwell_result.lens_used,
-        })
+        emit(
+            {
+                "type": "sunwell_complete",
+                "files": list(sunwell_result.files),
+                "time_seconds": sunwell_result.time_seconds,
+                "lens": sunwell_result.lens_used,
+            }
+        )
 
         # Evaluate
         emit({"type": "phase", "phase": "evaluating"})
@@ -847,25 +858,27 @@ async def _run_evaluation_streaming(
             sunwell_score.final_score,
         )
 
-        emit({
-            "type": "complete",
-            "single_shot": {
-                "score": single_shot_score.final_score,
-                "subscores": single_shot_score.subscores,
-                "runnable": single_shot_score.runnable,
-                "files": single_shot_score.files_count,
-                "lines": single_shot_score.lines_count,
-            },
-            "sunwell": {
-                "score": sunwell_score.final_score,
-                "subscores": sunwell_score.subscores,
-                "runnable": sunwell_score.runnable,
-                "files": sunwell_score.files_count,
-                "lines": sunwell_score.lines_count,
-            },
-            "improvement_percent": improvement,
-            "winner": winner,
-        })
+        emit(
+            {
+                "type": "complete",
+                "single_shot": {
+                    "score": single_shot_score.final_score,
+                    "subscores": single_shot_score.subscores,
+                    "runnable": single_shot_score.runnable,
+                    "files": single_shot_score.files_count,
+                    "lines": single_shot_score.lines_count,
+                },
+                "sunwell": {
+                    "score": sunwell_score.final_score,
+                    "subscores": sunwell_score.subscores,
+                    "runnable": sunwell_score.runnable,
+                    "files": sunwell_score.files_count,
+                    "lines": sunwell_score.lines_count,
+                },
+                "improvement_percent": improvement,
+                "winner": winner,
+            }
+        )
 
 
 def _export_results(results: list, export_path: str) -> None:
@@ -894,23 +907,43 @@ def _export_results(results: list, export_path: str) -> None:
 
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "id", "timestamp", "task", "model", "lens",
-                "single_shot_score", "sunwell_score", "improvement_percent", "winner"
-            ])
+            writer.writerow(
+                [
+                    "id",
+                    "timestamp",
+                    "task",
+                    "model",
+                    "lens",
+                    "single_shot_score",
+                    "sunwell_score",
+                    "improvement_percent",
+                    "winner",
+                ]
+            )
             for r in results:
-                writer.writerow([
-                    r.id, r.timestamp.isoformat(), r.task, r.model, r.lens,
-                    r.single_shot_score, r.sunwell_score, r.improvement_percent, r.winner
-                ])
+                writer.writerow(
+                    [
+                        r.id,
+                        r.timestamp.isoformat(),
+                        r.task,
+                        r.model,
+                        r.lens,
+                        r.single_shot_score,
+                        r.sunwell_score,
+                        r.improvement_percent,
+                        r.winner,
+                    ]
+                )
 
     elif path.suffix == ".xml":
         # JUnit XML format for CI tools
         xml = ['<?xml version="1.0" encoding="UTF-8"?>']
-        xml.append('<testsuite name="sunwell-eval" tests="{}" failures="{}">'.format(
-            len(results),
-            sum(1 for r in results if r.winner == "single_shot"),
-        ))
+        xml.append(
+            '<testsuite name="sunwell-eval" tests="{}" failures="{}">'.format(
+                len(results),
+                sum(1 for r in results if r.winner == "single_shot"),
+            )
+        )
 
         for r in results:
             time_str = f"{r.sunwell_result.time_seconds:.1f}"
@@ -918,7 +951,7 @@ def _export_results(results: list, export_path: str) -> None:
             if r.winner == "single_shot":
                 msg = f"Single-shot won: {r.single_shot_score:.1f} vs {r.sunwell_score:.1f}"
                 xml.append(f'    <failure message="{msg}"/>')
-            xml.append('  </testcase>')
+            xml.append("  </testcase>")
 
-        xml.append('</testsuite>')
+        xml.append("</testsuite>")
         path.write_text("\n".join(xml))

@@ -13,15 +13,12 @@ notes, concerns, deviations, findings, thoughts, and feedback."
 (Cursor self-driving codebases research, Feb 2026)
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from sunwell.agent.coordination.parallel_executor import TaskResult
+from sunwell.agent.coordination.types import TaskResult
 
 
 class HandoffUrgency(Enum):
@@ -459,11 +456,7 @@ class HandoffCollector:
 
     def has_critical_concerns(self) -> bool:
         """True if any finding has CRITICAL urgency."""
-        return any(
-            f.urgency == HandoffUrgency.CRITICAL
-            for h in self.handoffs
-            for f in h.findings
-        )
+        return any(f.urgency == HandoffUrgency.CRITICAL for h in self.handoffs for f in h.findings)
 
     def has_high_urgency(self) -> bool:
         """True if any finding has HIGH or CRITICAL urgency."""
@@ -494,7 +487,8 @@ class HandoffCollector:
 
         # High-urgency findings first
         critical_findings = [
-            f for f in self.all_findings
+            f
+            for f in self.all_findings
             if f.urgency in (HandoffUrgency.CRITICAL, HandoffUrgency.HIGH)
         ]
         if critical_findings:

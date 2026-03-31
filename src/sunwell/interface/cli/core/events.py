@@ -9,18 +9,19 @@ Uses RenderContext for hierarchical display:
 - Deferred/batched learnings
 """
 
-from __future__ import annotations
-
 import asyncio
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator
 
+from rich.console import Console
+
+from sunwell.agent.events import AgentEvent
 from sunwell.interface.cli.core.render_context import (
+    TREE,
     RenderContext,
     RenderPhase,
-    TREE,
-    get_render_context,
     TimelineEvent,
+    get_render_context,
 )
 from sunwell.interface.cli.core.theme import (
     CHARS_CHECKS,
@@ -29,6 +30,7 @@ from sunwell.interface.cli.core.theme import (
     CHARS_MISC,
     CHARS_PROGRESS,
     CHARS_STARS,
+    Sparkle,
     console,
     render_alert,
     render_collapsible,
@@ -38,13 +40,7 @@ from sunwell.interface.cli.core.theme import (
     render_error,
     render_streaming,
     render_timeline,
-    Sparkle,
 )
-
-if TYPE_CHECKING:
-    from rich.console import Console
-    from sunwell.agent.events import AgentEvent
-
 
 # =============================================================================
 # SESSION LIFECYCLE
@@ -55,7 +51,7 @@ if TYPE_CHECKING:
 def live_session(
     con: Console | None = None,
     enable_status: bool = True,
-) -> Generator[RenderContext, None, None]:
+) -> Generator[RenderContext]:
     """Context manager for live session display with optional StatusBar.
 
     Manages the lifecycle of a StatusBar during agent execution:
@@ -127,9 +123,7 @@ def _render_task_header(con: Console, ctx: RenderContext) -> None:
     # Task description (truncate if needed)
     desc = task.description[:55] + "..." if len(task.description) > 55 else task.description
 
-    con.print(
-        f"  {connector} [holy.gold]Task {task.task_number}/{task.total_tasks}:[/] {desc}"
-    )
+    con.print(f"  {connector} [holy.gold]Task {task.task_number}/{task.total_tasks}:[/] {desc}")
 
 
 def _render_task_result(con: Console, ctx: RenderContext, duration_ms: int) -> None:
@@ -255,9 +249,7 @@ def _render_plan_dag(
         cat_str = f" [neutral.dim]({category})[/]" if category else ""
 
         # Render task line
-        con.print(
-            f"  {connector} [neutral]{task_id}.[/] {desc}{cat_str}{dep_str}{prod_str}"
-        )
+        con.print(f"  {connector} [neutral]{task_id}.[/] {desc}{cat_str}{dep_str}{prod_str}")
 
         # Render gates after this task
         task_gates = gates_after.get(task_id, [])
@@ -275,10 +267,11 @@ def _render_plan_dag(
     # Summary line if many tasks
     if len(task_list) > 6:
         roots = [t for t in task_list if t.get("id") not in has_dependents]
-        leaves = [t for t in task_list if not any(
-            t.get("id") in other.get("depends_on", [])
-            for other in task_list
-        )]
+        leaves = [
+            t
+            for t in task_list
+            if not any(t.get("id") in other.get("depends_on", []) for other in task_list)
+        ]
         con.print(
             f"  [neutral.dim]{len(leaves)} start points → "
             f"{len(task_list)} tasks → {len(roots)} convergence[/]"
@@ -336,8 +329,7 @@ def _render_tool_complete(
         )
     else:
         con.print(
-            f"  [holy.success]{CHARS_CHECKS['pass']}[/] "
-            f"{tool_name} [neutral.dim]{time_str}[/]"
+            f"  [holy.success]{CHARS_CHECKS['pass']}[/] {tool_name} [neutral.dim]{time_str}[/]"
         )
 
 
@@ -369,17 +361,23 @@ def _render_batched_learnings(con: Console, ctx: RenderContext) -> None:
     if unique == 1 and total > 1:
         # Single repeated learning
         fact, count = learnings[0]
-        con.print(f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact} [neutral.dim](×{count})[/]")
+        con.print(
+            f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact} [neutral.dim](×{count})[/]"
+        )
     elif unique <= 3:
         # Show all
         for fact, count in learnings:
             count_str = f" (×{count})" if count > 1 else ""
-            con.print(f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact}[neutral.dim]{count_str}[/]")
+            con.print(
+                f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact}[neutral.dim]{count_str}[/]"
+            )
     else:
         # Collapse
         fact, count = learnings[0]
         count_str = f" (×{count})" if count > 1 else ""
-        con.print(f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact}[neutral.dim]{count_str}[/]")
+        con.print(
+            f"  [holy.gold.dim]{CHARS_MISC['learning']}[/] Learned: {fact}[neutral.dim]{count_str}[/]"
+        )
         con.print(f"  [neutral.dim]    +{unique - 1} more learnings[/]")
 
     ctx.clear_learnings()
@@ -399,7 +397,9 @@ def _render_complete_summary(
     _render_phase_header_minimal(con, "complete", ctx)
 
     # Summary line
-    con.print(f"  [holy.radiant]{CHARS_STARS['radiant']} {tasks_done} tasks completed in {duration:.1f}s[/]")
+    con.print(
+        f"  [holy.radiant]{CHARS_STARS['radiant']} {tasks_done} tasks completed in {duration:.1f}s[/]"
+    )
 
     # Batched learnings
     _render_batched_learnings(con, ctx)
@@ -442,7 +442,9 @@ def _render_complete_summary(
             con.print(f"    [{style}]{icon}[/] [neutral.dim]{time_str}[/] {desc}")
 
     con.print()
-    con.print(f"  [holy.radiant]{CHARS_STARS['radiant']}{CHARS_STARS['progress']}{CHARS_STARS['radiant']}[/] Goal achieved")
+    con.print(
+        f"  [holy.radiant]{CHARS_STARS['radiant']}{CHARS_STARS['progress']}{CHARS_STARS['radiant']}[/] Goal achieved"
+    )
     con.print()
 
 
@@ -512,13 +514,17 @@ def render_agent_event(
             task_summaries = event.data.get("task_summaries", [])  # Legacy fallback
             ctx.total_tasks = tasks
             # Add to timeline
-            ctx.add_timeline_event(f"Plan: {tasks} tasks, {gates} gates", phase="planning", completed=True)
+            ctx.add_timeline_event(
+                f"Plan: {tasks} tasks, {gates} gates", phase="planning", completed=True
+            )
             con.print()
 
             # Build rationale with candidate info
             plan_rationale = rationale or technique
             if selected_candidate and selected_candidate != "candidate-0":
-                plan_rationale = f"{selected_candidate}" + (f" ({plan_rationale})" if plan_rationale else "")
+                plan_rationale = f"{selected_candidate}" + (
+                    f" ({plan_rationale})" if plan_rationale else ""
+                )
 
             render_decision(
                 con,
@@ -614,7 +620,9 @@ def render_agent_event(
             if verbose:
                 ctx.start_streaming()
                 model = event.data.get("model", "")
-                render_streaming(con, f"Thinking... ({model})" if model else "Thinking...", complete=False)
+                render_streaming(
+                    con, f"Thinking... ({model})" if model else "Thinking...", complete=False
+                )
 
         case EventType.MODEL_THINKING:
             # Show thinking indicator with streaming support
@@ -626,7 +634,11 @@ def render_agent_event(
                 display_text = full_text[-60:] if len(full_text) > 60 else full_text
                 render_streaming(con, f"Thinking: {display_text}", complete=False)
             elif verbose:
-                con.print(f"  [neutral.dim]◜ {content[:60]}...[/]" if len(content) > 60 else f"  [neutral.dim]◜ {content}[/]")
+                con.print(
+                    f"  [neutral.dim]◜ {content[:60]}...[/]"
+                    if len(content) > 60
+                    else f"  [neutral.dim]◜ {content}[/]"
+                )
 
         case EventType.MODEL_COMPLETE:
             # End streaming if active
@@ -659,7 +671,9 @@ def render_agent_event(
             ctx.add_timeline_event("Goal achieved", phase="complete", completed=True)
 
             ctx.transition_phase(RenderPhase.COMPLETE)
-            _render_complete_summary(con, ctx, tasks_done, duration, files_created, files_modified, verbose)
+            _render_complete_summary(
+                con, ctx, tasks_done, duration, files_created, files_modified, verbose
+            )
 
             # Sparkle burst for celebration (respects accessibility)
             if not ctx.reduced_motion:
@@ -710,6 +724,7 @@ def render_agent_event(
             language = event.data.get("language", "python")
             context = event.data.get("context", "")
             from sunwell.interface.cli.core.theme import render_code
+
             if code and verbose:
                 render_code(con, code, language=language, context=context)
 
@@ -729,7 +744,9 @@ def render_agent_event(
             requires_approval = event.data.get("requires_approval", False)
             tool_scope = event.data.get("tool_scope")
 
-            path_text = format_dag_path(path_parts) if path_parts else event.data.get("path_formatted", "")
+            path_text = (
+                format_dag_path(path_parts) if path_parts else event.data.get("path_formatted", "")
+            )
 
             con.print()
             con.print(f"  [holy.gold]{CHARS_PROGRESS['arrow']}[/] Intent: {path_text}")
@@ -813,7 +830,9 @@ def render_agent_event(
         case EventType.CONVERGENCE_START:
             max_iter = event.data.get("max_iterations", 5)
             ctx.start_convergence(max_iter)
-            con.print(f"\n  [holy.gold]{CHARS_MISC['gear']}[/] Starting convergence loop (max {max_iter} iterations)")
+            con.print(
+                f"\n  [holy.gold]{CHARS_MISC['gear']}[/] Starting convergence loop (max {max_iter} iterations)"
+            )
 
         case EventType.CONVERGENCE_ITERATION_START:
             iteration = ctx.next_convergence_iteration()
@@ -836,11 +855,15 @@ def render_agent_event(
 
         case EventType.CONVERGENCE_STABLE:
             ctx.end_fixing()
-            con.print(f"\n  [holy.success]{CHARS_STARS['complete']}[/] Convergence achieved - all gates pass")
+            con.print(
+                f"\n  [holy.success]{CHARS_STARS['complete']}[/] Convergence achieved - all gates pass"
+            )
 
         case EventType.CONVERGENCE_STUCK | EventType.CONVERGENCE_MAX_ITERATIONS:
             ctx.end_fixing()
-            con.print(f"\n  [void.purple]{CHARS_CHECKS['fail']}[/] Convergence failed after {ctx.convergence_iteration} iterations")
+            con.print(
+                f"\n  [void.purple]{CHARS_CHECKS['fail']}[/] Convergence failed after {ctx.convergence_iteration} iterations"
+            )
 
         case EventType.CONVERGENCE_TIMEOUT:
             ctx.end_fixing()
@@ -848,7 +871,9 @@ def render_agent_event(
 
         case EventType.CONVERGENCE_BUDGET_EXCEEDED:
             ctx.end_fixing()
-            con.print(f"\n  [void.purple]{CHARS_MISC['budget']}[/] Token budget exhausted during convergence")
+            con.print(
+                f"\n  [void.purple]{CHARS_MISC['budget']}[/] Token budget exhausted during convergence"
+            )
 
         # ═══════════════════════════════════════════════════════════════
         # BUDGET & METRICS
@@ -863,7 +888,9 @@ def render_agent_event(
             used = event.data.get("used", 0)
             total = event.data.get("total", 0)
             pct = (used / total * 100) if total > 0 else 0
-            con.print(f"  [void.indigo]{CHARS_MISC['budget']}[/] Budget warning: {pct:.0f}% used ({used:,}/{total:,} tokens)")
+            con.print(
+                f"  [void.indigo]{CHARS_MISC['budget']}[/] Budget warning: {pct:.0f}% used ({used:,}/{total:,} tokens)"
+            )
 
         case EventType.BUDGET_EXHAUSTED:
             render_alert(con, "Token budget exhausted", severity="error", title="Budget Exhausted")
@@ -909,7 +936,9 @@ def render_agent_event(
         case EventType.SKILL_GRAPH_RESOLVED:
             skill_count = event.data.get("skill_count", 0)
             wave_count = event.data.get("wave_count", 0)
-            con.print(f"  [holy.gold]{CHARS_DIAMONDS['solid']}[/] Skill graph: {skill_count} skills in {wave_count} waves")
+            con.print(
+                f"  [holy.gold]{CHARS_DIAMONDS['solid']}[/] Skill graph: {skill_count} skills in {wave_count} waves"
+            )
 
         case EventType.SKILL_WAVE_START:
             wave = event.data.get("wave", 0)
@@ -920,13 +949,17 @@ def render_agent_event(
             succeeded = event.data.get("succeeded", 0)
             failed = event.data.get("failed", 0)
             if failed > 0:
-                con.print(f"     [holy.success]{CHARS_CHECKS['pass']} {succeeded}[/] [void.purple]{CHARS_CHECKS['fail']} {failed}[/]")
+                con.print(
+                    f"     [holy.success]{CHARS_CHECKS['pass']} {succeeded}[/] [void.purple]{CHARS_CHECKS['fail']} {failed}[/]"
+                )
             else:
                 con.print(f"     [holy.success]{CHARS_CHECKS['pass']} {succeeded}[/]")
 
         case EventType.SKILL_CACHE_HIT:
             skill_name = event.data.get("skill_name", "skill")
-            con.print(f"  [holy.gold]{CHARS_STARS['cache']}[/] {skill_name} [neutral.dim](cached)[/]")
+            con.print(
+                f"  [holy.gold]{CHARS_STARS['cache']}[/] {skill_name} [neutral.dim](cached)[/]"
+            )
 
         case EventType.SKILL_EXECUTE_START:
             if verbose:
@@ -957,4 +990,6 @@ def render_agent_event(
 
         case EventType.CHECKPOINT_SAVED:
             phase = event.data.get("phase", "")
-            con.print(f"  [holy.success]{CHARS_MISC['save']}[/] Checkpoint saved{f': {phase}' if phase else ''}")
+            con.print(
+                f"  [holy.success]{CHARS_MISC['save']}[/] Checkpoint saved{f': {phase}' if phase else ''}"
+            )

@@ -384,9 +384,7 @@ class WorkspaceLifecycle:
 
         return orphaned
 
-    def find_invalid_registrations(
-        self, registry_entries: dict[str, dict]
-    ) -> list[str]:
+    def find_invalid_registrations(self, registry_entries: dict[str, dict]) -> list[str]:
         """Find registry entries with missing workspace paths.
 
         Args:

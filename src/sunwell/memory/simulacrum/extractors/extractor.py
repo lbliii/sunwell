@@ -18,7 +18,6 @@ Supports:
 - Any chain-of-thought output
 """
 
-
 import contextlib
 import re
 from dataclasses import dataclass
@@ -52,7 +51,9 @@ _LEARNING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
 # Patterns for user-stated facts (personal info, preferences, context)
 _USER_FACT_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
     "fact": (
-        re.compile(r"(?:my name is|i'm called|call me) ([a-zA-Z][a-zA-Z0-9_\- ]{1,30})", re.IGNORECASE),
+        re.compile(
+            r"(?:my name is|i'm called|call me) ([a-zA-Z][a-zA-Z0-9_\- ]{1,30})", re.IGNORECASE
+        ),
         re.compile(r"(?:i am|i'm) (?:a |an )?([a-zA-Z][a-zA-Z0-9_\- ]{2,40})", re.IGNORECASE),
         re.compile(r"(?:i work (?:at|for|on)) ([^\.]{3,50})", re.IGNORECASE),
         re.compile(r"(?:i(?:'m| am) (?:using|working with|building)) ([^\.]{3,50})", re.IGNORECASE),
@@ -67,8 +68,12 @@ _USER_FACT_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
     ),
     "dead_end": (
         re.compile(r"(?:tried|attempted) ([^\.]+?) (?:but|however|didn't|failed)", re.IGNORECASE),
-        re.compile(r"(?:doesn't|won't|can't) work (?:because|due to|since) ([^\.]+)", re.IGNORECASE),
-        re.compile(r"(?:this approach|that method|this solution) (?:won't|doesn't|failed)", re.IGNORECASE),
+        re.compile(
+            r"(?:doesn't|won't|can't) work (?:because|due to|since) ([^\.]+)", re.IGNORECASE
+        ),
+        re.compile(
+            r"(?:this approach|that method|this solution) (?:won't|doesn't|failed)", re.IGNORECASE
+        ),
         re.compile(r"dead.?end|doesn't help|no luck|didn't work", re.IGNORECASE),
     ),
     "pattern": (
@@ -88,26 +93,43 @@ _THINKING_PATTERNS: dict[str, tuple[Pattern[str], ...]] = {
         re.compile(r"(?:found|discovered|noticed) (?:that )?([^,\n]+)", re.IGNORECASE),
     ),
     "dead_end": (
-        re.compile(r"(?:but |however |although )(?:that |this )(?:won't|wouldn't|can't|couldn't) ([^\n,]+)", re.IGNORECASE),
-        re.compile(r"(?:I considered|I thought about|maybe) .{0,30}(?:but|however) ([^\n]+)", re.IGNORECASE),
-        re.compile(r"(?:this won't work|that's not going to work|can't do that) (?:because|since|as) ([^\n]+)", re.IGNORECASE),
+        re.compile(
+            r"(?:but |however |although )(?:that |this )(?:won't|wouldn't|can't|couldn't) ([^\n,]+)",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"(?:I considered|I thought about|maybe) .{0,30}(?:but|however) ([^\n]+)", re.IGNORECASE
+        ),
+        re.compile(
+            r"(?:this won't work|that's not going to work|can't do that) (?:because|since|as) ([^\n]+)",
+            re.IGNORECASE,
+        ),
         re.compile(r"(?:ruled out|rejected|dismissed|discarded) ([^\n,]+)", re.IGNORECASE),
         re.compile(r"(?:too |overly )(?:slow|expensive|complex|risky)([^\n,]*)", re.IGNORECASE),
-        re.compile(r"(?:not viable|not feasible|not practical|won't scale)([^\n,]*)", re.IGNORECASE),
+        re.compile(
+            r"(?:not viable|not feasible|not practical|won't scale)([^\n,]*)", re.IGNORECASE
+        ),
     ),
     "constraint": (
-        re.compile(r"(?:assuming|given that|since|because) ([^\n,]+?) (?:we|I|this)", re.IGNORECASE),
-        re.compile(r"(?:we need to|I need to|must) (?:ensure|make sure|guarantee) ([^\n,]+)", re.IGNORECASE),
-        re.compile(r"(?:the constraint|limitation|restriction) (?:is|here is) ([^\n,]+)", re.IGNORECASE),
+        re.compile(
+            r"(?:assuming|given that|since|because) ([^\n,]+?) (?:we|I|this)", re.IGNORECASE
+        ),
+        re.compile(
+            r"(?:we need to|I need to|must) (?:ensure|make sure|guarantee) ([^\n,]+)", re.IGNORECASE
+        ),
+        re.compile(
+            r"(?:the constraint|limitation|restriction) (?:is|here is) ([^\n,]+)", re.IGNORECASE
+        ),
         re.compile(r"(?:can only|must only|should only) ([^\n,]+)", re.IGNORECASE),
     ),
     "uncertainty": (
         re.compile(r"(?:I'm not sure|not certain|unclear|might be wrong) ([^\n,]+)", re.IGNORECASE),
-        re.compile(r"(?:probably|likely|possibly|maybe) ([^\n,]+?) (?:but|though|however)", re.IGNORECASE),
+        re.compile(
+            r"(?:probably|likely|possibly|maybe) ([^\n,]+?) (?:but|though|however)", re.IGNORECASE
+        ),
         re.compile(r"(?:need to verify|should check|worth confirming) ([^\n,]+)", re.IGNORECASE),
     ),
 }
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,13 +195,15 @@ class LearningExtractor:
                     )
 
                     if confidence >= self.min_confidence:
-                        learnings.append(ExtractedLearning(
-                            text=learning_text,
-                            category=category,
-                            confidence=confidence,
-                            source_text=text[:500],
-                            pattern_matched=pattern.pattern,
-                        ))
+                        learnings.append(
+                            ExtractedLearning(
+                                text=learning_text,
+                                category=category,
+                                confidence=confidence,
+                                source_text=text[:500],
+                                pattern_matched=pattern.pattern,
+                            )
+                        )
 
         # Deduplicate similar learnings
         learnings = self._deduplicate(learnings)
@@ -225,13 +249,15 @@ Only extract clear, actionable learnings. Skip vague observations."""
             line = line.strip()
             if line.startswith("LEARNING:"):
                 if current.get("text"):
-                    learnings.append(ExtractedLearning(
-                        text=current["text"],
-                        category=current.get("category", "fact"),
-                        confidence=float(current.get("confidence", 0.7)),
-                        source_text=text[:500],
-                        pattern_matched="llm",
-                    ))
+                    learnings.append(
+                        ExtractedLearning(
+                            text=current["text"],
+                            category=current.get("category", "fact"),
+                            confidence=float(current.get("confidence", 0.7)),
+                            source_text=text[:500],
+                            pattern_matched="llm",
+                        )
+                    )
                 current = {"text": line[9:].strip()}
             elif line.startswith("CATEGORY:"):
                 cat = line[9:].strip().lower()
@@ -243,13 +269,15 @@ Only extract clear, actionable learnings. Skip vague observations."""
 
         # Don't forget last one
         if current.get("text"):
-            learnings.append(ExtractedLearning(
-                text=current["text"],
-                category=current.get("category", "fact"),
-                confidence=float(current.get("confidence", 0.7)),
-                source_text=text[:500],
-                pattern_matched="llm",
-            ))
+            learnings.append(
+                ExtractedLearning(
+                    text=current["text"],
+                    category=current.get("category", "fact"),
+                    confidence=float(current.get("confidence", 0.7)),
+                    source_text=text[:500],
+                    pattern_matched="llm",
+                )
+            )
 
         return learnings
 
@@ -268,11 +296,15 @@ Only extract clear, actionable learnings. Skip vague observations."""
             confidence += 0.2  # Specific patterns more reliable
 
         # Boost for category-specific keywords in context
-        if category == "dead_end" and any(x in context.lower() for x in ["failed", "error", "didn't work"]):
+        if category == "dead_end" and any(
+            x in context.lower() for x in ["failed", "error", "didn't work"]
+        ):
             confidence += 0.15
         elif category == "fact" and any(x in context.lower() for x in ["is", "has", "takes"]):
             confidence += 0.1
-        elif category == "constraint" and any(x in context.lower() for x in ["must", "cannot", "blocked"]):
+        elif category == "constraint" and any(
+            x in context.lower() for x in ["must", "cannot", "blocked"]
+        ):
             confidence += 0.15
 
         # Penalty for very generic extractions
@@ -280,7 +312,7 @@ Only extract clear, actionable learnings. Skip vague observations."""
             confidence -= 0.2
 
         # Boost for numbers (usually more reliable)
-        if re.search(r'\d+', learning):
+        if re.search(r"\d+", learning):
             confidence += 0.1
 
         return min(1.0, max(0.0, confidence))
@@ -377,7 +409,10 @@ def _is_low_quality_fact(text: str) -> bool:
 
     # Looks like a category label (starts with generic word + parenthetical)
     first_word = text_clean.split()[0].rstrip("s:,")
-    if first_word in ("names", "preferences", "context", "relationships", "facts") and "(" in text_clean:
+    if (
+        first_word in ("names", "preferences", "context", "relationships", "facts")
+        and "(" in text_clean
+    ):
         return True
 
     # Just says "none" or similar
@@ -462,9 +497,11 @@ async def extract_user_facts_with_llm(
             if line.startswith("FACT:"):
                 fact_text = line[5:].strip()
                 # Filter out echoes and invalid responses
-                if (fact_text
+                if (
+                    fact_text
                     and fact_text.upper() != "NONE"
-                    and not _is_low_quality_fact(fact_text)):
+                    and not _is_low_quality_fact(fact_text)
+                ):
                     # Infer actual category from content
                     category = _infer_fact_category(fact_text)
                     facts.append((fact_text, category, 0.85))

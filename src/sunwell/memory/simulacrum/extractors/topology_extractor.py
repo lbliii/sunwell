@@ -128,21 +128,23 @@ Relationships:"""
                 relation_type = RelationType(relation_part.strip().lower())
 
                 # Extract candidate ID (in brackets)
-                match = re.search(r'\[([^\]]+)\]', rest)
+                match = re.search(r"\[([^\]]+)\]", rest)
                 if match:
                     target_id = match.group(1)
                     reason = rest.replace(f"[{target_id}]", "").strip(" -")
 
                     if target_id in candidate_ids:
-                        edges.append(ConceptEdge(
-                            source_id=source_id,
-                            target_id=target_id,
-                            relation=relation_type,
-                            confidence=0.8,  # LLM-extracted, needs confirmation
-                            evidence=reason,
-                            auto_extracted=True,
-                            timestamp=timestamp,
-                        ))
+                        edges.append(
+                            ConceptEdge(
+                                source_id=source_id,
+                                target_id=target_id,
+                                relation=relation_type,
+                                confidence=0.8,  # LLM-extracted, needs confirmation
+                                evidence=reason,
+                                auto_extracted=True,
+                                timestamp=timestamp,
+                            )
+                        )
             except (ValueError, KeyError):
                 continue  # Skip malformed lines
 
@@ -178,75 +180,87 @@ Relationships:"""
             # RFC-084: Jaccard similarity for RELATES_TO
             similarity = self._jaccard_similarity(source_words, candidate_words)
             if similarity > self.RELATES_TO_THRESHOLD:
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.RELATES_TO,
-                    confidence=similarity,
-                    evidence=f"Jaccard similarity: {similarity:.2f}",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.RELATES_TO,
+                        confidence=similarity,
+                        evidence=f"Jaccard similarity: {similarity:.2f}",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
             # Check for explicit reference (stronger signal)
             if cid.lower() in source_lower:
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.RELATES_TO,
-                    confidence=0.9,
-                    evidence=f"Explicit reference to {cid}",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.RELATES_TO,
+                        confidence=0.9,
+                        evidence=f"Explicit reference to {cid}",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
             # Check for elaboration patterns (check first - more specific)
             if self._is_elaboration(source_text, ctext):
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.ELABORATES,
-                    confidence=0.7,
-                    evidence="Elaboration pattern detected",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.ELABORATES,
+                        confidence=0.7,
+                        evidence="Elaboration pattern detected",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
             # Check for contradiction patterns
             if self._is_contradiction(source_text, ctext):
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.CONTRADICTS,
-                    confidence=0.8,
-                    evidence="Contradiction pattern detected",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.CONTRADICTS,
+                        confidence=0.8,
+                        evidence="Contradiction pattern detected",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
             # Check for dependency signals
             if self._is_dependency(source_text, ctext):
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.DEPENDS_ON,
-                    confidence=0.6,
-                    evidence="Dependency pattern detected",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.DEPENDS_ON,
+                        confidence=0.6,
+                        evidence="Dependency pattern detected",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
             # Check for summary signals
             if self._is_summary(source_text, ctext):
-                edges.append(ConceptEdge(
-                    source_id=source_id,
-                    target_id=cid,
-                    relation=RelationType.SUMMARIZES,
-                    confidence=0.6,
-                    evidence="Summary pattern detected",
-                    auto_extracted=True,
-                    timestamp=timestamp,
-                ))
+                edges.append(
+                    ConceptEdge(
+                        source_id=source_id,
+                        target_id=cid,
+                        relation=RelationType.SUMMARIZES,
+                        confidence=0.6,
+                        evidence="Summary pattern detected",
+                        auto_extracted=True,
+                        timestamp=timestamp,
+                    )
+                )
 
         return edges
 
@@ -269,9 +283,7 @@ Relationships:"""
         if not has_signal:
             return False
         # Check topic overlap
-        return self._jaccard_similarity(
-            self._tokenize(source), self._tokenize(target)
-        ) > 0.15
+        return self._jaccard_similarity(self._tokenize(source), self._tokenize(target)) > 0.15
 
     def _is_contradiction(self, source: str, target: str) -> bool:
         """Check if source contradicts target."""
@@ -280,9 +292,7 @@ Relationships:"""
         if not has_signal:
             return False
         # Check topic overlap
-        return self._jaccard_similarity(
-            self._tokenize(source), self._tokenize(target)
-        ) > 0.15
+        return self._jaccard_similarity(self._tokenize(source), self._tokenize(target)) > 0.15
 
     def _is_dependency(self, source: str, target: str) -> bool:
         """Check if source depends on target."""
@@ -290,9 +300,7 @@ Relationships:"""
         has_signal = any(p.search(source_lower) for p in _DEPENDENCY_PATTERNS)
         if not has_signal:
             return False
-        return self._jaccard_similarity(
-            self._tokenize(source), self._tokenize(target)
-        ) > 0.1
+        return self._jaccard_similarity(self._tokenize(source), self._tokenize(target)) > 0.1
 
     def _is_summary(self, source: str, target: str) -> bool:
         """Check if source summarizes target."""
@@ -300,6 +308,4 @@ Relationships:"""
         has_signal = any(p.search(source_lower) for p in _SUMMARY_PATTERNS)
         if not has_signal:
             return False
-        return self._jaccard_similarity(
-            self._tokenize(source), self._tokenize(target)
-        ) > 0.1
+        return self._jaccard_similarity(self._tokenize(source), self._tokenize(target)) > 0.1

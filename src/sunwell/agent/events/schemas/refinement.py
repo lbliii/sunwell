@@ -5,6 +5,7 @@ from typing import TypedDict
 
 class PlanRefineStartData(TypedDict, total=False):
     """Data for plan_refine_start event."""
+
     round: int  # Required
     total_rounds: int  # Required
     current_score: float
@@ -13,6 +14,7 @@ class PlanRefineStartData(TypedDict, total=False):
 
 class PlanRefineAttemptData(TypedDict, total=False):
     """Data for plan_refine_attempt event."""
+
     round: int  # Required
     improvements_applied: list[str]
     new_score: float
@@ -26,6 +28,7 @@ class PlanRefineCompleteData(TypedDict, total=False):
 
     RFC-060: Field names aligned with frontend expectations.
     """
+
     round: int  # REQUIRED - which refinement round (1-indexed)
     improved: bool  # Did this round improve the plan?
     old_score: float | None  # Score before refinement
@@ -37,6 +40,7 @@ class PlanRefineCompleteData(TypedDict, total=False):
 
 class PlanRefineFinalData(TypedDict, total=False):
     """Data for plan_refine_final event."""
+
     total_rounds: int  # Required
     final_score: float
     total_improvements: int

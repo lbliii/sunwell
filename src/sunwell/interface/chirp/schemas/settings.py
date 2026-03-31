@@ -34,6 +34,19 @@ class PreferencesForm:
 
 
 @dataclass(frozen=True, slots=True)
+class TelegramForm:
+    """Telegram channel configuration form.
+
+    Fields:
+        enabled: Enable Telegram channel (defaults to False)
+        token: Bot token (optional; empty clears)
+    """
+
+    enabled: bool = False
+    token: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class APIKeysForm:
     """API keys configuration form.
 

@@ -304,21 +304,21 @@ def effective(binding: str | None) -> None:
     from sunwell.foundation.types.config import ModelConfig
 
     cfg = get_config()
-    
+
     # Code defaults for comparison
     code_defaults = ModelConfig()
-    
+
     console.print(Panel("[bold]Effective Configuration[/bold]", border_style="cyan"))
-    
+
     # Priority explanation
     console.print("\n[dim]Priority (highest to lowest):[/dim]")
     console.print("  [cyan]1.[/cyan] CLI flags (--model, --provider)")
     console.print("  [cyan]2.[/cyan] Binding file (~/.sunwell/bindings/)")
     console.print("  [cyan]3.[/cyan] Config file (~/.sunwell/config.toml or .yaml)")
     console.print("  [cyan]4.[/cyan] Code defaults")
-    
+
     console.print("\n[cyan]Model Settings[/cyan]")
-    
+
     # Determine sources for each setting
     def get_source(value: str, config_value: str, code_default: str) -> str:
         """Determine where a value came from."""
@@ -328,7 +328,7 @@ def effective(binding: str | None) -> None:
             return "[green]config[/green]"
         else:
             return "[dim]default[/dim]"
-    
+
     # If binding specified, load it
     if binding:
         manager = BindingManager()
@@ -337,14 +337,14 @@ def effective(binding: str | None) -> None:
             console.print(f"\n  [bold]Binding:[/bold] {b.name}")
             console.print(f"  [bold]File:[/bold] ~/.sunwell/bindings/global/{b.name}.json")
             console.print()
-            
+
             # Show binding values with sources
             source = "[yellow]binding[/yellow]"
             console.print(f"  provider: {b.provider:<20} [{source}]")
             console.print(f"  model: {b.model:<23} [{source}]")
             console.print(f"  tools_enabled: {str(b.tools_enabled):<13} [{source}]")
             console.print(f"  trust_level: {b.trust_level:<15} [{source}]")
-            
+
             if b.lens_uri:
                 console.print(f"  lens_uri: {b.lens_uri}")
         else:
@@ -356,9 +356,10 @@ def effective(binding: str | None) -> None:
     else:
         # Check if config file explicitly sets these values
         import yaml
+
         config_has_provider = False
         config_has_model = False
-        
+
         for config_file in [
             Path(".sunwell/config.yaml"),
             Path.home() / ".sunwell" / "config.yaml",
@@ -374,7 +375,7 @@ def effective(binding: str | None) -> None:
                         config_has_model = True
                 except Exception:
                     pass
-        
+
         # Determine sources - show [config] if explicitly set, even if matches default
         if config_has_provider:
             provider_source = "[green]config[/green]"
@@ -382,26 +383,26 @@ def effective(binding: str | None) -> None:
             provider_source = "[green]config[/green]"
         else:
             provider_source = "[dim]default[/dim]"
-            
+
         if config_has_model:
             model_source = "[green]config[/green]"
         elif cfg.model.default_model != code_defaults.default_model:
             model_source = "[green]config[/green]"
         else:
             model_source = "[dim]default[/dim]"
-        
+
         console.print(f"  default_provider: {cfg.model.default_provider:<15} [{provider_source}]")
         console.print(f"  default_model: {cfg.model.default_model:<18} [{model_source}]")
-    
+
     # Config file locations
     console.print("\n[cyan]Config Files[/cyan]")
-    
+
     # Check for config files
     toml_global = Path.home() / ".sunwell" / "config.toml"
     yaml_global = Path.home() / ".sunwell" / "config.yaml"
     toml_local = Path(".sunwell/config.toml")
     yaml_local = Path(".sunwell/config.yaml")
-    
+
     files_found = []
     if toml_local.exists():
         files_found.append(("local", str(toml_local)))
@@ -415,11 +416,11 @@ def effective(binding: str | None) -> None:
     if yaml_global.exists():
         files_found.append(("global", str(yaml_global)))
         console.print(f"  [green]✓[/green] {yaml_global} (user)")
-    
+
     if not files_found:
         console.print("  [dim]○[/dim] No config files found (using code defaults)")
         console.print("  [dim]  Run: sunwell config init --global[/dim]")
-    
+
     # Bindings summary
     console.print("\n[cyan]Bindings[/cyan]")
     bindings_dir = Path.home() / ".sunwell" / "bindings" / "global"
@@ -427,7 +428,9 @@ def effective(binding: str | None) -> None:
         binding_files = list(bindings_dir.glob("*.json"))
         console.print(f"  Found: {len(binding_files)} bindings in ~/.sunwell/bindings/global/")
         if binding_files and not binding:
-            console.print("  [dim]Run: sunwell config effective -b <name> to see binding details[/dim]")
+            console.print(
+                "  [dim]Run: sunwell config effective -b <name> to see binding details[/dim]"
+            )
     else:
         console.print("  [dim]○[/dim] No bindings directory")
 

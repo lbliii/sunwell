@@ -11,9 +11,9 @@ from typing import Any
 from sunwell.interface.surface.types import SurfaceLayout
 
 # Module-level constant for stop words (avoid per-call set rebuild)
-_STOP_WORDS: frozenset[str] = frozenset({
-    "a", "an", "the", "for", "with", "to", "in", "on", "of", "and", "or"
-})
+_STOP_WORDS: frozenset[str] = frozenset(
+    {"a", "an", "the", "for", "with", "to", "in", "on", "of", "and", "or"}
+)
 
 
 @dataclass(frozen=True, slots=True)

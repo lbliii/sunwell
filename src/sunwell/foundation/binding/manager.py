@@ -227,9 +227,7 @@ class BindingManager:
         self._bindings_dir = bindings_dir or Path.home() / ".sunwell" / "bindings"
 
         # RFC-101: Global binding index
-        self._index_manager = BindingIndexManager(
-            bindings_dir=self._bindings_dir
-        )
+        self._index_manager = BindingIndexManager(bindings_dir=self._bindings_dir)
 
     # =========================================================================
     # RFC-101: URI Resolution
@@ -315,7 +313,12 @@ class BindingManager:
 
         # Normalize lens reference to URI if it's a slug
         effective_lens_uri = lens_uri
-        if lens_uri and "/" not in lens_uri and "\\" not in lens_uri and not lens_uri.startswith("sunwell:"):
+        if (
+            lens_uri
+            and "/" not in lens_uri
+            and "\\" not in lens_uri
+            and not lens_uri.startswith("sunwell:")
+        ):
             effective_lens_uri = f"sunwell:lens/user/{lens_uri}"
 
         binding = Binding(

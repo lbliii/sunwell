@@ -142,8 +142,9 @@ class ProjectStructure:
                 rel_path = path.relative_to(self.workspace)
                 # Skip common non-source directories
                 parts = rel_path.parts
-                if any(p.startswith(".") or p == "__pycache__" or p == "node_modules"
-                       for p in parts):
+                if any(
+                    p.startswith(".") or p == "__pycache__" or p == "node_modules" for p in parts
+                ):
                     continue
                 if len(parts) <= max_depth:
                     self.existing_dirs.add(str(rel_path))
@@ -194,11 +195,13 @@ class ProjectStructure:
         if file_type in self.conventions:
             base_dir = self.conventions[file_type]
             path = f"{base_dir}/{name}{ext}"
-            suggestions.append(PathSuggestion(
-                path=path,
-                confidence=0.9,
-                reason=f"Existing {file_type} directory at {base_dir}",
-            ))
+            suggestions.append(
+                PathSuggestion(
+                    path=path,
+                    confidence=0.9,
+                    reason=f"Existing {file_type} directory at {base_dir}",
+                )
+            )
 
         # 2. Check project-type-specific patterns
         if self.project_type and self.project_type in STRUCTURE_PATTERNS:
@@ -212,11 +215,13 @@ class ProjectStructure:
                     category=category or "unit",
                     package=name,
                 )
-                suggestions.append(PathSuggestion(
-                    path=path,
-                    confidence=0.7,
-                    reason=f"Standard {self.project_type} convention",
-                ))
+                suggestions.append(
+                    PathSuggestion(
+                        path=path,
+                        confidence=0.7,
+                        reason=f"Standard {self.project_type} convention",
+                    )
+                )
 
         # 3. Infer from description if available
         if description:
@@ -225,11 +230,13 @@ class ProjectStructure:
                 base_dir = self.conventions[inferred_type]
                 path = f"{base_dir}/{name}{ext}"
                 if not any(s.path == path for s in suggestions):
-                    suggestions.append(PathSuggestion(
-                        path=path,
-                        confidence=0.6,
-                        reason=f"Inferred {inferred_type} from description",
-                    ))
+                    suggestions.append(
+                        PathSuggestion(
+                            path=path,
+                            confidence=0.6,
+                            reason=f"Inferred {inferred_type} from description",
+                        )
+                    )
 
         # 4. Fallback: use src root or top-level
         if not suggestions:
@@ -237,11 +244,13 @@ class ProjectStructure:
                 path = f"{self.src_root}/{name}{ext}"
             else:
                 path = f"{name}{ext}"
-            suggestions.append(PathSuggestion(
-                path=path,
-                confidence=0.4,
-                reason="Fallback to source root",
-            ))
+            suggestions.append(
+                PathSuggestion(
+                    path=path,
+                    confidence=0.4,
+                    reason="Fallback to source root",
+                )
+            )
 
         # Sort by confidence (highest first)
         return sorted(suggestions, key=lambda s: -s.confidence)

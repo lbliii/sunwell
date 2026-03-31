@@ -4,17 +4,12 @@ Provides sunwell_route tool for shortcut and command routing with confidence sco
 Uses LayeredLensRegistry for priority-based lens resolution.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from mcp.server.fastmcp import FastMCP
+
+from sunwell.foundation.core.lens import Lens
 from sunwell.mcp.formatting import mcp_json, omit_empty, truncate
-
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
-
-    from sunwell.foundation.core.lens import Lens
 
 
 def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
@@ -196,11 +191,13 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
             skill_name = None
             if entry and entry.lens.router and entry.lens.router.shortcuts:
                 skill_name = entry.lens.router.shortcuts.get(shortcut)
-            result[shortcut] = omit_empty({
-                "lens": lens_name,
-                "skill": skill_name,
-                "layer": entry.layer if entry else None,
-            })
+            result[shortcut] = omit_empty(
+                {
+                    "lens": lens_name,
+                    "skill": skill_name,
+                    "layer": entry.layer if entry else None,
+                }
+            )
         return mcp_json(result, "compact")
 
     @mcp.tool()
@@ -220,17 +217,18 @@ def register_routing_tools(mcp: FastMCP, lenses_dir: str | None = None) -> None:
         # Get overrides
         overrides = []
         for lens_name, winner, overridden in registry.get_overrides():
-            overrides.append({
-                "lens": lens_name,
-                "using": {
-                    "layer": winner.layer,
-                    "path": str(winner.source_path),
-                },
-                "overriding": [
-                    {"layer": e.layer, "path": str(e.source_path)}
-                    for e in overridden
-                ],
-            })
+            overrides.append(
+                {
+                    "lens": lens_name,
+                    "using": {
+                        "layer": winner.layer,
+                        "path": str(winner.source_path),
+                    },
+                    "overriding": [
+                        {"layer": e.layer, "path": str(e.source_path)} for e in overridden
+                    ],
+                }
+            )
 
         # Get collisions
         collisions = {}

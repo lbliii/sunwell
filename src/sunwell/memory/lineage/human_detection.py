@@ -3,16 +3,11 @@
 Detects edits made by humans (not Sunwell) using session-based tracking.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from sunwell.memory.lineage.models import compute_content_hash
-
-if TYPE_CHECKING:
-    from sunwell.memory.lineage.store import LineageStore
-    from sunwell.memory.session.tracker import SessionTracker
+from sunwell.memory.lineage.store import LineageStore
+from sunwell.memory.session.tracker import SessionTracker
 
 
 class HumanEditDetector:
@@ -131,12 +126,14 @@ class HumanEditDetector:
                     last_known_hash = last_edit_hash
 
             if current_hash != last_known_hash:
-                untracked.append({
-                    "path": path,
-                    "artifact_id": lineage.artifact_id,
-                    "last_known_hash": last_known_hash,
-                    "current_hash": current_hash,
-                })
+                untracked.append(
+                    {
+                        "path": path,
+                        "artifact_id": lineage.artifact_id,
+                        "last_known_hash": last_known_hash,
+                        "current_hash": current_hash,
+                    }
+                )
 
         return untracked
 

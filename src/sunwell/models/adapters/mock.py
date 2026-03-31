@@ -1,6 +1,5 @@
 """Mock model for testing with tool calling support (RFC-012)."""
 
-
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Literal
@@ -55,9 +54,7 @@ class MockModel:
         if isinstance(prompt, str):
             prompt_text = prompt
         else:
-            prompt_text = "\n".join(
-                m.content or "" for m in prompt if m.role in ("user", "system")
-            )
+            prompt_text = "\n".join(m.content or "" for m in prompt if m.role in ("user", "system"))
 
         self._prompts.append(prompt_text)
         self._call_count += 1

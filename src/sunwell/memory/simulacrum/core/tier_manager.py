@@ -62,7 +62,7 @@ class TierManager:
             key=lambda t: t.timestamp,
         )
 
-        to_demote = turns_by_time[:len(turns_by_time) - self.config.hot_max_turns]
+        to_demote = turns_by_time[: len(turns_by_time) - self.config.hot_max_turns]
 
         # Save to compressed storage
         for turn in to_demote:
@@ -111,6 +111,7 @@ class TierManager:
                     # Compress with zstd if available
                     try:
                         import zstd
+
                         with open(shard_file, "rb") as src:
                             compressed = zstd.compress(src.read())
                         with open(cold_dest.with_suffix(".jsonl.zst"), "wb") as dst:

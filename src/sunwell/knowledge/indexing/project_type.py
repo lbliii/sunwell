@@ -68,31 +68,35 @@ PROJECT_MARKERS: dict[ProjectType, list[str]] = {
 
 
 # Extensions by content type
-CODE_EXTENSIONS = frozenset({
-    ".py",
-    ".js",
-    ".ts",
-    ".jsx",
-    ".tsx",
-    ".go",
-    ".rs",
-    ".java",
-    ".kt",
-    ".c",
-    ".cpp",
-    ".h",
-    ".hpp",
-    ".cs",
-    ".swift",
-    ".rb",
-    ".php",
-})
+CODE_EXTENSIONS = frozenset(
+    {
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".go",
+        ".rs",
+        ".java",
+        ".kt",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".swift",
+        ".rb",
+        ".php",
+    }
+)
 
-SCRIPT_EXTENSIONS = frozenset({
-    ".fountain",
-    ".fdx",
-    ".highland",
-})
+SCRIPT_EXTENSIONS = frozenset(
+    {
+        ".fountain",
+        ".fdx",
+        ".highland",
+    }
+)
 
 
 def detect_project_type(workspace_root: Path) -> ProjectType:

@@ -270,7 +270,7 @@ class SunwellContacts(ContactsProvider):
                     # Try common formats
                     for fmt in ["%Y-%m-%d", "%Y%m%d", "%Y-%m-%dT%H:%M:%S"]:
                         try:
-                            birthday = datetime.strptime(bday_str[:len(fmt.replace("%", ""))], fmt)
+                            birthday = datetime.strptime(bday_str[: len(fmt.replace("%", ""))], fmt)
                             break
                         except ValueError:
                             continue

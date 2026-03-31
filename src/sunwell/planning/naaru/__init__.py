@@ -94,7 +94,13 @@ from sunwell.agent.incremental import (
     SkipReason,
 )
 from sunwell.agent.incremental import IncrementalExecutor as IncrementalExecutorV2
-from sunwell.features.external.integration import (
+
+# NaaruConfig moved to sunwell.types.config
+from sunwell.foundation.types.config import NaaruConfig
+
+# ModelSize moved to sunwell.types.model_size
+from sunwell.foundation.types.model_size import ModelSize
+from sunwell.integration import (
     IntegrationCheck,
     IntegrationCheckType,
     IntegrationResult,
@@ -104,12 +110,6 @@ from sunwell.features.external.integration import (
     StubDetection,
     TaskType,
 )
-
-# NaaruConfig moved to sunwell.types.config
-from sunwell.foundation.types.config import NaaruConfig
-
-# ModelSize moved to sunwell.types.model_size
-from sunwell.foundation.types.model_size import ModelSize
 from sunwell.planning.naaru.analysis import (
     ParallelismAnalysis,
     analyze_parallelism,
@@ -228,7 +228,6 @@ from sunwell.planning.naaru.planners import (
     ArtifactPlanner,
     PlanningError,
     PlanningStrategy,
-    SelfImprovementPlanner,
     TaskPlanner,
 )
 
@@ -314,12 +313,10 @@ __all__ = [
     "OpportunityCategory",
     "SessionConfig",
     "SessionState",
-
     # RFC-032: Agent Mode Types
     "Task",
     "TaskMode",
     "TaskStatus",
-
     # RFC-067: Integration-Aware DAG Types
     "TaskType",
     "IntegrationType",
@@ -327,7 +324,6 @@ __all__ = [
     "RequiredIntegration",
     "IntegrationCheck",
     "IntegrationResult",
-
     # Core Runners
     "AutonomousRunner",
     "OpportunityDiscoverer",
@@ -335,7 +331,6 @@ __all__ = [
     "WorkerStats",
     "SignalHandler",
     "StopReason",
-
     # Naaru Coordinator
     "Naaru",
     "NaaruConfig",
@@ -344,7 +339,6 @@ __all__ = [
     "MessageBus",
     "MessageType",
     "AgentResult",
-
     # Naaru Workers
     "HarmonicSynthesisWorker",
     "ValidationWorker",
@@ -353,19 +347,14 @@ __all__ = [
     "ExecutiveWorker",
     "ToolRegionWorker",
     "CognitiveRoutingWorker",
-
     # RFC-032: Task Planners
     "TaskPlanner",
     "PlanningError",
-    "SelfImprovementPlanner",
     "AgentPlanner",
-
     # RFC-034: Planning Strategy
     "PlanningStrategy",
-
     # RFC-036: Artifact-First Planner
     "ArtifactPlanner",
-
     # RFC-038: Harmonic Planning
     "HarmonicPlanner",
     "CandidateResult",
@@ -373,11 +362,9 @@ __all__ = [
     "PlanMetricsV2",
     "ScoringVersion",
     "VarianceStrategy",
-
     # Persona
     "MURU",
     "NaaruPersona",
-
     # RFC-036: Artifact Types
     "ArtifactSpec",
     "ArtifactGraph",
@@ -387,7 +374,6 @@ __all__ = [
     "artifacts_to_tasks",
     "select_model_tier",
     "get_model_distribution",
-
     # RFC-036: Artifact Exceptions
     "ArtifactError",
     "CyclicDependencyError",
@@ -395,7 +381,6 @@ __all__ = [
     "MissingDependencyError",
     "DiscoveryFailedError",
     "ArtifactCreationError",
-
     # RFC-036: Artifact Execution
     "ArtifactExecutor",
     "ArtifactResult",
@@ -403,14 +388,12 @@ __all__ = [
     "ExecutionEvent",
     "execute_artifact_graph",
     "execute_with_discovery",
-
     # RFC-034: Task Graph Analysis
     "ParallelismAnalysis",
     "visualize_task_graph",
     "analyze_parallelism",
     "validate_contracts",
     "format_execution_summary",
-
     # RFC-032: Checkpointing
     "AgentCheckpoint",
     "FailurePolicy",
@@ -418,32 +401,26 @@ __all__ = [
     "ParallelConfig",
     "find_latest_checkpoint",
     "get_checkpoint_path",
-
     # Convergence (Working Memory)
     "Convergence",
     "Slot",
     "SlotSource",
-
     # Shards (Parallel Helpers)
     "Shard",
     "ShardPool",
     "ShardType",
-
     # Resonance (Feedback Loop)
     "Resonance",
     "ResonanceConfig",
     "ResonanceResult",
     "RefinementAttempt",
     "create_resonance_handler",
-
     # Discernment (Tiered Validation)
     "Discernment",
     "DiscernmentVerdict",
     "DiscernmentResult",
-
     # Model Size (moved from rotation.py to types/)
     "ModelSize",
-
     # RFC-033: Unified Architecture - Diversity Layer
     "Candidate",
     "diversity_none",
@@ -451,19 +428,16 @@ __all__ = [
     "diversity_rotation",
     "diversity_harmonic",
     "HARMONIC_PERSONAS",
-
     # RFC-033: Unified Architecture - Selection Layer
     "select_passthrough",
     "select_heuristic",
     "select_voting",
     "select_judge",
-
     # RFC-033: Unified Architecture - Refinement Layer
     "RefinementResult",
     "refine_none",
     "refine_tiered",
     "refine_full",
-
     # RFC-033: Unified Architecture - Pipeline
     "TaskAnalysis",
     "UnifiedResult",
@@ -474,7 +448,6 @@ __all__ = [
     "create_balanced_config",
     "create_quality_config",
     "create_auto_config",
-
     # RFC-040: Plan Persistence
     "SavedExecution",
     "ArtifactCompletion",
@@ -487,7 +460,6 @@ __all__ = [
     "save_execution",
     "get_latest_execution",
     "resume_execution",
-
     # RFC-074: Incremental Execution v2
     "ExecutionCache",
     "ExecutionPlan",
@@ -495,16 +467,13 @@ __all__ = [
     "IncrementalExecutorV2",
     "SkipDecision",
     "SkipReason",
-
     # RFC-067: Integration Verification
     "IntegrationVerifier",
     "StubDetection",
-
     # RFC-076: Modular Components
     "NaaruEventEmitterProtocol",
     "NaaruEventEmitter",
     "ExecutionCoordinator",
     "LearningExtractor",
-
     # RFC-110: Session management moved to Agent level
 ]

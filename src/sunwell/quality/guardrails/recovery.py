@@ -249,20 +249,22 @@ class RecoveryManager:
             goal_id = self._goal_ids.get(commit, "unknown")
             # Get commit message
             try:
-                msg = await self._run_git(
-                    ["log", "-1", "--format=%s", commit]
+                msg = await self._run_git(["log", "-1", "--format=%s", commit])
+                history.append(
+                    {
+                        "commit": commit,
+                        "goal_id": goal_id,
+                        "message": msg.strip(),
+                    }
                 )
-                history.append({
-                    "commit": commit,
-                    "goal_id": goal_id,
-                    "message": msg.strip(),
-                })
             except Exception:
-                history.append({
-                    "commit": commit,
-                    "goal_id": goal_id,
-                    "message": "unknown",
-                })
+                history.append(
+                    {
+                        "commit": commit,
+                        "goal_id": goal_id,
+                        "message": "unknown",
+                    }
+                )
         return history
 
     async def cleanup_session(self) -> None:
@@ -318,9 +320,6 @@ class RecoveryManager:
         stdout, stderr = await proc.communicate()
 
         if proc.returncode != 0:
-            raise Exception(
-                f"Git command failed: {' '.join(args)}\n"
-                f"stderr: {stderr.decode()}"
-            )
+            raise Exception(f"Git command failed: {' '.join(args)}\nstderr: {stderr.decode()}")
 
         return stdout.decode()

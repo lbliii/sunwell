@@ -78,6 +78,6 @@ class BaseDomain:
 
         return min(score, 1.0)
 
-    def extract_learnings(self, artifact: Any, file_path: str | None = None) -> list["Learning"]:
+    def extract_learnings(self, artifact: Any, file_path: str | None = None) -> list[Learning]:
         """Default: no learnings. Override in concrete domains."""
         return []

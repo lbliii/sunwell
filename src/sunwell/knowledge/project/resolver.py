@@ -133,8 +133,7 @@ class ProjectResolver:
             if available:
                 available_str = ", ".join(available)
                 raise ProjectResolutionError(
-                    f"Project not found: {project_id}\n"
-                    f"Available projects: {available_str}"
+                    f"Project not found: {project_id}\nAvailable projects: {available_str}"
                 )
             else:
                 raise ProjectResolutionError(
@@ -152,9 +151,7 @@ class ProjectResolver:
         try:
             validate_workspace(project.root)
         except ProjectValidationError as e:
-            raise ProjectResolutionError(
-                f"Project {project_id} has invalid workspace:\n{e}"
-            ) from e
+            raise ProjectResolutionError(f"Project {project_id} has invalid workspace:\n{e}") from e
 
         self._registry.update_last_used(project_id)
         return project

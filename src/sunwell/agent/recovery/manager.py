@@ -37,7 +37,6 @@ from sunwell.agent.recovery.types import (
 )
 
 if TYPE_CHECKING:
-    from sunwell.agent.convergence.types import ConvergenceIteration
     from sunwell.agent.validation import Artifact
 
 
@@ -72,7 +71,7 @@ class RecoveryManager:
         artifacts: dict[str, Artifact],
         gate_results: dict[str, tuple[bool, list[str]]],
         failure_reason: str,
-        iterations: list[ConvergenceIteration] | None = None,
+        iterations: list[Any] | None = None,
     ) -> RecoveryState:
         """Create recovery state from failed execution.
 
@@ -129,12 +128,14 @@ class RecoveryManager:
         iteration_history = []
         if iterations:
             for it in iterations:
-                iteration_history.append({
-                    "iteration": it.iteration,
-                    "all_passed": it.all_passed,
-                    "total_errors": it.total_errors,
-                    "files_changed": [str(f) for f in it.files_changed],
-                })
+                iteration_history.append(
+                    {
+                        "iteration": it.iteration,
+                        "all_passed": it.all_passed,
+                        "total_errors": it.total_errors,
+                        "files_changed": [str(f) for f in it.files_changed],
+                    }
+                )
 
         return RecoveryState(
             goal=goal,
@@ -213,17 +214,19 @@ class RecoveryManager:
                     if status in counts:
                         counts[status] += 1
 
-                summaries.append(RecoverySummary(
-                    goal_hash=data["goal_hash"],
-                    goal_preview=data["goal"][:80],
-                    run_id=data["run_id"],
-                    passed=counts["passed"],
-                    failed=counts["failed"],
-                    waiting=counts["waiting"],
-                    fixed=counts["fixed"],
-                    skipped=counts["skipped"],
-                    created_at=datetime.fromisoformat(data["created_at"]),
-                ))
+                summaries.append(
+                    RecoverySummary(
+                        goal_hash=data["goal_hash"],
+                        goal_preview=data["goal"][:80],
+                        run_id=data["run_id"],
+                        passed=counts["passed"],
+                        failed=counts["failed"],
+                        waiting=counts["waiting"],
+                        fixed=counts["fixed"],
+                        skipped=counts["skipped"],
+                        created_at=datetime.fromisoformat(data["created_at"]),
+                    )
+                )
             except (json.JSONDecodeError, KeyError):
                 continue  # Skip malformed files
 

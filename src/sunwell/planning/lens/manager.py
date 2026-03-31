@@ -94,13 +94,9 @@ class LensManager:
     RFC-101: Adds URI-based identification and index management.
     """
 
-    user_lens_dir: Path = field(
-        default_factory=lambda: Path.home() / ".sunwell" / "lenses"
-    )
+    user_lens_dir: Path = field(default_factory=lambda: Path.home() / ".sunwell" / "lenses")
     builtin_lens_dir: Path = field(default_factory=_find_builtin_lenses_dir)
-    config_path: Path = field(
-        default_factory=lambda: Path.home() / ".sunwell" / "config.yaml"
-    )
+    config_path: Path = field(default_factory=lambda: Path.home() / ".sunwell" / "config.yaml")
 
     _loader: LensLoader | None = field(default=None, init=False)
     _index_manager: LensIndexManager = field(init=False)
@@ -212,8 +208,7 @@ class LensManager:
                             if index_entry.namespace in ("builtin", "user")
                             else "project",
                             path=path,
-                            is_default=lens.metadata.name == default_lens
-                            or index_entry.is_default,
+                            is_default=lens.metadata.name == default_lens or index_entry.is_default,
                             is_editable=index_entry.namespace != "builtin",
                             version_count=index_entry.version_count,
                             last_modified=index_entry.last_modified,
@@ -470,17 +465,13 @@ class LensManager:
         # Parse to validate and get current version
         content = path.read_text()
         data = safe_yaml_loads(content)
-        current_version = SemanticVersion.parse(
-            data["lens"]["metadata"].get("version", "0.1.0")
-        )
+        current_version = SemanticVersion.parse(data["lens"]["metadata"].get("version", "0.1.0"))
 
         # Bump version
         if bump == "major":
             new_version = SemanticVersion(current_version.major + 1, 0, 0)
         elif bump == "minor":
-            new_version = SemanticVersion(
-                current_version.major, current_version.minor + 1, 0
-            )
+            new_version = SemanticVersion(current_version.major, current_version.minor + 1, 0)
         else:
             new_version = SemanticVersion(
                 current_version.major, current_version.minor, current_version.patch + 1
@@ -514,9 +505,7 @@ class LensManager:
 
         return new_version
 
-    async def delete_lens(
-        self, identifier: str, keep_versions: bool = True
-    ) -> None:
+    async def delete_lens(self, identifier: str, keep_versions: bool = True) -> None:
         """Delete a user lens.
 
         RFC-101: Removes from index and filesystem.

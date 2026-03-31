@@ -3,7 +3,6 @@
 Enables long-running agent tasks to checkpoint progress for recovery.
 """
 
-
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -17,10 +16,10 @@ from sunwell.planning.naaru.types import Task
 class FailurePolicy(Enum):
     """How to handle task failures (RFC-032)."""
 
-    CONTINUE = "continue"     # Default: skip failed, continue others
-    RETRY = "retry"           # Retry with exponential backoff
-    ABORT = "abort"           # Stop entire run
-    REPLAN = "replan"         # Re-plan remaining tasks
+    CONTINUE = "continue"  # Default: skip failed, continue others
+    RETRY = "retry"  # Retry with exponential backoff
+    ABORT = "abort"  # Stop entire run
+    REPLAN = "replan"  # Re-plan remaining tasks
 
 
 class CheckpointPhase(Enum):
@@ -98,9 +97,9 @@ class ParallelConfig:
     """Configuration for parallel task execution (RFC-032)."""
 
     enabled: bool = True
-    max_parallel_tasks: int = 8      # Matches NaaruConfig default
-    max_parallel_writes: int = 2     # Limit concurrent file writes
-    parallel_research: bool = True   # Research tasks are always safe
+    max_parallel_tasks: int = 8  # Matches NaaruConfig default
+    max_parallel_writes: int = 2  # Limit concurrent file writes
+    parallel_research: bool = True  # Research tasks are always safe
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -236,12 +235,8 @@ class AgentCheckpoint:
             artifacts=[Path(p) for p in data.get("artifacts", [])],
             working_directory=data.get("working_directory", "."),
             context=data.get("context", {}),
-            execution_config=TaskExecutionConfig.from_dict(
-                data.get("execution_config", {})
-            ),
-            parallel_config=ParallelConfig.from_dict(
-                data.get("parallel_config", {})
-            ),
+            execution_config=TaskExecutionConfig.from_dict(data.get("execution_config", {})),
+            parallel_config=ParallelConfig.from_dict(data.get("parallel_config", {})),
             # RFC-130: Semantic phase fields
             phase=phase,
             phase_summary=data.get("phase_summary", ""),
@@ -255,7 +250,8 @@ class AgentCheckpoint:
         from sunwell.planning.naaru.types import TaskStatus
 
         return [
-            t for t in self.tasks
+            t
+            for t in self.tasks
             if t.id not in self.completed_ids
             and t.status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
         ]

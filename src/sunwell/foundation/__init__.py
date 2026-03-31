@@ -43,9 +43,6 @@ from sunwell.foundation.errors import (
     tools_not_supported,
 )
 
-# Logging
-from sunwell.foundation.logging import configure_logging
-
 # Identity
 from sunwell.foundation.identity import (
     ResourceIdentity,
@@ -54,6 +51,9 @@ from sunwell.foundation.identity import (
     URIParseError,
     validate_slug,
 )
+
+# Logging
+from sunwell.foundation.logging import configure_logging
 
 # Schema (re-export from subpackage)
 from sunwell.foundation.schema import LensLoader

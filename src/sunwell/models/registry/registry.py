@@ -21,8 +21,6 @@ Example:
     >>> registry.register_factory("gpt-4o", lambda: OpenAIModel("gpt-4o"))
 """
 
-from __future__ import annotations
-
 import threading
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -160,8 +158,12 @@ class ModelRegistry:
         """
         import os
 
+        from sunwell.foundation.errors import SunwellError
+        from sunwell.models.cloud_credentials import require_cloud_provider_env
+
         try:
             if provider == "anthropic":
+                require_cloud_provider_env("anthropic")
                 from sunwell.models.adapters.anthropic import AnthropicModel
 
                 return AnthropicModel(
@@ -170,6 +172,7 @@ class ModelRegistry:
                 )
 
             elif provider == "openai":
+                require_cloud_provider_env("openai")
                 from sunwell.models.adapters.openai import OpenAIModel
 
                 return OpenAIModel(
@@ -187,6 +190,8 @@ class ModelRegistry:
 
                 return MockModel()
 
+        except SunwellError:
+            raise
         except Exception:
             # Import or instantiation failed - return None
             pass
@@ -237,9 +242,7 @@ class ModelRegistry:
 
 
 # Global registry instance (thread-safe singleton via ContextVar)
-_global_registry: ContextVar[ModelRegistry | None] = ContextVar(
-    "_global_registry", default=None
-)
+_global_registry: ContextVar[ModelRegistry | None] = ContextVar("_global_registry", default=None)
 
 
 def get_registry() -> ModelRegistry:

@@ -12,7 +12,7 @@ import json
 import logging
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -107,7 +107,7 @@ class BackgroundSession:
         """Duration in seconds if completed, None if still running."""
         if self.started_at is None:
             return None
-        end_time = self.completed_at or datetime.now(timezone.utc)
+        end_time = self.completed_at or datetime.now(UTC)
         return (end_time - self.started_at).total_seconds()
 
     def update_status(self, status: SessionStatus) -> None:
@@ -115,13 +115,13 @@ class BackgroundSession:
         with self._lock:
             self.status = status
             if status == SessionStatus.RUNNING and self.started_at is None:
-                self.started_at = datetime.now(timezone.utc)
+                self.started_at = datetime.now(UTC)
             elif status in (
                 SessionStatus.COMPLETED,
                 SessionStatus.FAILED,
                 SessionStatus.CANCELLED,
             ):
-                self.completed_at = datetime.now(timezone.utc)
+                self.completed_at = datetime.now(UTC)
 
     def set_result(self, summary: str, tasks: int, files: list[str]) -> None:
         """Set successful completion result."""
@@ -148,7 +148,7 @@ class BackgroundSession:
             if self._task and not self._task.done():
                 self._task.cancel()
             self.status = SessionStatus.CANCELLED
-            self.completed_at = datetime.now(timezone.utc)
+            self.completed_at = datetime.now(UTC)
         return True
 
     def to_dict(self) -> dict[str, Any]:
@@ -168,7 +168,7 @@ class BackgroundSession:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BackgroundSession":
+    def from_dict(cls, data: dict[str, Any]) -> BackgroundSession:
         """Deserialize from dictionary."""
         started_at = None
         if data.get("started_at"):

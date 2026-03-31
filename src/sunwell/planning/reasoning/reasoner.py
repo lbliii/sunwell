@@ -33,6 +33,7 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from sunwell.knowledge.codebase.advisor import TaskGraphAdvisor
 from sunwell.models import GenerateOptions, Tool
 from sunwell.planning.reasoning.decisions import (
     APPROVAL_OUTCOMES,
@@ -43,7 +44,6 @@ from sunwell.planning.reasoning.decisions import (
     ReasonedDecision,
     RecoveryDecision,
 )
-from sunwell.knowledge.codebase.advisor import TaskGraphAdvisor
 from sunwell.planning.reasoning.enrichment import ContextEnricher
 from sunwell.planning.reasoning.prompts import PromptBuilder
 
@@ -277,6 +277,7 @@ def _get_decision_tools() -> dict[DecisionType, tuple[Tool, ...]]:
         ),
     }
 
+
 if TYPE_CHECKING:
     from sunwell.agent.incremental.cache import ExecutionCache
     from sunwell.knowledge.codebase.context import ProjectContext
@@ -339,9 +340,7 @@ class Reasoner:
     use_tool_calling: bool = True
     """If False, use direct JSON parsing instead of tool calling (faster)."""
 
-    _decision_history: list[ReasonedDecision] = field(
-        default_factory=list, repr=False
-    )
+    _decision_history: list[ReasonedDecision] = field(default_factory=list, repr=False)
     """History of decisions made (for learning and consistency)."""
 
     _history_by_type: dict[DecisionType, list[ReasonedDecision]] = field(

@@ -11,7 +11,6 @@ Combines:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -266,7 +265,9 @@ class UnifiedMemoryStore:
                     if score > 0:
                         spatial_candidates.add(node.id)
                         scores.setdefault(node.id, []).append(score)
-            candidates = spatial_candidates if candidates is None else candidates & spatial_candidates
+            candidates = (
+                spatial_candidates if candidates is None else candidates & spatial_candidates
+            )
 
         # Filter by text (embedding similarity) — O(n) vectorized
         if text_query and self._embedding_index and self._embedding_index.count > 0:

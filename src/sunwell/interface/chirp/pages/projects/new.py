@@ -65,7 +65,7 @@ async def post(request: Request) -> FormAction | ValidationError:
             )
     else:
         # Default location with slugified name
-        from sunwell.interface.server.routes.project.models import generate_slug
+        from sunwell.knowledge.project import generate_slug
 
         slug = generate_slug(name)
         project_path = default_workspace_root() / slug
@@ -77,7 +77,7 @@ async def post(request: Request) -> FormAction | ValidationError:
     project_path.mkdir(parents=True, exist_ok=True)
 
     # Generate slug for project ID
-    from sunwell.interface.server.routes.project.models import generate_slug
+    from sunwell.knowledge.project import generate_slug
 
     slug = generate_slug(name)
 

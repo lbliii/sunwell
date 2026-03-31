@@ -147,7 +147,6 @@ _LOW_CERTAINTY_PATTERNS: tuple[Pattern[str], ...] = (
 )
 
 
-
 # =============================================================================
 # Module-level extraction functions (formerly FacetExtractor methods)
 # =============================================================================
@@ -262,5 +261,3 @@ def _infer_confidence(text: str) -> ConfidenceLevel:
     elif low_count > high_count and low_count > 2:
         return ConfidenceLevel.LOW
     return ConfidenceLevel.MODERATE
-
-

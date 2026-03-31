@@ -39,10 +39,7 @@ def identify_improvements(metrics: PlanMetrics | PlanMetricsV2) -> str | None:
         )
 
     if metrics.balance_factor < 0.5:
-        suggestions.append(
-            "Graph is unbalanced (deep and narrow). "
-            "Can the structure be flattened?"
-        )
+        suggestions.append("Graph is unbalanced (deep and narrow). Can the structure be flattened?")
 
     # V2-specific checks (RFC-116)
     if isinstance(metrics, PlanMetricsV2):

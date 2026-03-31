@@ -6,6 +6,7 @@ Extracted to keep Agent class focused on orchestration.
 
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC
 from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any
@@ -126,6 +127,7 @@ Continue ONLY the remaining code. Start exactly where it stopped. Do not repeat 
             if result.text:
                 # Extract just the code from the response
                 from sunwell.agent.core.task_graph import sanitize_code_content
+
                 continuation = sanitize_code_content(result.text)
                 if continuation:
                     content = content + "\n" + continuation
@@ -524,7 +526,7 @@ async def execute_task_with_tools(
     # === BUILD SYSTEM PROMPT ===
     from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc).astimezone()
+    now = datetime.now(UTC).astimezone()
     current_time = now.strftime("%Y-%m-%d %H:%M %Z")
 
     system_prompt = (
@@ -667,9 +669,7 @@ async def execute_task_with_tools(
         expected_path = cwd / task.target_path
 
         # Check if write_file was actually called
-        write_file_called = tracker.was_called("write_file") or tracker.was_called(
-            "edit_file"
-        )
+        write_file_called = tracker.was_called("write_file") or tracker.was_called("edit_file")
 
         if not expected_path.exists() and not write_file_called:
             # Tool wasn't called - check if model output something we can use
@@ -781,75 +781,11 @@ async def execute_with_convergence(
     options: Any,
     execute_with_gates_fn: Any,
 ) -> AsyncIterator[AgentEvent]:
-    """Execute with convergence loops enabled (RFC-123).
+    """Execute with gates (convergence removed in Phase 2).
 
-    After each task completes, runs validation gates and fixes errors
-    until code stabilizes or limits are reached.
-
-    Args:
-        task_graph: The task graph
-        model: Model for generation
-        cwd: Working directory
-        naaru: Naaru instance
-        options: Execution options including convergence config
-        execute_with_gates_fn: Function to execute with gates
-
-    Yields:
-        AgentEvent for each step
+    Convergence loops were removed. This just passes through execute_with_gates_fn.
     """
-    from sunwell.agent.convergence import ConvergenceConfig, ConvergenceLoop
-
-    config = options.convergence_config or ConvergenceConfig()
-
-    # Create convergence loop
-    loop = ConvergenceLoop(
-        model=model,
-        cwd=cwd,
-        config=config,
-    )
-
-    # Track files written during execution
-    written_files: list[Path] = []
-    artifacts: dict[str, Artifact] = {}
-
-    async def on_write(path: Path) -> None:
-        """Hook called after each file write."""
-        written_files.append(path)
-        # Build artifact for convergence
-        if path.exists():
-            artifacts[str(path)] = Artifact(
-                path=path,
-                content=path.read_text(),
-                task_id="convergence",
-            )
-
-    # Set up hook on tool executor
-    if naaru and naaru.tool_executor:
-        naaru.tool_executor.on_file_write = on_write
-
-    try:
-        # Execute tasks normally with gates
-        async for event in execute_with_gates_fn(options):
-            yield event
-
-            # After each task completes, run convergence if files changed
-            if event.type == EventType.TASK_COMPLETE and written_files:
-                async for conv_event in loop.run(list(written_files), artifacts):
-                    yield conv_event
-
-                if loop.result and not loop.result.stable:
-                    # Escalate if convergence failed
-                    yield AgentEvent(
-                        EventType.ESCALATE,
-                        {"reason": f"Convergence failed: {loop.result.status.value}"},
-                    )
-                    return
-
-                written_files.clear()
-
-            if event.type in (EventType.ERROR, EventType.ESCALATE):
-                return
-    finally:
-        # Clean up hook
-        if naaru and naaru.tool_executor:
-            naaru.tool_executor.on_file_write = None
+    async for event in execute_with_gates_fn(options):
+        yield event
+        if event.type in (EventType.ERROR, EventType.ESCALATE):
+            return

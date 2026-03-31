@@ -5,10 +5,10 @@ users consistently approve certain operation types.
 
 Usage:
     from sunwell.agent.trust import ApprovalTracker, AutoApproveConfig
-    
+
     tracker = ApprovalTracker(workspace)
     tracker.record_decision(path, approved=True)
-    
+
     if tracker.should_suggest_upgrade(path):
         # Offer to auto-approve this path type
         ...

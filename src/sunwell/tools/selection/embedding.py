@@ -66,7 +66,7 @@ class ToolEmbeddingIndex:
             self.embedder = create_embedder(prefer_local=True, fallback=True)
         return self.embedder
 
-    def _build_tool_text(self, tool: "Tool") -> str:
+    def _build_tool_text(self, tool: Tool) -> str:
         """Build searchable text from tool definition.
 
         Combines name, description, and parameter names for rich matching.
@@ -94,7 +94,7 @@ class ToolEmbeddingIndex:
 
         return " ".join(parts)
 
-    async def _build_index(self, tools: "tuple[Tool, ...]") -> None:
+    async def _build_index(self, tools: tuple[Tool, ...]) -> None:
         """Build the embedding index from tools.
 
         Args:
@@ -136,7 +136,7 @@ class ToolEmbeddingIndex:
             logger.warning("Failed to build tool embedding index: %s", e)
             self._index = None
 
-    def initialize(self, tools: "tuple[Tool, ...]") -> None:
+    def initialize(self, tools: tuple[Tool, ...]) -> None:
         """Initialize the index with tools (synchronous wrapper).
 
         Thread-safe: Uses lock to prevent concurrent initialization.
@@ -162,7 +162,7 @@ class ToolEmbeddingIndex:
 
             self._initialized = True
 
-    async def initialize_async(self, tools: "tuple[Tool, ...]") -> None:
+    async def initialize_async(self, tools: tuple[Tool, ...]) -> None:
         """Initialize the index with tools (async version).
 
         Thread-safe: Uses lock to prevent concurrent initialization.
@@ -261,9 +261,7 @@ class ToolEmbeddingIndex:
                 # Can't run sync in async context easily
                 # Return empty scores (semantic scoring disabled)
                 return {}
-            return loop.run_until_complete(
-                self.get_semantic_scores(query, tool_names, top_k)
-            )
+            return loop.run_until_complete(self.get_semantic_scores(query, tool_names, top_k))
         except RuntimeError:
             return asyncio.run(self.get_semantic_scores(query, tool_names, top_k))
 

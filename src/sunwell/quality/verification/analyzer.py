@@ -3,7 +3,6 @@
 Analyze code correctness from multiple perspectives.
 """
 
-
 import ast
 import asyncio
 import json
@@ -270,9 +269,7 @@ Output JSON:
 
         return self._parse_perspective_result(result.text, "regression_detective")
 
-    def _format_test_results(
-        self, execution_results: BehavioralExecutionResult | None
-    ) -> str:
+    def _format_test_results(self, execution_results: BehavioralExecutionResult | None) -> str:
         """Format test execution results for prompt."""
         if not execution_results:
             return "No tests were executed."
@@ -286,9 +283,7 @@ Output JSON:
         ]
 
         # Include specific failures
-        failures = [
-            r for r in execution_results.test_results if not r.passed
-        ]
+        failures = [r for r in execution_results.test_results if not r.passed]
         if failures:
             parts.append("\nFailures:")
             for f in failures[:3]:  # Limit to 3

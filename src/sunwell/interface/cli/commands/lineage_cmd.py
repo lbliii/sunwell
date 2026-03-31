@@ -40,8 +40,9 @@ def lineage() -> None:
 @lineage.command("show")
 @click.argument("path")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_show(path: str, json_output: bool, workspace: str) -> None:
     """Show lineage for a file.
 
@@ -110,7 +111,9 @@ def _display_lineage(artifact, path: str) -> None:
             time_str = edit.timestamp.strftime("%m-%d %H:%M")
             change = f"+{edit.lines_added}/-{edit.lines_removed}"
 
-            source_icon = "🤖" if edit.source == "sunwell" else "👤" if edit.source == "human" else "❓"
+            source_icon = (
+                "🤖" if edit.source == "sunwell" else "👤" if edit.source == "human" else "❓"
+            )
             source_str = f"{source_icon} {edit.source}"
 
             goal_str = edit.goal_id[:8] if edit.goal_id else "-"
@@ -148,8 +151,9 @@ def _display_lineage(artifact, path: str) -> None:
 @lineage.command("goal")
 @click.argument("goal_id")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_goal(goal_id: str, json_output: bool, workspace: str) -> None:
     """Show all artifacts from a goal.
 
@@ -202,11 +206,16 @@ def lineage_goal(goal_id: str, json_output: bool, workspace: str) -> None:
 
 @lineage.command("deps")
 @click.argument("path")
-@click.option("--direction", type=click.Choice(["imports", "imported_by", "both"]),
-              default="both", help="Which direction to show")
+@click.option(
+    "--direction",
+    type=click.Choice(["imports", "imported_by", "both"]),
+    default="both",
+    help="Which direction to show",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_deps(path: str, direction: str, json_output: bool, workspace: str) -> None:
     """Show dependency graph for a file.
 
@@ -259,8 +268,9 @@ def lineage_deps(path: str, direction: str, json_output: bool, workspace: str) -
 @lineage.command("impact")
 @click.argument("path")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_impact(path: str, json_output: bool, workspace: str) -> None:
     """Analyze impact of modifying/deleting a file.
 
@@ -315,8 +325,9 @@ def lineage_impact(path: str, json_output: bool, workspace: str) -> None:
 
 @lineage.command("init")
 @click.option("--scan", "scan_existing", is_flag=True, help="Scan existing files")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_init(scan_existing: bool, workspace: str) -> None:
     """Initialize lineage tracking for a project.
 
@@ -346,11 +357,13 @@ def lineage_init(scan_existing: bool, workspace: str) -> None:
 
 
 @lineage.command("sync")
-@click.option("--mark-human", is_flag=True, default=True,
-              help="Mark detected changes as human edits")
+@click.option(
+    "--mark-human", is_flag=True, default=True, help="Mark detected changes as human edits"
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_sync(mark_human: bool, json_output: bool, workspace: str) -> None:
     """Detect and sync untracked changes.
 
@@ -392,8 +405,9 @@ def lineage_sync(mark_human: bool, json_output: bool, workspace: str) -> None:
 
 @lineage.command("stats")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
-@click.option("--workspace", "-w", type=click.Path(exists=True), default=".",
-              help="Project workspace root")
+@click.option(
+    "--workspace", "-w", type=click.Path(exists=True), default=".", help="Project workspace root"
+)
 def lineage_stats(json_output: bool, workspace: str) -> None:
     """Show lineage statistics.
 

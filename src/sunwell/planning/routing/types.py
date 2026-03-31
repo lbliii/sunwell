@@ -20,20 +20,20 @@ class Intent(str, Enum):
     that align with common user patterns.
     """
 
-    CODE = "code"           # Write, modify, or generate code
-    EXPLAIN = "explain"     # Explain concepts, code, or decisions
-    DEBUG = "debug"         # Fix bugs, troubleshoot errors
-    CHAT = "chat"           # Casual conversation, greetings
-    SEARCH = "search"       # Find information, explore codebase
-    REVIEW = "review"       # Review code, audit, analyze
+    CODE = "code"  # Write, modify, or generate code
+    EXPLAIN = "explain"  # Explain concepts, code, or decisions
+    DEBUG = "debug"  # Fix bugs, troubleshoot errors
+    CHAT = "chat"  # Casual conversation, greetings
+    SEARCH = "search"  # Find information, explore codebase
+    REVIEW = "review"  # Review code, audit, analyze
 
 
 class Complexity(str, Enum):
     """Task complexity levels."""
 
-    TRIVIAL = "trivial"     # Single-file, obvious change
-    STANDARD = "standard"   # Multi-file, typical task
-    COMPLEX = "complex"     # Multi-faceted, needs planning
+    TRIVIAL = "trivial"  # Single-file, obvious change
+    STANDARD = "standard"  # Multi-file, typical task
+    COMPLEX = "complex"  # Multi-faceted, needs planning
 
 
 class UserMood(str, Enum):
@@ -44,9 +44,9 @@ class UserMood(str, Enum):
 
     NEUTRAL = "neutral"
     FRUSTRATED = "frustrated"  # ALL CAPS, urgency markers
-    CURIOUS = "curious"        # Questions, exploration
-    RUSHED = "rushed"          # Time pressure indicators
-    CONFUSED = "confused"      # Uncertainty markers
+    CURIOUS = "curious"  # Questions, exploration
+    RUSHED = "rushed"  # Time pressure indicators
+    CONFUSED = "confused"  # Uncertainty markers
 
 
 class UserExpertise(str, Enum):
@@ -72,9 +72,9 @@ class ExecutionTier(int, Enum):
     Lower confidence → more reasoning, possible confirmation.
     """
 
-    FAST = 0    # No analysis, direct dispatch, ~50ms
-    LIGHT = 1   # Brief acknowledgment, auto-proceed, ~200ms
-    FULL = 2    # Full CoT reasoning, confirmation required, ~500ms
+    FAST = 0  # No analysis, direct dispatch, ~50ms
+    LIGHT = 1  # Brief acknowledgment, auto-proceed, ~200ms
+    FULL = 2  # Full CoT reasoning, confirmation required, ~500ms
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,5 +132,3 @@ def determine_tier(confidence: float, has_shortcut: bool) -> ExecutionTier:
         return ExecutionTier.LIGHT
     else:
         return ExecutionTier.FULL
-
-

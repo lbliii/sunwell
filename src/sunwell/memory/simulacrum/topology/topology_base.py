@@ -10,7 +10,6 @@ Enables queries like:
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -327,7 +326,7 @@ class ConceptGraph:
                         edge_time = datetime.fromisoformat(edge.timestamp)
                         days_old = (now - edge_time).days
                         decay_periods = days_old // decay_days
-                        new_confidence = edge.confidence * (decay_factor ** decay_periods)
+                        new_confidence = edge.confidence * (decay_factor**decay_periods)
                     except ValueError:
                         pass
 
@@ -335,15 +334,17 @@ class ConceptGraph:
                     edges_to_remove.append((source_id, edge))
                 else:
                     # Update confidence (immutable, so recreate)
-                    decayed_edges.append(ConceptEdge(
-                        source_id=edge.source_id,
-                        target_id=edge.target_id,
-                        relation=edge.relation,
-                        confidence=new_confidence,
-                        evidence=edge.evidence,
-                        auto_extracted=edge.auto_extracted,
-                        timestamp=edge.timestamp,
-                    ))
+                    decayed_edges.append(
+                        ConceptEdge(
+                            source_id=edge.source_id,
+                            target_id=edge.target_id,
+                            relation=edge.relation,
+                            confidence=new_confidence,
+                            evidence=edge.evidence,
+                            auto_extracted=edge.auto_extracted,
+                            timestamp=edge.timestamp,
+                        )
+                    )
 
             self._edges[source_id] = decayed_edges
 
@@ -360,7 +361,8 @@ class ConceptGraph:
         for source_id, edge in edges_to_remove:
             if edge.target_id in self._reverse_edges:
                 self._reverse_edges[edge.target_id] = [
-                    e for e in self._reverse_edges[edge.target_id]
+                    e
+                    for e in self._reverse_edges[edge.target_id]
                     if e.source_id != source_id or e.relation != edge.relation
                 ]
             removed += 1

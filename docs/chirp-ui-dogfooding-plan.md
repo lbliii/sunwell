@@ -558,6 +558,8 @@ Add components that leverage htmx's advanced features.
 
 **File:** `src/chirp_ui/templates/chirpui/stream.html`
 
+> **Warning:** Avoid `sse-connect` on page load — it keeps `htmx-request` active and causes infinite spinners. Use `sse-connect` only inside fragments returned from POST (e.g. chat), or use polling.
+
 ```html
 {#- chirp-ui: SSE Stream component
     Live-updating content via Server-Sent Events.

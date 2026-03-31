@@ -4,8 +4,6 @@ Provides shared helpers for format tiers (summary/compact/full),
 content truncation, and compact JSON serialization across all MCP tools.
 """
 
-from __future__ import annotations
-
 import json
 from typing import Any
 

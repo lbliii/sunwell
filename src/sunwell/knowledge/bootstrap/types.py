@@ -3,7 +3,6 @@
 All dataclasses for bootstrap evidence, inference, and results.
 """
 
-
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -374,28 +373,38 @@ class BootstrapDecision:
         choice_lower = self.choice.lower()
 
         # Database decisions
-        if any(kw in question_lower or kw in choice_lower
-               for kw in ["database", "sql", "postgres", "sqlite", "mongo"]):
+        if any(
+            kw in question_lower or kw in choice_lower
+            for kw in ["database", "sql", "postgres", "sqlite", "mongo"]
+        ):
             return "database"
 
         # Framework decisions
-        if any(kw in question_lower or kw in choice_lower
-               for kw in ["framework", "flask", "fastapi", "django", "react"]):
+        if any(
+            kw in question_lower or kw in choice_lower
+            for kw in ["framework", "flask", "fastapi", "django", "react"]
+        ):
             return "framework"
 
         # Auth decisions
-        if any(kw in question_lower or kw in choice_lower
-               for kw in ["auth", "jwt", "oauth", "session", "login"]):
+        if any(
+            kw in question_lower or kw in choice_lower
+            for kw in ["auth", "jwt", "oauth", "session", "login"]
+        ):
             return "auth"
 
         # Testing decisions
-        if any(kw in question_lower or kw in choice_lower
-               for kw in ["test", "pytest", "unittest", "mock"]):
+        if any(
+            kw in question_lower or kw in choice_lower
+            for kw in ["test", "pytest", "unittest", "mock"]
+        ):
             return "testing"
 
         # Style decisions
-        if any(kw in question_lower or kw in choice_lower
-               for kw in ["style", "format", "lint", "black", "ruff"]):
+        if any(
+            kw in question_lower or kw in choice_lower
+            for kw in ["style", "format", "lint", "black", "ruff"]
+        ):
             return "style"
 
         return "architecture"

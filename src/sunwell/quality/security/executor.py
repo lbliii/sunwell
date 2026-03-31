@@ -11,7 +11,6 @@ Execution flow:
 3. Post-execution: Monitor output, log to audit trail, detect violations
 """
 
-
 import os
 import time
 from collections.abc import Callable
@@ -172,9 +171,7 @@ class ApprovalManager:
 
         # Auto-approve internal-only if policy allows
         if self.policy.auto_approve_internal_only:
-            if not scope.network_allow or all(
-                self._is_internal(h) for h in scope.network_allow
-            ):
+            if not scope.network_allow or all(self._is_internal(h) for h in scope.network_allow):
                 return False
 
         return False
@@ -293,9 +290,7 @@ class SecureSkillExecutor:
         if not self.policy.audit_all_executions:
             return None
 
-        audit_path = self.policy.audit_path or (
-            Path.home() / ".sunwell" / "security" / "audit.log"
-        )
+        audit_path = self.policy.audit_path or (Path.home() / ".sunwell" / "security" / "audit.log")
         audit_path.parent.mkdir(parents=True, exist_ok=True)
 
         key = os.environ.get("SUNWELL_AUDIT_KEY", "sunwell-default-key").encode()
@@ -436,9 +431,7 @@ class SecureSkillExecutor:
 
             # Post-execution monitoring
             for skill_name, output in results.items():
-                classification = self._monitor.classify_output_deterministic(
-                    output.content, scope
-                )
+                classification = self._monitor.classify_output_deterministic(output.content, scope)
                 if classification.violation:
                     handle_violation(
                         SecurityViolation(
@@ -471,7 +464,9 @@ class SecureSkillExecutor:
                         dag_id=dag_id,
                         violation_type=v.type,
                         content=v.content,
-                        action_taken="logged" if self.policy.enforcement_mode == "audit" else "blocked",
+                        action_taken="logged"
+                        if self.policy.enforcement_mode == "audit"
+                        else "blocked",
                     )
 
                 if self.policy.enforcement_mode == "strict":

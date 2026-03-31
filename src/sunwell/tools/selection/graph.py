@@ -115,7 +115,7 @@ class ToolDAG:
         return len(self._nodes)
 
     @classmethod
-    def from_nodes(cls, nodes: tuple[ToolNode, ...]) -> "ToolDAG":
+    def from_nodes(cls, nodes: tuple[ToolNode, ...]) -> ToolDAG:
         """Create a ToolDAG from a collection of nodes.
 
         Entry points are automatically detected as nodes that are not
@@ -135,10 +135,7 @@ class ToolDAG:
             all_successors.update(node.successors)
 
         # Entry points are nodes that are not successors of any node
-        entry_points = frozenset(
-            name for name in nodes_dict.keys()
-            if name not in all_successors
-        )
+        entry_points = frozenset(name for name in nodes_dict.keys() if name not in all_successors)
 
         return cls(_nodes=nodes_dict, _entry_points=entry_points)
 
@@ -155,7 +152,6 @@ class ToolDAG:
 _DEFAULT_NODES: tuple[ToolNode, ...] = (
     # === ENTRY POINTS (always visible) ===
     # These are discovery/exploration tools that make sense as starting points
-
     ToolNode(
         name="list_files",
         successors=frozenset({"read_file", "find_files"}),
@@ -186,9 +182,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"get_env"}),
         category="env",
     ),
-
     # === SECOND LEVEL (unlocked by entry points) ===
-
     ToolNode(
         name="read_file",
         successors=frozenset({"edit_file", "write_file", "patch_file", "copy_file"}),
@@ -209,9 +203,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset(),  # Terminal node
         category="env",
     ),
-
     # === THIRD LEVEL (file modification) ===
-
     ToolNode(
         name="edit_file",
         successors=frozenset({"git_add", "undo_file", "run_command", "read_file"}),
@@ -237,9 +229,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"read_file", "edit_file", "git_add"}),
         category="file",
     ),
-
     # === FOURTH LEVEL (file management and undo) ===
-
     ToolNode(
         name="delete_file",
         successors=frozenset({"git_add", "undo_file", "list_backups"}),
@@ -265,9 +255,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"read_file", "git_add"}),
         category="file",
     ),
-
     # === GIT WORKFLOW ===
-
     ToolNode(
         name="git_add",
         successors=frozenset({"git_commit", "git_restore", "git_diff", "git_status"}),
@@ -303,9 +291,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"git_status", "git_diff", "read_file"}),
         category="git",
     ),
-
     # === GIT READ-ONLY (accessible from git_status) ===
-
     ToolNode(
         name="git_log",
         successors=frozenset({"git_show", "git_diff"}),
@@ -331,9 +317,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"git_status", "git_add"}),
         category="git",
     ),
-
     # === WEB TOOLS (entry points for research tasks) ===
-
     ToolNode(
         name="web_search",
         successors=frozenset({"web_fetch", "read_file"}),
@@ -344,9 +328,7 @@ _DEFAULT_NODES: tuple[ToolNode, ...] = (
         successors=frozenset({"write_file", "read_file"}),
         category="web",
     ),
-
     # === EXPERTISE TOOLS (entry points for guided tasks) ===
-
     ToolNode(
         name="list_expertise_areas",
         successors=frozenset({"get_expertise"}),

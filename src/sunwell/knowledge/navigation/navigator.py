@@ -4,20 +4,15 @@ Provides reasoning-based codebase navigation using hierarchical
 Table of Contents in the LLM context window.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from sunwell.knowledge.navigation.toc import ProjectToc
-
-if TYPE_CHECKING:
-    from sunwell.models import ModelProtocol
+from sunwell.models import ModelProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -169,9 +164,7 @@ class TocNavigator:
         prompt = NAVIGATION_PROMPT.format(
             toc_context=toc_context,
             query=query,
-            history=(
-                self._format_history(history) if history else "None - first navigation."
-            ),
+            history=(self._format_history(history) if history else "None - first navigation."),
         )
 
         # Get LLM response
@@ -287,13 +280,15 @@ class TocNavigator:
         results: list[NavigationResult] = []
         for node in nodes[:5]:  # Limit to top 5
             content = await self._read_path(node.path)
-            results.append(NavigationResult(
-                path=node.path,
-                reasoning=f"Tagged with concept: {concept}",
-                confidence=0.9,
-                content=content,
-                follow_up=tuple(node.children[:3]),
-            ))
+            results.append(
+                NavigationResult(
+                    path=node.path,
+                    reasoning=f"Tagged with concept: {concept}",
+                    confidence=0.9,
+                    content=content,
+                    follow_up=tuple(node.children[:3]),
+                )
+            )
 
         return results
 

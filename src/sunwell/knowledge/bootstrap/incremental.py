@@ -3,7 +3,6 @@
 Update bootstrap intelligence after git changes.
 """
 
-
 import asyncio
 import json
 from dataclasses import dataclass
@@ -77,7 +76,9 @@ class IncrementalBootstrap:
     async def _get_head_commit(self) -> str | None:
         """Get current HEAD commit SHA."""
         proc = await asyncio.create_subprocess_exec(
-            "git", "rev-parse", "HEAD",
+            "git",
+            "rev-parse",
+            "HEAD",
             cwd=self.root,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -131,7 +132,9 @@ class IncrementalBootstrap:
             return []
 
         proc = await asyncio.create_subprocess_exec(
-            "git", "log", f"{self._last_commit}..HEAD",
+            "git",
+            "log",
+            f"{self._last_commit}..HEAD",
             "--format=%H|%an|%aI|%s",
             "--name-only",
             cwd=self.root,
@@ -281,8 +284,7 @@ class IncrementalBootstrap:
         for name, domain in new_domains.items():
             is_new = name not in existing_domains
             owner_changed = (
-                not is_new and
-                domain.primary_owner != existing_domains[name].primary_owner
+                not is_new and domain.primary_owner != existing_domains[name].primary_owner
             )
             if is_new or owner_changed:
                 updated += len(domain.files)

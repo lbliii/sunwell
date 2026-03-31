@@ -266,9 +266,7 @@ class SkillRetryPolicy:
 
     def __post_init__(self) -> None:
         if not 1 <= self.max_attempts <= 10:
-            raise ValueError(
-                f"max_attempts must be between 1 and 10, got {self.max_attempts}"
-            )
+            raise ValueError(f"max_attempts must be between 1 and 10, got {self.max_attempts}")
 
 
 @dataclass(frozen=True, slots=True)

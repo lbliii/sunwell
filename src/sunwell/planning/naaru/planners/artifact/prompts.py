@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 # Language-specific examples for artifact discovery
 # These guide the LLM to produce appropriate file paths and structures
 DISCOVERY_EXAMPLES: dict[Language, str] = {
-    Language.PYTHON: '''Goal: "Build a data processing pipeline"
+    Language.PYTHON: """Goal: "Build a data processing pipeline"
 
 ```json
 [
@@ -41,8 +41,8 @@ DISCOVERY_EXAMPLES: dict[Language, str] = {
     "domain_type": "application"
   }
 ]
-```''',
-    Language.TYPESCRIPT: '''Goal: "Build a todo app in Svelte"
+```""",
+    Language.TYPESCRIPT: """Goal: "Build a todo app in Svelte"
 
 ```json
 [
@@ -79,8 +79,8 @@ DISCOVERY_EXAMPLES: dict[Language, str] = {
     "domain_type": "page"
   }
 ]
-```''',
-    Language.JAVASCRIPT: '''Goal: "Build a REST API with Express"
+```""",
+    Language.JAVASCRIPT: """Goal: "Build a REST API with Express"
 
 ```json
 [
@@ -109,8 +109,8 @@ DISCOVERY_EXAMPLES: dict[Language, str] = {
     "domain_type": "router"
   }
 ]
-```''',
-    Language.RUST: '''Goal: "Build a CLI tool"
+```""",
+    Language.RUST: """Goal: "Build a CLI tool"
 
 ```json
 [
@@ -139,8 +139,8 @@ DISCOVERY_EXAMPLES: dict[Language, str] = {
     "domain_type": "application"
   }
 ]
-```''',
-    Language.GO: '''Goal: "Build an HTTP server"
+```""",
+    Language.GO: """Goal: "Build an HTTP server"
 
 ```json
 [
@@ -169,7 +169,7 @@ DISCOVERY_EXAMPLES: dict[Language, str] = {
     "domain_type": "application"
   }
 ]
-```''',
+```""",
 }
 
 # Default example for unknown languages
@@ -327,13 +327,15 @@ def build_schema_section(project_schema: ProjectSchema) -> str:
                 types = ", ".join(phase.artifact_types)
                 lines.append(f"  Artifact types: {types}")
 
-    lines.extend([
-        "",
-        "IMPORTANT: Use ONLY types from this schema for domain_type.",
-        "Artifacts with unknown types will be rejected during validation.",
-        "If no type fits well, omit domain_type rather than inventing new types.",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "IMPORTANT: Use ONLY types from this schema for domain_type.",
+            "Artifacts with unknown types will be rejected during validation.",
+            "If no type fits well, omit domain_type rather than inventing new types.",
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 

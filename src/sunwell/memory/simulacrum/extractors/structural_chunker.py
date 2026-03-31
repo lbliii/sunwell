@@ -7,7 +7,6 @@ from identical text under "## Features". Structure carries meaning.
 Part of RFC-014: Multi-Topology Memory.
 """
 
-
 import hashlib
 import re
 
@@ -30,7 +29,7 @@ class StructuralChunker:
 
     def __init__(
         self,
-        min_chunk_size: int = 100,   # Min chars per chunk
+        min_chunk_size: int = 100,  # Min chars per chunk
         max_chunk_size: int = 4000,  # Max chars per chunk
         preserve_code_blocks: bool = True,
     ):
@@ -47,7 +46,7 @@ class StructuralChunker:
         current_content_lines: list[str] = []
 
         for i, line in enumerate(lines, start=1):
-            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            heading_match = re.match(r"^(#{1,6})\s+(.+)$", line)
 
             if heading_match:
                 # Finalize previous section's content
@@ -60,7 +59,9 @@ class StructuralChunker:
                 level = len(heading_match.group(1))
                 title = heading_match.group(2).strip()
 
-                section_id = hashlib.blake2b(f"{file_path}:{i}:{title}".encode(), digest_size=6).hexdigest()
+                section_id = hashlib.blake2b(
+                    f"{file_path}:{i}:{title}".encode(), digest_size=6
+                ).hexdigest()
 
                 section = DocumentSection(
                     id=section_id,
@@ -131,7 +132,9 @@ class StructuralChunker:
                     turn_range=(section.line_start, section.line_end),
                     summary=f"{section_path[-1] if section_path else 'Untitled'}: {section.content[:100]}...",
                     token_count=int(section.word_count * 1.3),
-                    themes=(section.section_type.value,) if section.section_type != SectionType.UNKNOWN else (),
+                    themes=(section.section_type.value,)
+                    if section.section_type != SectionType.UNKNOWN
+                    else (),
                 )
                 chunks.append((chunk, spatial, section))
 
@@ -152,7 +155,7 @@ class StructuralChunker:
 
         if self.preserve_code_blocks:
             # Split around code blocks
-            parts = re.split(r'(```[\s\S]*?```)', content)
+            parts = re.split(r"(```[\s\S]*?```)", content)
         else:
             parts = [content]
 
@@ -168,9 +171,9 @@ class StructuralChunker:
                     if len(current_chunk) + len(part) > self.max_chunk_size:
                         # Save current chunk first
                         if current_chunk.strip():
-                            chunks.append(self._make_chunk(
-                                section, spatial, tree, current_chunk, chunk_idx
-                            ))
+                            chunks.append(
+                                self._make_chunk(section, spatial, tree, current_chunk, chunk_idx)
+                            )
                             chunk_idx += 1
                         current_chunk = part
                     else:
@@ -178,14 +181,12 @@ class StructuralChunker:
                 else:
                     # Very large code block: save as-is with truncation note
                     if current_chunk.strip():
-                        chunks.append(self._make_chunk(
-                            section, spatial, tree, current_chunk, chunk_idx
-                        ))
+                        chunks.append(
+                            self._make_chunk(section, spatial, tree, current_chunk, chunk_idx)
+                        )
                         chunk_idx += 1
-                    truncated = part[:self.max_chunk_size - 50] + "\n... [truncated]\n```"
-                    chunks.append(self._make_chunk(
-                        section, spatial, tree, truncated, chunk_idx
-                    ))
+                    truncated = part[: self.max_chunk_size - 50] + "\n... [truncated]\n```"
+                    chunks.append(self._make_chunk(section, spatial, tree, truncated, chunk_idx))
                     chunk_idx += 1
                     current_chunk = ""
             else:
@@ -194,9 +195,9 @@ class StructuralChunker:
                 for para in paragraphs:
                     if len(current_chunk) + len(para) + 2 > self.max_chunk_size:
                         if current_chunk.strip():
-                            chunks.append(self._make_chunk(
-                                section, spatial, tree, current_chunk, chunk_idx
-                            ))
+                            chunks.append(
+                                self._make_chunk(section, spatial, tree, current_chunk, chunk_idx)
+                            )
                             chunk_idx += 1
                         current_chunk = para
                     else:
@@ -204,9 +205,7 @@ class StructuralChunker:
 
         # Don't forget last chunk
         if current_chunk.strip():
-            chunks.append(self._make_chunk(
-                section, spatial, tree, current_chunk, chunk_idx
-            ))
+            chunks.append(self._make_chunk(section, spatial, tree, current_chunk, chunk_idx))
 
         return chunks
 
@@ -225,9 +224,11 @@ class StructuralChunker:
             id=f"struct_{section.id}_{idx}",
             chunk_type=ChunkType.MICRO,
             turn_range=(section.line_start, section.line_end),
-            summary=f"{section_path[-1] if section_path else 'Untitled'} (part {idx+1}): {content[:80]}...",
+            summary=f"{section_path[-1] if section_path else 'Untitled'} (part {idx + 1}): {content[:80]}...",
             token_count=int(len(content.split()) * 1.3),
-            themes=(section.section_type.value,) if section.section_type != SectionType.UNKNOWN else (),
+            themes=(section.section_type.value,)
+            if section.section_type != SectionType.UNKNOWN
+            else (),
         )
 
         return (chunk, spatial, section)

@@ -24,20 +24,20 @@ Usage:
         notify,
         NotificationConfig,
     )
-    
+
     # Simple notification
     notify("Task complete", "Auth system implemented")
-    
+
     # With config
     notifier = Notifier(config)
     await notifier.send_complete("Build finished", duration=12.5)
-    
+
     # With batching
     batched = BatchedNotifier(notifier, window_ms=5000)
     await batched.send_complete("Task 1")  # Queued
     await batched.send_complete("Task 2")  # Queued
     # After 5 seconds: "2 tasks completed"
-    
+
     # With deep links
     await notifier.send(
         "Error in file",
@@ -45,13 +45,13 @@ Usage:
         NotificationType.ERROR,
         context={"file": "/path/to/file.py", "line": 42},
     )  # Click opens VS Code at the file:line
-    
+
     # Multi-channel routing
     router = ChannelRouter()
     router.add_channel(DesktopChannel(), priority=1)
     router.add_channel(SlackChannel(webhook_url="..."), priority=2)
     await router.send("Title", "Message", NotificationType.SUCCESS)
-    
+
     # Access history
     store = get_notification_store(workspace)
     recent = store.get_recent(limit=10)
@@ -88,9 +88,9 @@ from sunwell.interface.cli.notifications.store import (
 )
 from sunwell.interface.cli.notifications.system import (
     FocusModeBehavior,
-    Notifier,
     NotificationConfig,
     NotificationType,
+    Notifier,
     detect_focus_mode,
     notify,
     notify_complete,

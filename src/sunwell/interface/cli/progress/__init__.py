@@ -11,11 +11,11 @@ Usage:
         NestedProgress,
         StatusBar,
     )
-    
+
     # Show DAG path
     path_display = DAGPathDisplay(console)
     path_display.update(["conversation", "act", "write"])
-    
+
     # Track nested progress
     progress = NestedProgress(console)
     with progress.task("Building auth") as task:

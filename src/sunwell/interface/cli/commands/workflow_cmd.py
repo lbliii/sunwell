@@ -65,13 +65,17 @@ def run(chain_name: str, target: str | None, dry_run: bool, as_json: bool) -> No
 
     if dry_run:
         if as_json:
-            click.echo(json_lib.dumps({
-                "name": chain.name,
-                "description": chain.description,
-                "tier": chain.tier.value,
-                "steps": [{"skill": s.skill, "purpose": s.purpose} for s in chain.steps],
-                "checkpoint_after": list(chain.checkpoint_after),
-            }))
+            click.echo(
+                json_lib.dumps(
+                    {
+                        "name": chain.name,
+                        "description": chain.description,
+                        "tier": chain.tier.value,
+                        "steps": [{"skill": s.skill, "purpose": s.purpose} for s in chain.steps],
+                        "checkpoint_after": list(chain.checkpoint_after),
+                    }
+                )
+            )
         else:
             console.print(f"\n[bold]Workflow: {chain.name}[/bold]")
             console.print(f"Description: {chain.description}")
@@ -325,13 +329,17 @@ def auto(user_input: tuple[str, ...], as_json: bool) -> None:
     intent, workflow_chain = router.classify_and_select(input_text)
 
     if as_json:
-        click.echo(json_lib.dumps({
-            "category": intent.category.value,
-            "confidence": intent.confidence,
-            "signals": list(intent.signals),
-            "suggested_workflow": workflow_chain.name if workflow_chain else None,
-            "tier": intent.tier.value,
-        }))
+        click.echo(
+            json_lib.dumps(
+                {
+                    "category": intent.category.value,
+                    "confidence": intent.confidence,
+                    "signals": list(intent.signals),
+                    "suggested_workflow": workflow_chain.name if workflow_chain else None,
+                    "tier": intent.tier.value,
+                }
+            )
+        )
         return
 
     explanation = router.explain_routing(input_text)

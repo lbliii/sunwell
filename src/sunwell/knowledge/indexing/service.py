@@ -122,33 +122,72 @@ class IndexingService:
 
     # Supported extensions (code + prose + scripts + docs)
     index_extensions: frozenset[str] = field(
-        default_factory=lambda: frozenset({
-            # Code
-            ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".rb",
-            ".java", ".kt", ".swift", ".c", ".cpp", ".h", ".hpp", ".cs",
-            # Config
-            ".yaml", ".yml", ".toml", ".json",
-            # Documentation
-            ".md", ".rst", ".mdx", ".adoc",
-            # Prose
-            ".txt", ".rtf",
-            # Screenplays
-            ".fountain", ".fdx", ".highland",
-        })
+        default_factory=lambda: frozenset(
+            {
+                # Code
+                ".py",
+                ".js",
+                ".ts",
+                ".jsx",
+                ".tsx",
+                ".go",
+                ".rs",
+                ".rb",
+                ".java",
+                ".kt",
+                ".swift",
+                ".c",
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".cs",
+                # Config
+                ".yaml",
+                ".yml",
+                ".toml",
+                ".json",
+                # Documentation
+                ".md",
+                ".rst",
+                ".mdx",
+                ".adoc",
+                # Prose
+                ".txt",
+                ".rtf",
+                # Screenplays
+                ".fountain",
+                ".fdx",
+                ".highland",
+            }
+        )
     )
 
     # Extensions for L1 signature-only indexing (just code, not docs)
     signature_extensions: frozenset[str] = field(
-        default_factory=lambda: frozenset({
-            ".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".rb",
-            ".java", ".kt", ".swift", ".c", ".cpp", ".h", ".hpp", ".cs",
-        })
+        default_factory=lambda: frozenset(
+            {
+                ".py",
+                ".js",
+                ".ts",
+                ".jsx",
+                ".tsx",
+                ".go",
+                ".rs",
+                ".rb",
+                ".java",
+                ".kt",
+                ".swift",
+                ".c",
+                ".cpp",
+                ".h",
+                ".hpp",
+                ".cs",
+            }
+        )
     )
 
     # State
-    _status: IndexStatus = field(
-        default_factory=lambda: IndexStatus(state=IndexState.NO_INDEX)
-    )
+    _status: IndexStatus = field(default_factory=lambda: IndexStatus(state=IndexState.NO_INDEX))
     _index: CodebaseIndex | None = field(default=None, init=False)
     _embedder: object | None = field(default=None, init=False)
     _ready: asyncio.Event = field(default_factory=asyncio.Event, init=False)
@@ -160,9 +199,7 @@ class IndexingService:
     _project_type: ProjectType = field(default=ProjectType.UNKNOWN, init=False)
 
     # Content-aware chunking
-    _chunker_registry: ChunkerRegistry = field(
-        default_factory=ChunkerRegistry, init=False
-    )
+    _chunker_registry: ChunkerRegistry = field(default_factory=ChunkerRegistry, init=False)
 
     # Metrics
     _metrics: IndexMetrics = field(default_factory=IndexMetrics, init=False)
@@ -173,6 +210,7 @@ class IndexingService:
     def __post_init__(self) -> None:
         """Initialize computed fields."""
         from sunwell.knowledge.project.state import resolve_state_dir
+
         self.cache_dir = resolve_state_dir(self.workspace_root) / "index"
 
     @property
@@ -358,9 +396,7 @@ class IndexingService:
                 await self._save_cache()
 
                 # Record build time
-                self._metrics.build_time_ms = int(
-                    (time.perf_counter() - build_start) * 1000
-                )
+                self._metrics.build_time_ms = int((time.perf_counter() - build_start) * 1000)
                 self._metrics.last_build = datetime.now()
                 self._metrics.chunk_count = self._status.chunk_count
                 self._metrics.file_count = self._status.file_count
@@ -392,8 +428,7 @@ class IndexingService:
         """
         # Only index code files (not docs, prose, etc.)
         signature_files = [
-            f for f in self._iter_indexable_files()
-            if f.suffix in self.signature_extensions
+            f for f in self._iter_indexable_files() if f.suffix in self.signature_extensions
         ]
 
         if not signature_files:
@@ -440,10 +475,7 @@ class IndexingService:
         all_chunks = self._chunk_file(file_path)
 
         # Filter to only function and class chunks (signatures)
-        return [
-            c for c in all_chunks
-            if c.chunk_type in ("function", "class", "module")
-        ]
+        return [c for c in all_chunks if c.chunk_type in ("function", "class", "module")]
 
     async def _index_priority_files(self) -> None:
         """Index priority files first for fast startup.
@@ -556,9 +588,7 @@ class IndexingService:
         result = await self._embedder.embed(texts)
 
         # Track embedding time
-        self._metrics.embedding_time_ms += int(
-            (time.perf_counter() - embed_start) * 1000
-        )
+        self._metrics.embedding_time_ms += int((time.perf_counter() - embed_start) * 1000)
 
         if self._index is None:
             self._index = CodebaseIndex()
@@ -641,9 +671,7 @@ class IndexingService:
 
         for path in paths:
             # Remove old chunks for this file
-            self._index.chunks = [
-                c for c in self._index.chunks if c.file_path != path
-            ]
+            self._index.chunks = [c for c in self._index.chunks if c.file_path != path]
             # Remove old embeddings
             for chunk_id in list(self._index.embeddings.keys()):
                 # Chunk IDs include file info, so we filter

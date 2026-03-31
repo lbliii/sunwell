@@ -135,9 +135,7 @@ class LensManifest:
             display_name=data["display_name"],
             lineage=LensLineage.from_dict(data.get("lineage", {})),
             current_version=data["current_version"],
-            versions=tuple(
-                LensVersionInfo.from_dict(v) for v in data.get("versions", [])
-            ),
+            versions=tuple(LensVersionInfo.from_dict(v) for v in data.get("versions", [])),
             domain=data.get("domain"),
             tags=tuple(data.get("tags", [])),
             heuristics_count=data.get("heuristics_count", 0),

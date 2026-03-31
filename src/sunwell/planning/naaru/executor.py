@@ -16,7 +16,6 @@ Example:
     >>> results = await executor.execute(graph, create_artifact)
 """
 
-
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
@@ -37,7 +36,7 @@ from sunwell.planning.naaru.artifacts import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sunwell.features.external.integration import IntegrationVerifier
+    from sunwell.integration import IntegrationVerifier
     from sunwell.planning.naaru.planners.artifact import ArtifactPlanner
 
 logger = logging.getLogger(__name__)
@@ -351,7 +350,7 @@ class ArtifactExecutor:
 
         from pathlib import Path
 
-        from sunwell.features.external.integration import ProducedArtifact
+        from sunwell.integration import ProducedArtifact
 
         try:
             # Build list of produced artifacts from completed results
@@ -389,8 +388,8 @@ class ArtifactExecutor:
                 extra={
                     "error": str(e),
                     "error_type": type(e).__name__,
-                    "artifacts_produced": len(produced) if 'produced' in locals() else 0,
-                }
+                    "artifacts_produced": len(produced) if "produced" in locals() else 0,
+                },
             )
 
     async def _execute_artifact(
@@ -503,8 +502,8 @@ class ArtifactExecutor:
                     "artifact_id": artifact.id,
                     "error": str(e),
                     "error_type": type(e).__name__,
-                    "file_path": str(file_path) if 'file_path' in locals() else None,
-                }
+                    "file_path": str(file_path) if "file_path" in locals() else None,
+                },
             )
 
     async def _discover_new(
@@ -540,7 +539,7 @@ class ArtifactExecutor:
                     "error_type": type(e).__name__,
                     "just_created_artifact": just_created.id,
                     "completed_count": len(completed),
-                }
+                },
             )
             return []
 

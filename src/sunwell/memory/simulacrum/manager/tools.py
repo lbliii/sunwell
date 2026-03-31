@@ -3,7 +3,6 @@
 RFC-025: Extracted from manager.py to slim it down.
 """
 
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -26,7 +25,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "switch_simulacrum": Tool(
         name="switch_simulacrum",
         description=(
@@ -45,7 +43,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-
     "create_simulacrum": Tool(
         name="create_simulacrum",
         description=(
@@ -73,7 +70,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name", "description"],
         },
     ),
-
     "suggest_simulacrum": Tool(
         name="suggest_simulacrum",
         description=(
@@ -91,7 +87,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["topic"],
         },
     ),
-
     "query_all_simulacrums": Tool(
         name="query_all_simulacrums",
         description=(
@@ -115,7 +110,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-
     "current_simulacrum": Tool(
         name="current_simulacrum",
         description="Get information about the currently active simulacrum.",
@@ -125,7 +119,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "route_query": Tool(
         name="route_query",
         description=(
@@ -150,7 +143,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["query"],
         },
     ),
-
     "spawn_status": Tool(
         name="spawn_status",
         description=(
@@ -164,7 +156,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "simulacrum_health": Tool(
         name="simulacrum_health",
         description=(
@@ -178,7 +169,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "archive_simulacrum": Tool(
         name="archive_simulacrum",
         description=(
@@ -202,7 +192,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-
     "restore_simulacrum": Tool(
         name="restore_simulacrum",
         description=(
@@ -220,7 +209,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": ["name"],
         },
     ),
-
     "list_archived": Tool(
         name="list_archived",
         description="List all archived simulacrums that can be restored.",
@@ -230,7 +218,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "cleanup_simulacrums": Tool(
         name="cleanup_simulacrums",
         description=(
@@ -249,7 +236,6 @@ SIMULACRUM_TOOLS: dict[str, Tool] = {
             "required": [],
         },
     ),
-
     "shrink_simulacrum": Tool(
         name="shrink_simulacrum",
         description=(
@@ -401,9 +387,7 @@ class SimulacrumToolHandler:
         lines = [f"Suggested simulacrums for '{topic}':"]
         for meta, score in suggestions:
             active = " (currently active)" if meta.name == self.manager.active_name else ""
-            lines.append(
-                f"- **{meta.name}** ({score:.0%} relevance){active}: {meta.description}"
-            )
+            lines.append(f"- **{meta.name}** ({score:.0%} relevance){active}: {meta.description}")
         return "\n".join(lines)
 
     async def _query_all(self, query: str, limit: int) -> str:
@@ -465,11 +449,13 @@ class SimulacrumToolHandler:
             f"  Unmatched queries tracked: {status['unmatched_queries']}",
         ]
 
-        if status['pending_domains']:
+        if status["pending_domains"]:
             lines.append("\n**Pending Domains** (potential new simulacrums):")
-            for domain in status['pending_domains']:
-                ready = "✓ Ready" if domain['ready_to_spawn'] else "○ Accumulating"
-                keywords = ', '.join(domain['top_keywords'][:3]) if domain['top_keywords'] else 'none'
+            for domain in status["pending_domains"]:
+                ready = "✓ Ready" if domain["ready_to_spawn"] else "○ Accumulating"
+                keywords = (
+                    ", ".join(domain["top_keywords"][:3]) if domain["top_keywords"] else "none"
+                )
                 lines.append(
                     f"  - {ready}: {domain['query_count']} queries, "
                     f"coherence={domain['coherence']:.0%}, "
@@ -507,7 +493,14 @@ class SimulacrumToolHandler:
             for name1, name2, sim in health["merge_candidates"][:5]:
                 lines.append(f"  - {name1} ↔ {name2} ({sim:.0%} overlap)")
 
-        if not any([health["stale"], health["empty"], health["archive_candidates"], health["merge_candidates"]]):
+        if not any(
+            [
+                health["stale"],
+                health["empty"],
+                health["archive_candidates"],
+                health["merge_candidates"],
+            ]
+        ):
             lines.append("\n✅ All simulacrums are healthy!")
 
         return "\n".join(lines)

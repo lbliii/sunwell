@@ -78,9 +78,8 @@ def signal_plan_health(artifacts: list[ArtifactSpec]) -> dict[str, Any]:
     # Determine if simplification needed
     hot_count = sum(1 for s in signals if s == 2)
     # Trigger on: cycles, bidirectional deps, OR unknown deps (any of these = can't execute)
-    needs_simplification = (
-        hot_count >= 2 or
-        any("Cycle" in i or "Bidirectional" in i or "unknown" in i for i in issues)
+    needs_simplification = hot_count >= 2 or any(
+        "Cycle" in i or "Bidirectional" in i or "unknown" in i for i in issues
     )
 
     return {
@@ -196,9 +195,7 @@ async def break_cycle(
         Corrected artifact list with cycle broken
     """
     cycle_str = " → ".join(cycle + [cycle[0]])
-    artifacts_desc = "\n".join(
-        f"- {a.id}: requires {list(a.requires)}" for a in artifacts
-    )
+    artifacts_desc = "\n".join(f"- {a.id}: requires {list(a.requires)}" for a in artifacts)
 
     prompt = f"""GOAL: {goal}
 

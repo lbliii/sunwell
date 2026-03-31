@@ -149,11 +149,14 @@ def preview(ctx: click.Context, artifact_id: str, max_depth: int, as_json: bool)
 @click.option("--json", "as_json", is_flag=True, help="Output progress as JSON events")
 @click.option("--wave-by-wave", is_flag=True, help="Approve each wave manually")
 @click.option("--show-deltas", is_flag=True, help="Show diffs before executing")
+@click.option("--confidence-threshold", default=0.7, help="Min confidence to auto-proceed")
 @click.option(
-    "--confidence-threshold", default=0.7, help="Min confidence to auto-proceed"
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "ollama"]),
+    default=None,
+    help="Model provider (default: from config)",
 )
-@click.option("--provider", "-p", type=click.Choice(["openai", "anthropic", "ollama"]),
-              default=None, help="Model provider (default: from config)")
 @click.option("--model", "-m", default=None, help="Override model (e.g., gemma3:4b)")
 @click.pass_context
 def fix(

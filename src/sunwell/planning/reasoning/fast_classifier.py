@@ -24,7 +24,6 @@ constrained classification tasks.
 See: RFC-073 (Reasoned Decisions)
 """
 
-
 import json
 import re
 from dataclasses import dataclass, field
@@ -204,9 +203,7 @@ class FastClassifier:
     temperature: float = 0.1
     """Low temperature for consistent classifications."""
 
-    _cache: dict[str, ClassificationResult] = field(
-        default_factory=dict, repr=False
-    )
+    _cache: dict[str, ClassificationResult] = field(default_factory=dict, repr=False)
     """Simple cache for repeated classifications."""
 
     async def classify(
@@ -258,9 +255,7 @@ JSON:"""
             ClassificationResult
         """
         prompt = template.prompt_template.format(**context)
-        return await self._execute(
-            prompt, template.output_key, template.options, template.default
-        )
+        return await self._execute(prompt, template.output_key, template.options, template.default)
 
     async def batch_classify(
         self,
@@ -290,21 +285,15 @@ JSON:"""
 
     async def complexity(self, task: str) -> str:
         """Quick complexity classification."""
-        result = await self.classify_with_template(
-            COMPLEXITY_TEMPLATE, {"task": task}
-        )
+        result = await self.classify_with_template(COMPLEXITY_TEMPLATE, {"task": task})
         return result.value
 
     async def intent(self, request: str) -> str:
         """Quick intent classification."""
-        result = await self.classify_with_template(
-            INTENT_TEMPLATE, {"request": request}
-        )
+        result = await self.classify_with_template(INTENT_TEMPLATE, {"request": request})
         return result.value
 
-    async def risk(
-        self, action: str, file_path: str, change_description: str
-    ) -> str:
+    async def risk(self, action: str, file_path: str, change_description: str) -> str:
         """Quick risk classification."""
         result = await self.classify_with_template(
             RISK_TEMPLATE,

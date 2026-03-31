@@ -334,26 +334,28 @@ async def _library(json_output: bool, filter_by: str | None) -> None:
             # RFC-100: Get usage data
             usage = get_lens_usage(e.lens.metadata.name)
 
-            data.append({
-                "name": e.lens.metadata.name,
-                "domain": e.lens.metadata.domain,
-                "version": str(e.lens.metadata.version),
-                "description": e.lens.metadata.description,
-                "source": e.source,
-                "path": str(e.path),
-                "is_default": e.is_default,
-                "is_editable": e.is_editable,
-                "version_count": e.version_count,
-                "heuristics_count": len(e.lens.heuristics),
-                "skills_count": len(e.lens.skills),
-                "use_cases": list(e.lens.metadata.use_cases),
-                "tags": list(e.lens.metadata.tags),
-                "last_modified": e.last_modified,
-                # RFC-100: Discovery features
-                "top_heuristics": top_heuristics,
-                "last_used": usage.get("last_used"),
-                "usage_history": usage.get("history", []),
-            })
+            data.append(
+                {
+                    "name": e.lens.metadata.name,
+                    "domain": e.lens.metadata.domain,
+                    "version": str(e.lens.metadata.version),
+                    "description": e.lens.metadata.description,
+                    "source": e.source,
+                    "path": str(e.path),
+                    "is_default": e.is_default,
+                    "is_editable": e.is_editable,
+                    "version_count": e.version_count,
+                    "heuristics_count": len(e.lens.heuristics),
+                    "skills_count": len(e.lens.skills),
+                    "use_cases": list(e.lens.metadata.use_cases),
+                    "tags": list(e.lens.metadata.tags),
+                    "last_modified": e.last_modified,
+                    # RFC-100: Discovery features
+                    "top_heuristics": top_heuristics,
+                    "last_used": usage.get("last_used"),
+                    "usage_history": usage.get("history", []),
+                }
+            )
         print(json_module.dumps(data, indent=2))
         return
 
@@ -610,6 +612,7 @@ def record_usage(name: str) -> None:
     Internal command used by Studio to track lens usage.
     """
     from sunwell.planning.lens.usage import record_lens_activation
+
     record_lens_activation(name)
 
 
@@ -747,12 +750,16 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
 
     if not lens_obj.skills:
         if json_output:
-            print(json_module.dumps({
-                "lensName": lens_name,
-                "skills": {},
-                "waves": [],
-                "contentHash": "",
-            }))
+            print(
+                json_module.dumps(
+                    {
+                        "lensName": lens_name,
+                        "skills": {},
+                        "waves": [],
+                        "contentHash": "",
+                    }
+                )
+            )
         else:
             console.print(f"[sunwell.warning]Lens '{lens_name}' has no skills.[/]")
         return
@@ -788,8 +795,7 @@ async def _skill_graph(lens_name: str, json_output: bool, mermaid: bool) -> None
                 for skill in lens_obj.skills
             },
             "waves": [
-                {"waveIndex": i, "skills": wave}
-                for i, wave in enumerate(graph.execution_waves())
+                {"waveIndex": i, "skills": wave} for i, wave in enumerate(graph.execution_waves())
             ],
             "contentHash": graph.content_hash(),
         }
@@ -850,12 +856,21 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
 
     if not lens_obj.skills:
         if json_output:
-            print(json_module.dumps({
-                "graph": {"lensName": lens_name, "skills": {}, "waves": [], "contentHash": ""},
-                "toExecute": [],
-                "toSkip": [],
-                "skipPercentage": 0.0,
-            }))
+            print(
+                json_module.dumps(
+                    {
+                        "graph": {
+                            "lensName": lens_name,
+                            "skills": {},
+                            "waves": [],
+                            "contentHash": "",
+                        },
+                        "toExecute": [],
+                        "toSkip": [],
+                        "skipPercentage": 0.0,
+                    }
+                )
+            )
         else:
             console.print(f"[sunwell.warning]Lens '{lens_name}' has no skills.[/]")
         return
@@ -890,8 +905,7 @@ async def _skill_plan(lens_name: str, context_hash: str | None, json_output: boo
             for skill in lens_obj.skills
         },
         "waves": [
-            {"waveIndex": i, "skills": wave}
-            for i, wave in enumerate(graph.execution_waves())
+            {"waveIndex": i, "skills": wave} for i, wave in enumerate(graph.execution_waves())
         ],
         "contentHash": graph.content_hash(),
     }

@@ -59,6 +59,7 @@ class ToolPattern:
     def id(self) -> str:
         """Unique identifier for this pattern."""
         import hashlib
+
         content = f"{self.task_type}:{','.join(self.tool_sequence)}"
         return hashlib.blake2b(content.encode(), digest_size=6).hexdigest()
 

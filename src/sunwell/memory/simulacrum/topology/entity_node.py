@@ -118,5 +118,7 @@ class EntityNode(MemoryNode):
             related_learnings=(
                 *self.related_learnings,
                 learning_id,
-            ) if learning_id not in self.related_learnings else self.related_learnings,
+            )
+            if learning_id not in self.related_learnings
+            else self.related_learnings,
         )

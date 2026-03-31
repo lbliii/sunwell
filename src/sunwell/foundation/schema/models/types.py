@@ -8,7 +8,6 @@ by foundation (e.g., Confidence, IntentCategory, error types) remain
 in core.types.types.
 """
 
-
 import re
 from dataclasses import dataclass
 from enum import Enum

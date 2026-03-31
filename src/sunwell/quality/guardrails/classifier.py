@@ -332,9 +332,7 @@ class ActionClassifier:
                 return zone
         return None
 
-    def _classify_action_type(
-        self, action: Action
-    ) -> tuple[str, ActionRisk]:
+    def _classify_action_type(self, action: Action) -> tuple[str, ActionRisk]:
         """Classify action by type and patterns."""
         # File operations
         if action.action_type.startswith("file_"):
@@ -624,9 +622,7 @@ class SmartActionClassifier(ActionClassifier):
             # LLM failed, fall back to pattern result
             return classification
 
-    def _build_action_context(
-        self, action: Action, classification: ActionClassification
-    ) -> str:
+    def _build_action_context(self, action: Action, classification: ActionClassification) -> str:
         """Build context string for LLM risk assessment."""
         parts = [
             f"Action: {action.action_type}",
@@ -646,9 +642,7 @@ class SmartActionClassifier(ActionClassifier):
 
         return "\n".join(parts)
 
-    async def classify_all_smart(
-        self, actions: list[Action]
-    ) -> list[ActionClassification]:
+    async def classify_all_smart(self, actions: list[Action]) -> list[ActionClassification]:
         """Classify multiple actions with LLM fallback.
 
         Args:
@@ -709,8 +703,10 @@ class SmartActionClassifier(ActionClassifier):
         if not self._enable_learning:
             return
 
-        outcome = ViolationOutcome.FALSE_POSITIVE if is_false_positive else (
-            ViolationOutcome.OVERRIDDEN if approved else ViolationOutcome.BLOCKED
+        outcome = (
+            ViolationOutcome.FALSE_POSITIVE
+            if is_false_positive
+            else (ViolationOutcome.OVERRIDDEN if approved else ViolationOutcome.BLOCKED)
         )
 
         violation = GuardViolation(
@@ -751,9 +747,7 @@ class SmartActionClassifier(ActionClassifier):
             false_positives = sum(
                 1 for v in violations if v.outcome == ViolationOutcome.FALSE_POSITIVE
             )
-            overrides = sum(
-                1 for v in violations if v.outcome == ViolationOutcome.OVERRIDDEN
-            )
+            overrides = sum(1 for v in violations if v.outcome == ViolationOutcome.OVERRIDDEN)
             total = len(violations)
 
             # Check thresholds for suggestions

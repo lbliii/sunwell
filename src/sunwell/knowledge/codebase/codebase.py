@@ -5,7 +5,6 @@ Semantic understanding of the codebase, not just file contents.
 Enhanced with structural graph for task decomposition and goal analysis.
 """
 
-
 import ast
 import pickle
 from collections import deque
@@ -163,14 +162,10 @@ class CodebaseGraph:
     structural_nodes: dict[str, StructuralNode] = field(default_factory=dict)
     """All nodes in the structural graph. {node_id: StructuralNode}"""
 
-    structural_edges_out: dict[str, list[tuple[str, StructuralEdge]]] = field(
-        default_factory=dict
-    )
+    structural_edges_out: dict[str, list[tuple[str, StructuralEdge]]] = field(default_factory=dict)
     """Outgoing edges. {source_id: [(target_id, edge), ...]}"""
 
-    structural_edges_in: dict[str, list[tuple[str, StructuralEdge]]] = field(
-        default_factory=dict
-    )
+    structural_edges_in: dict[str, list[tuple[str, StructuralEdge]]] = field(default_factory=dict)
     """Incoming edges. {target_id: [(source_id, edge), ...]}"""
 
     file_to_nodes: dict[Path, set[str]] = field(default_factory=dict)
@@ -262,9 +257,7 @@ class CodebaseGraph:
                 for target_id, _ in self.structural_edges_out[node_id]:
                     if target_id in self.structural_edges_in:
                         self.structural_edges_in[target_id] = [
-                            (s, e)
-                            for s, e in self.structural_edges_in[target_id]
-                            if s != node_id
+                            (s, e) for s, e in self.structural_edges_in[target_id] if s != node_id
                         ]
                 del self.structural_edges_out[node_id]
 
@@ -273,9 +266,7 @@ class CodebaseGraph:
                 for source_id, _ in self.structural_edges_in[node_id]:
                     if source_id in self.structural_edges_out:
                         self.structural_edges_out[source_id] = [
-                            (t, e)
-                            for t, e in self.structural_edges_out[source_id]
-                            if t != node_id
+                            (t, e) for t, e in self.structural_edges_out[source_id] if t != node_id
                         ]
                 del self.structural_edges_in[node_id]
 
@@ -289,14 +280,10 @@ class CodebaseGraph:
             "edges": edge_count,
             "files": len(self.file_to_nodes),
             "modules": sum(
-                1
-                for n in self.structural_nodes.values()
-                if n.node_type == NodeType.MODULE
+                1 for n in self.structural_nodes.values() if n.node_type == NodeType.MODULE
             ),
             "classes": sum(
-                1
-                for n in self.structural_nodes.values()
-                if n.node_type == NodeType.CLASS
+                1 for n in self.structural_nodes.values() if n.node_type == NodeType.CLASS
             ),
             "functions": sum(
                 1
@@ -592,8 +579,7 @@ class CodebaseAnalyzer:
         node_type = NodeType.METHOD if is_method else NodeType.FUNCTION
 
         func_id = (
-            f"{'method' if is_method else 'func'}:{node.name}:"
-            f"{self._current_file}:{node.lineno}"
+            f"{'method' if is_method else 'func'}:{node.name}:{self._current_file}:{node.lineno}"
         )
         func_node = StructuralNode(
             id=func_id,
@@ -818,10 +804,7 @@ class CodebaseAnalyzer:
         classes: dict[str, list[str]] = {}
         for node in extract_class_defs(tree):
             class_name = f"{module}.{node.name}"
-            bases = [
-                base.id if isinstance(base, ast.Name) else str(base)
-                for base in node.bases
-            ]
+            bases = [base.id if isinstance(base, ast.Name) else str(base) for base in node.bases]
             classes[class_name] = bases
         return classes
 

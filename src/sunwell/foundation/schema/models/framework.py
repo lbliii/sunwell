@@ -1,6 +1,5 @@
 """Framework/methodology data models."""
 
-
 from dataclasses import dataclass
 
 

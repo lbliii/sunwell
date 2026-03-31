@@ -109,7 +109,7 @@ class ToolRationaleValidator:
 
     require_rationale: bool = True
     min_strength: RationaleStrength = RationaleStrength.MODERATE
-    learning_store: "LearningStore | None" = None
+    learning_store: LearningStore | None = None
     retry_on_weak: bool = True
 
     # Cache for validated rationales
@@ -169,7 +169,7 @@ class ToolRationaleValidator:
         self,
         tool_name: str,
         query: str,
-        available_tools: "tuple[Tool, ...]",
+        available_tools: tuple[Tool, ...],
     ) -> tuple[str, ...]:
         """Suggest alternative tools when rationale is weak.
 
@@ -208,8 +208,8 @@ class ToolRationaleValidator:
         self,
         tool_name: str,
         query: str,
-        model: "ModelProtocol",
-        available_tools: "tuple[Tool, ...] | None" = None,
+        model: ModelProtocol,
+        available_tools: tuple[Tool, ...] | None = None,
     ) -> ToolRationale:
         """Generate a rationale for a tool choice.
 
@@ -279,7 +279,7 @@ class ToolRationaleValidator:
         tool_name: str,
         rationale: str,
         query: str,
-        available_tools: "tuple[Tool, ...] | None" = None,
+        available_tools: tuple[Tool, ...] | None = None,
     ) -> ToolRationale:
         """Validate an existing rationale (no model required).
 
@@ -337,7 +337,10 @@ class ToolRationaleValidator:
             except Exception as e:
                 logger.warning("Failed to record tool pattern: %s", e)
 
-        elif not success and rationale.strength in (RationaleStrength.WEAK, RationaleStrength.INVALID):
+        elif not success and rationale.strength in (
+            RationaleStrength.WEAK,
+            RationaleStrength.INVALID,
+        ):
             # This confirms the weak rationale was indeed wrong
             # Could record as dead end
             logger.debug(
@@ -359,7 +362,7 @@ class ToolRationaleValidator:
 def generate_heuristic_rationale(
     tool_name: str,
     query: str,
-    available_tools: "tuple[Tool, ...] | None" = None,
+    available_tools: tuple[Tool, ...] | None = None,
 ) -> ToolRationale:
     """Generate a heuristic rationale without a model.
 

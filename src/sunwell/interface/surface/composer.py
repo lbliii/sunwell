@@ -33,9 +33,9 @@ _DOMAIN_DEFAULT_PRIMARY: dict[str, str] = {
     "universal": "CodeEditor",
 }
 
-_VALID_ARRANGEMENTS: frozenset[SurfaceArrangement] = frozenset({
-    "standard", "focused", "split", "dashboard"
-})
+_VALID_ARRANGEMENTS: frozenset[SurfaceArrangement] = frozenset(
+    {"standard", "focused", "split", "dashboard"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,9 +100,7 @@ class SurfaceComposer:
         # 2. Build scoring context
         affordances = lens.affordances if lens else None
         project_domain = (
-            get_domain_for_project(project_path)
-            if project_path
-            else intent.primary_domain
+            get_domain_for_project(project_path) if project_path else intent.primary_domain
         )
 
         context = ScoringContext(
@@ -193,9 +191,7 @@ class SurfaceComposer:
         intent = extract_intent(goal)
 
         project_domain = (
-            get_domain_for_project(project_path)
-            if project_path
-            else intent.primary_domain
+            get_domain_for_project(project_path) if project_path else intent.primary_domain
         )
 
         context = ScoringContext(
@@ -207,9 +203,7 @@ class SurfaceComposer:
 
         # Score and select
         scoring_result = score_primitives(goal, self.registry, context)
-        primary_scored, secondary_scored, contextual_scored = select_primitives(
-            scoring_result
-        )
+        primary_scored, secondary_scored, contextual_scored = select_primitives(scoring_result)
 
         # Build spec
         primary = (
@@ -276,9 +270,7 @@ class SurfaceComposer:
 
         # Add secondary selection confidence
         if secondary_scored:
-            avg_secondary_score = sum(s.score for s in secondary_scored) / len(
-                secondary_scored
-            )
+            avg_secondary_score = sum(s.score for s in secondary_scored) / len(secondary_scored)
             confidence += avg_secondary_score * 0.2
 
         # Base confidence from having any result
@@ -295,34 +287,36 @@ class SurfaceComposer:
         context: ScoringContext,
     ) -> MappingProxyType[str, Any]:
         """Build explanation of composition decisions."""
-        return MappingProxyType({
-            "intent": {
-                "primary_domain": intent.primary_domain,
-                "domain_scores": intent.domain_scores,
-                "triggered_primitives": intent.triggered_primitives,
-                "confidence": intent.confidence,
-            },
-            "selection": {
-                "primary": {
-                    "id": primary_scored.primitive_id if primary_scored else None,
-                    "score": primary_scored.score if primary_scored else 0,
-                    "reasons": primary_scored.reasons if primary_scored else [],
+        return MappingProxyType(
+            {
+                "intent": {
+                    "primary_domain": intent.primary_domain,
+                    "domain_scores": intent.domain_scores,
+                    "triggered_primitives": intent.triggered_primitives,
+                    "confidence": intent.confidence,
                 },
-                "secondary": [
-                    {"id": s.primitive_id, "score": s.score, "reasons": s.reasons}
-                    for s in secondary_scored
-                ],
-                "contextual": [
-                    {"id": s.primitive_id, "score": s.score, "reasons": s.reasons}
-                    for s in contextual_scored
-                ],
-            },
-            "context": {
-                "has_affordances": context.affordances is not None,
-                "project_domain": context.project_domain,
-                "memory_patterns_count": len(context.memory_patterns),
-            },
-        })
+                "selection": {
+                    "primary": {
+                        "id": primary_scored.primitive_id if primary_scored else None,
+                        "score": primary_scored.score if primary_scored else 0,
+                        "reasons": primary_scored.reasons if primary_scored else [],
+                    },
+                    "secondary": [
+                        {"id": s.primitive_id, "score": s.score, "reasons": s.reasons}
+                        for s in secondary_scored
+                    ],
+                    "contextual": [
+                        {"id": s.primitive_id, "score": s.score, "reasons": s.reasons}
+                        for s in contextual_scored
+                    ],
+                },
+                "context": {
+                    "has_affordances": context.affordances is not None,
+                    "project_domain": context.project_domain,
+                    "memory_patterns_count": len(context.memory_patterns),
+                },
+            }
+        )
 
 
 # =============================================================================

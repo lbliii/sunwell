@@ -81,9 +81,7 @@ async def plan_with_signals(
 
     if signals.planning_route == "HARMONIC":
         logger.debug("[Observatory] Starting harmonic planning (multi-candidate)")
-        async for event in _harmonic_plan(
-            goal, planning_context, model, budget, simulacrum
-        ):
+        async for event in _harmonic_plan(goal, planning_context, model, budget, simulacrum):
             yield event
     else:
         logger.debug("[Observatory] Starting single-shot planning (simple path)")
@@ -125,9 +123,7 @@ async def _harmonic_plan(
             # Track the winner info as events come in
             nonlocal selected_candidate_id, winner_score, winner_metrics
             if event.type == EventType.PLAN_WINNER:
-                selected_candidate_id = event.data.get(
-                    "selected_candidate_id", "candidate-0"
-                )
+                selected_candidate_id = event.data.get("selected_candidate_id", "candidate-0")
                 winner_score = event.data.get("score", 0.0)
                 winner_metrics = event.data.get("metrics")
             event_queue.put_nowait(event)

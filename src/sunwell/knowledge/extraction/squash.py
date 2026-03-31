@@ -25,7 +25,6 @@ Example:
     >>> print(result.uncertain_items)   # Where extractors disagreed
 """
 
-
 import asyncio
 import re
 from dataclasses import dataclass
@@ -286,15 +285,11 @@ async def squash_extract(
 
     # Calculate overall agreement
     all_facts = confident_facts + uncertain_facts
-    overall_agreement = (
-        sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
-    )
+    overall_agreement = sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
 
     # Synthesize goal from confident facts only
     if confident_facts:
-        facts_str = "\n".join(
-            f"- {f.source_question}: {f.content}" for f in confident_facts
-        )
+        facts_str = "\n".join(f"- {f.source_question}: {f.content}" for f in confident_facts)
         synth_prompt = SYNTHESIS_PROMPT.format(facts=facts_str)
         synth_result = await model.generate(
             synth_prompt,
@@ -331,7 +326,7 @@ def _find_section(document: str, section_keywords: list[str], max_chars: int = 3
         if match:
             # Get the actual section from original document (preserve case)
             start = match.start()
-            section = document[start:start + max_chars]
+            section = document[start : start + max_chars]
             return section
 
     return None
@@ -343,10 +338,10 @@ async def section_aware_extract(
     n_extractions: int = 2,
 ) -> SquashResult:
     """Extract from specific sections rather than whole document.
-    
+
     This is more accurate because:
     1. Finds relevant sections by keywords
-    2. Extracts from those sections specifically  
+    2. Extracts from those sections specifically
     3. Avoids whole-doc inference that leads to hallucination
     """
     confident_facts: list[ExtractedFact] = []
@@ -358,13 +353,15 @@ async def section_aware_extract(
 
         if not section:
             # Section not found - mark as uncertain
-            uncertain_facts.append(ExtractedFact(
-                content="NOT FOUND",
-                source_question=config["question"],
-                extractor_count=0,
-                confidence=0.0,
-                quotes=(),
-            ))
+            uncertain_facts.append(
+                ExtractedFact(
+                    content="NOT FOUND",
+                    source_question=config["question"],
+                    extractor_count=0,
+                    confidence=0.0,
+                    quotes=(),
+                )
+            )
             continue
 
         # Extract from this specific section
@@ -393,15 +390,11 @@ async def section_aware_extract(
 
     # Calculate overall agreement
     all_facts = [f for f in chain(confident_facts, uncertain_facts) if f.confidence > 0]
-    overall_agreement = (
-        sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
-    )
+    overall_agreement = sum(f.confidence for f in all_facts) / len(all_facts) if all_facts else 0.0
 
     # Synthesize from confident facts
     if confident_facts:
-        facts_str = "\n".join(
-            f"- {f.source_question}: {f.content}" for f in confident_facts
-        )
+        facts_str = "\n".join(f"- {f.source_question}: {f.content}" for f in confident_facts)
         synth_prompt = SYNTHESIS_PROMPT.format(facts=facts_str)
         synth_result = await model.generate(
             synth_prompt,
@@ -430,7 +423,7 @@ async def extract_goal_with_squash(
     """Extract a planning goal from a document using squash extraction.
 
     This is the recommended way to extract goals from large documents.
-    
+
     Args:
         document: The document to extract from
         model: Model to use

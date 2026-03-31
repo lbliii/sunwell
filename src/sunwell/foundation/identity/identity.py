@@ -93,9 +93,7 @@ class SunwellURI:
 
         parts = path.split("/")
         if len(parts) < 3:
-            raise URIParseError(
-                f"Invalid URI format (expected type/namespace/slug): {uri}"
-            )
+            raise URIParseError(f"Invalid URI format (expected type/namespace/slug): {uri}")
 
         resource_type = parts[0]
         namespace = parts[1]

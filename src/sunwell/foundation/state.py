@@ -14,8 +14,6 @@ Resolution precedence:
   3. Legacy default: ``{workspace}/.sunwell/``
 """
 
-from __future__ import annotations
-
 import logging
 import os
 import sys

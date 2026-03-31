@@ -42,9 +42,7 @@ class SunwellFiles(FilesProvider):
             extension=path.suffix[1:] if path.suffix else None,
         )
 
-    async def list_files(
-        self, path: str = ".", recursive: bool = False
-    ) -> list[FileInfo]:
+    async def list_files(self, path: str = ".", recursive: bool = False) -> list[FileInfo]:
         """List files in a directory.
 
         Args:
@@ -82,9 +80,7 @@ class SunwellFiles(FilesProvider):
             key=lambda f: (not f.is_directory, f.name.lower()),
         )
 
-    async def search_files(
-        self, query: str, path: str | None = None
-    ) -> list[FileInfo]:
+    async def search_files(self, query: str, path: str | None = None) -> list[FileInfo]:
         """Search files by name pattern.
 
         Args:

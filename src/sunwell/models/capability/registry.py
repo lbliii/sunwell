@@ -393,15 +393,17 @@ def _match_phi(spec: ModelSpec) -> ModelCapability | None:
 
 
 # Models known to not support native tools
-_NO_NATIVE_TOOLS = frozenset({
-    "gemma",
-    "codellama",
-    "starcoder",
-    "yi",
-    "falcon",
-    "vicuna",
-    "wizardcoder",
-})
+_NO_NATIVE_TOOLS = frozenset(
+    {
+        "gemma",
+        "codellama",
+        "starcoder",
+        "yi",
+        "falcon",
+        "vicuna",
+        "wizardcoder",
+    }
+)
 
 
 def _match_no_tools(spec: ModelSpec) -> ModelCapability | None:

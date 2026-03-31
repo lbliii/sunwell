@@ -3,7 +3,6 @@
 Coordinates all scanners and populates RFC-045 intelligence stores.
 """
 
-
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -153,15 +152,17 @@ class BootstrapOrchestrator:
         # From documentation
         for section in doc.decision_sections:
             if section.question and section.choice:
-                decisions.append(BootstrapDecision(
-                    source="doc",
-                    source_file=section.source_file,
-                    commit_sha=None,
-                    question=section.question,
-                    choice=section.choice,
-                    rationale=section.rationale,
-                    confidence=0.75,  # Docs may be stale
-                ))
+                decisions.append(
+                    BootstrapDecision(
+                        source="doc",
+                        source_file=section.source_file,
+                        commit_sha=None,
+                        question=section.question,
+                        choice=section.choice,
+                        rationale=section.rationale,
+                        confidence=0.75,  # Docs may be stale
+                    )
+                )
 
         # From commits
         decision_commits = [c for c in git.commits if c.is_decision]
@@ -264,67 +265,78 @@ class BootstrapOrchestrator:
 
         # Formatter decision
         if config.formatter:
-            decisions.append(BootstrapDecision(
-                source="config",
-                source_file=Path("pyproject.toml"),
-                commit_sha=None,
-                question="Which code formatter to use?",
-                choice=config.formatter,
-                rationale="Configured in pyproject.toml",
-                confidence=0.85,  # Config is explicit
-            ))
+            decisions.append(
+                BootstrapDecision(
+                    source="config",
+                    source_file=Path("pyproject.toml"),
+                    commit_sha=None,
+                    question="Which code formatter to use?",
+                    choice=config.formatter,
+                    rationale="Configured in pyproject.toml",
+                    confidence=0.85,  # Config is explicit
+                )
+            )
 
         # Linter decision
         if config.linter:
-            decisions.append(BootstrapDecision(
-                source="config",
-                source_file=Path("pyproject.toml"),
-                commit_sha=None,
-                question="Which linter to use?",
-                choice=config.linter,
-                rationale="Configured in pyproject.toml",
-                confidence=0.85,
-            ))
+            decisions.append(
+                BootstrapDecision(
+                    source="config",
+                    source_file=Path("pyproject.toml"),
+                    commit_sha=None,
+                    question="Which linter to use?",
+                    choice=config.linter,
+                    rationale="Configured in pyproject.toml",
+                    confidence=0.85,
+                )
+            )
 
         # Type checker decision
         if config.type_checker:
-            decisions.append(BootstrapDecision(
-                source="config",
-                source_file=Path("pyproject.toml"),
-                commit_sha=None,
-                question="Which type checker to use?",
-                choice=config.type_checker,
-                rationale="Configured in pyproject.toml",
-                confidence=0.85,
-            ))
+            decisions.append(
+                BootstrapDecision(
+                    source="config",
+                    source_file=Path("pyproject.toml"),
+                    commit_sha=None,
+                    question="Which type checker to use?",
+                    choice=config.type_checker,
+                    rationale="Configured in pyproject.toml",
+                    confidence=0.85,
+                )
+            )
 
         # Test framework decision
         if config.test_framework:
-            decisions.append(BootstrapDecision(
-                source="config",
-                source_file=Path("pyproject.toml"),
-                commit_sha=None,
-                question="Which test framework to use?",
-                choice=config.test_framework,
-                rationale="Detected from configuration",
-                confidence=0.90,
-            ))
+            decisions.append(
+                BootstrapDecision(
+                    source="config",
+                    source_file=Path("pyproject.toml"),
+                    commit_sha=None,
+                    question="Which test framework to use?",
+                    choice=config.test_framework,
+                    rationale="Detected from configuration",
+                    confidence=0.90,
+                )
+            )
 
         # CI provider decision
         if config.ci_provider and config.ci_provider != "none":
             ci_path = (
-                Path(".github/workflows") if config.ci_provider == "github"
+                Path(".github/workflows")
+                if config.ci_provider == "github"
                 else Path(".gitlab-ci.yml")
             )
-            decisions.append(BootstrapDecision(
-                source="config",
-                source_file=ci_path,
-                commit_sha=None,
-                question="Which CI/CD platform to use?",
-                choice=config.ci_provider,
-                rationale="Detected from CI configuration files",
-                confidence=0.90,
-            ))
+            decisions.append(
+                BootstrapDecision(
+                    source="config",
+                    source_file=ci_path,
+                    commit_sha=None,
+                    question="Which CI/CD platform to use?",
+                    choice=config.ci_provider,
+                    rationale="Detected from CI configuration files",
+                    confidence=0.90,
+                )
+            )
 
         return decisions
 
@@ -350,8 +362,7 @@ class BootstrapOrchestrator:
             import_style=code.import_patterns.style,
             type_annotation_level=type_level,
             docstring_style=(
-                code.docstring_style.style
-                if code.docstring_style.style != "mixed" else "google"
+                code.docstring_style.style if code.docstring_style.style != "mixed" else "google"
             ),
             docstring_consistency=code.docstring_style.consistency,
             line_length=config.line_length or 100,
@@ -417,8 +428,16 @@ class BootstrapOrchestrator:
 
         # Only update fields that don't have user-confirmed evidence
         fields_updated = 0
-        for field in ["naming_conventions", "import_style", "type_annotation_level",
-                      "docstring_style", "line_length", "formatter", "linter", "type_checker"]:
+        for field in [
+            "naming_conventions",
+            "import_style",
+            "type_annotation_level",
+            "docstring_style",
+            "line_length",
+            "formatter",
+            "linter",
+            "type_checker",
+        ]:
             existing_evidence = existing.evidence.get(field, [])
             has_user_evidence = any("bootstrap:" not in e for e in existing_evidence)
 

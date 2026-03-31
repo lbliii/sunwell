@@ -11,7 +11,6 @@ Integrates with:
 - skills.graph.SkillGraph for DAG analysis
 """
 
-
 import re
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
@@ -245,47 +244,49 @@ class PermissionAnalyzer:
         ),
         (
             "GENERIC_SECRET",
-            re.compile(
-                r"(?i)(password|secret|token|api_key)\s*[=:]\s*['\"][^'\"]{8,}"
-            ),
+            re.compile(r"(?i)(password|secret|token|api_key)\s*[=:]\s*['\"][^'\"]{8,}"),
         ),
     )
 
     # High-risk path patterns (glob syntax)
-    SENSITIVE_PATHS: frozenset[str] = frozenset([
-        "~/.ssh/*",
-        "~/.aws/*",
-        "~/.config/gcloud/*",
-        "~/.kube/config",
-        "/etc/passwd",
-        "/etc/shadow",
-        "**/credentials*",
-        "**/*.pem",
-        "**/*.key",
-        "**/.env",
-        "**/.env.*",
-        "**/secrets.*",
-    ])
+    SENSITIVE_PATHS: frozenset[str] = frozenset(
+        [
+            "~/.ssh/*",
+            "~/.aws/*",
+            "~/.config/gcloud/*",
+            "~/.kube/config",
+            "/etc/passwd",
+            "/etc/shadow",
+            "**/credentials*",
+            "**/*.pem",
+            "**/*.key",
+            "**/.env",
+            "**/.env.*",
+            "**/secrets.*",
+        ]
+    )
 
     # Dangerous shell command patterns (prefix match)
     # Pattern syntax: prefix match with * as glob
-    DANGEROUS_COMMANDS: frozenset[str] = frozenset([
-        "rm -rf",  # Recursive delete
-        "dd if=",  # Raw disk write
-        "mkfs",  # Filesystem format
-        ":(){ :|:& };:",  # Fork bomb
-        "curl * | sh",  # Remote code exec
-        "curl * | bash",
-        "wget * | sh",
-        "wget * | bash",
-        "eval ",  # Arbitrary eval
-        "ssh ",  # Remote access
-        "scp ",  # Remote copy
-        "rsync ",  # Remote sync
-        "> /dev/sd",  # Direct disk write
-        "chmod 777",  # Overly permissive
-        "chown root",  # Privilege escalation
-    ])
+    DANGEROUS_COMMANDS: frozenset[str] = frozenset(
+        [
+            "rm -rf",  # Recursive delete
+            "dd if=",  # Raw disk write
+            "mkfs",  # Filesystem format
+            ":(){ :|:& };:",  # Fork bomb
+            "curl * | sh",  # Remote code exec
+            "curl * | bash",
+            "wget * | sh",
+            "wget * | bash",
+            "eval ",  # Arbitrary eval
+            "ssh ",  # Remote access
+            "scp ",  # Remote copy
+            "rsync ",  # Remote sync
+            "> /dev/sd",  # Direct disk write
+            "chmod 777",  # Overly permissive
+            "chown root",  # Privilege escalation
+        ]
+    )
 
     def __init__(self, weights: RiskWeights | None = None):
         """Initialize the permission analyzer.
@@ -295,9 +296,7 @@ class PermissionAnalyzer:
         """
         self.weights = weights or RiskWeights()
 
-    def analyze_dag(
-        self, dag: SkillGraph
-    ) -> tuple[PermissionScope, RiskAssessment]:
+    def analyze_dag(self, dag: SkillGraph) -> tuple[PermissionScope, RiskAssessment]:
         """Compute total permissions and risk for entire DAG.
 
         Args:
@@ -472,9 +471,7 @@ class PermissionAnalyzer:
 
         return PermissionScope()
 
-    def _check_risks_deterministic(
-        self, skill: Skill, scope: PermissionScope
-    ) -> list[str]:
+    def _check_risks_deterministic(self, skill: Skill, scope: PermissionScope) -> list[str]:
         """Deterministic security checks (no LLM needed).
 
         Args:
@@ -647,9 +644,7 @@ class PermissionAnalyzer:
                 elif ".ssh" in flag:
                     recommendations.append("Use SSH agent instead of reading key files")
                 else:
-                    recommendations.append(
-                        "Avoid reading credential files directly"
-                    )
+                    recommendations.append("Avoid reading credential files directly")
 
             elif "DANGEROUS_COMMAND" in flag:
                 if "rm -rf" in flag:
@@ -660,8 +655,6 @@ class PermissionAnalyzer:
                     recommendations.append("Review command for safer alternatives")
 
             elif "EXTERNAL_NETWORK" in flag:
-                recommendations.append(
-                    "Restrict to internal hosts or use explicit allowlist"
-                )
+                recommendations.append("Restrict to internal hosts or use explicit allowlist")
 
         return tuple(recommendations)

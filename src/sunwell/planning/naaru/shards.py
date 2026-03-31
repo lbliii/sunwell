@@ -50,7 +50,6 @@ Example:
     ... })
 """
 
-
 import asyncio
 import contextlib
 from dataclasses import dataclass
@@ -265,13 +264,15 @@ class Shard:
             checks["syntax_error"] = str(e)
 
         # Calculate quick score
-        score = sum([
-            2.0 if checks["has_code"] else 0,
-            2.0 if checks["has_function"] or checks["has_class"] else 0,
-            1.5 if checks["has_return"] else 0,
-            1.5 if checks["has_docstring"] else 0,
-            3.0 if checks["no_syntax_error"] else -5.0,
-        ])
+        score = sum(
+            [
+                2.0 if checks["has_code"] else 0,
+                2.0 if checks["has_function"] or checks["has_class"] else 0,
+                1.5 if checks["has_return"] else 0,
+                1.5 if checks["has_docstring"] else 0,
+                3.0 if checks["no_syntax_error"] else -5.0,
+            ]
+        )
 
         result = {
             "checks": checks,
@@ -331,17 +332,21 @@ class Shard:
 
         # What did we learn from this task?
         if result.get("approved"):
-            learnings.append({
-                "type": "success_pattern",
-                "category": task.get("category"),
-                "key": "approved",
-            })
+            learnings.append(
+                {
+                    "type": "success_pattern",
+                    "category": task.get("category"),
+                    "key": "approved",
+                }
+            )
         elif result.get("rejected_reason"):
-            learnings.append({
-                "type": "failure_pattern",
-                "category": task.get("category"),
-                "reason": result.get("rejected_reason"),
-            })
+            learnings.append(
+                {
+                    "type": "failure_pattern",
+                    "category": task.get("category"),
+                    "reason": result.get("rejected_reason"),
+                }
+            )
 
         # Store in convergence for potential SimulacrumStore update
         if learnings:
@@ -368,7 +373,10 @@ class Shard:
 
         Stores result in Convergence slot 'composition:current'.
         """
-        from sunwell.interface.generative.compositor import CompositionContext, Compositor  # layer-exempt: pre-existing
+        from sunwell.interface.generative.compositor import (  # layer-exempt: pre-existing
+            CompositionContext,
+            Compositor,
+        )
 
         user_input = task.get("description", "") or task.get("goal", "")
         current_page = task.get("page", "home")
@@ -470,10 +478,7 @@ class ShardPool:
         Returns:
             List of results from each shard
         """
-        tasks = [
-            self.shards[st].run(task, context)
-            for st, task, context in jobs
-        ]
+        tasks = [self.shards[st].run(task, context) for st, task, context in jobs]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -529,9 +534,7 @@ class ShardPool:
         Returns:
             Consolidation results
         """
-        return await self.shards[ShardType.CONSOLIDATOR].run(
-            task, {"result": result}
-        )
+        return await self.shards[ShardType.CONSOLIDATOR].run(task, {"result": result})
 
     async def prefetch_for_queue(self, task_queue: list[dict]) -> dict:
         """Pre-fetch context for upcoming tasks.
@@ -542,9 +545,7 @@ class ShardPool:
         Returns:
             Prefetch results
         """
-        return await self.shards[ShardType.LOOKAHEAD].run(
-            {}, {"task_queue": task_queue}
-        )
+        return await self.shards[ShardType.LOOKAHEAD].run({}, {"task_queue": task_queue})
 
     def get_stats(self) -> dict:
         """Get shard pool statistics."""
@@ -586,10 +587,12 @@ async def demo() -> None:
     result = await pool.prepare_for_task(task)
 
     print(f"\n📊 Convergence now has {result['slots_ready']} ready slots:")
-    for slot_id in result['slot_ids']:
+    for slot_id in result["slot_ids"]:
         slot = await convergence.get(slot_id)
         if slot:
-            content_preview = str(slot.content)[:60] + "..." if len(str(slot.content)) > 60 else str(slot.content)
+            content_preview = (
+                str(slot.content)[:60] + "..." if len(str(slot.content)) > 60 else str(slot.content)
+            )
             print(f"   - {slot_id}: {content_preview}")
 
     # Test quick validation
@@ -611,7 +614,9 @@ def handle_error(error: Exception) -> str:
 
     check_result = await pool.quick_validate(code_proposal)
     print(f"   Quick score: {check_result['quick_score']}/10")
-    print(f"   Checks passed: {sum(1 for v in check_result['checks'].values() if v)}/{len(check_result['checks'])}")
+    print(
+        f"   Checks passed: {sum(1 for v in check_result['checks'].values() if v)}/{len(check_result['checks'])}"
+    )
 
     print("\n📈 Pool Statistics:")
     stats = pool.get_stats()
@@ -621,4 +626,5 @@ def handle_error(error: Exception) -> str:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(demo())

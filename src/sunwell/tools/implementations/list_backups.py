@@ -74,7 +74,6 @@ class ListBackupsTool(BaseTool):
             if entries:
                 latest = entries[0]
                 lines.append(
-                    f"  {file_path}: {len(entries)} backup(s), "
-                    f"latest {latest['timestamp']}"
+                    f"  {file_path}: {len(entries)} backup(s), latest {latest['timestamp']}"
                 )
         return "\n".join(lines)

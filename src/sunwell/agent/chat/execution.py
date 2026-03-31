@@ -27,9 +27,7 @@ if TYPE_CHECKING:
     from sunwell.tools.execution import ToolExecutor
 
 # Type alias for async response generator function
-GenerateResponseFn = Callable[
-    [str, dict[str, Any] | None], Coroutine[Any, Any, str]
-]
+GenerateResponseFn = Callable[[str, dict[str, Any] | None], Coroutine[Any, Any, str]]
 
 logger = logging.getLogger(__name__)
 
@@ -378,9 +376,7 @@ class GoalExecutor:
                     yield (LoopState.COMPLETED, checkpoint)
 
                     # Add completion to conversation
-                    append_to_history(
-                        conversation_history, "assistant", f"Done! {summary}"
-                    )
+                    append_to_history(conversation_history, "assistant", f"Done! {summary}")
 
         except Exception as e:
             logger.exception("Goal execution error")

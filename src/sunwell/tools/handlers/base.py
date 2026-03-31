@@ -3,20 +3,22 @@
 import fnmatch
 from pathlib import Path
 
-DEFAULT_BLOCKED_PATTERNS = frozenset({
-    ".env",
-    ".env.*",
-    "**/.git/**",
-    "**/.git",
-    "**/node_modules/**",
-    "**/__pycache__/**",
-    "*.pem",
-    "*.key",
-    "**/secrets/**",
-    "**/.ssh/**",
-    "**/credentials/**",
-    "**/*.secret",
-})
+DEFAULT_BLOCKED_PATTERNS = frozenset(
+    {
+        ".env",
+        ".env.*",
+        "**/.git/**",
+        "**/.git",
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        "*.pem",
+        "*.key",
+        "**/secrets/**",
+        "**/.ssh/**",
+        "**/credentials/**",
+        "**/*.secret",
+    }
+)
 
 
 class PathSecurityError(PermissionError):
@@ -64,9 +66,7 @@ class BaseHandler:
         try:
             requested.relative_to(self.workspace)
         except ValueError as err:
-            raise PathSecurityError(
-                f"Path escapes workspace: {user_path} → {requested}"
-            ) from err
+            raise PathSecurityError(f"Path escapes workspace: {user_path} → {requested}") from err
 
         relative_str = str(requested.relative_to(self.workspace))
         for pattern in self.blocked_patterns:

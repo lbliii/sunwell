@@ -1,0 +1,42 @@
+{
+  "id": "9804d153",
+  "type": "docs_staged",
+  "timestamp": "2026-02-12T15:24:38.063446Z",
+  "message": "29 doc(s) staged for commit",
+  "suggested_action": "::a",
+  "acknowledged": false,
+  "metadata": {
+    "file_count": 29
+  },
+  "files": [
+    "docs/RUNNING_THE_UI.md",
+    "docs/archive/ADOPTIONS_SUMMARY.md",
+    "docs/archive/AGENT_EXECUTION_WIRED.md",
+    "docs/archive/AGENT_TRACKING.md",
+    "docs/archive/BIOMORPHIC_ACCESSIBILITY_FIX.md",
+    "docs/archive/CHIRP_ENHANCEMENTS.md",
+    "docs/archive/CHIRP_FIX_COMPLETE.md",
+    "docs/archive/CHIRP_MCP_FINAL_STATUS.md",
+    "docs/archive/CHIRP_MCP_INTEGRATION_STATUS.md",
+    "docs/archive/CHIRP_MIGRATION_STATUS.md",
+    "docs/archive/COMPONENT_MIGRATION.md",
+    "docs/archive/DESIGN_SYSTEM_2.0_COMPLETE.md",
+    "docs/archive/DESIGN_SYSTEM_AUDIT.md",
+    "docs/archive/FINAL_IMPLEMENTATION.md",
+    "docs/archive/FRONTEND_INTEGRATION_SUMMARY.md",
+    "docs/archive/IMMEDIATE_ADOPTIONS_COMPLETE.md",
+    "docs/archive/MEMORY_ENHANCEMENTS_PROGRESS.md",
+    "docs/archive/MIGRATION_COMPLETE.md",
+    "docs/archive/NEXT_LEVEL_DESIGN_SYSTEM.md",
+    "docs/archive/PROJECTS_MIGRATION_COMPLETE.md",
+    "docs/archive/README.md",
+    "docs/archive/REFACTOR_COMPLETE.md",
+    "docs/archive/TESTING_SUMMARY.md",
+    "docs/technical/ARCHITECTURE_REFACTOR.md",
+    "docs/technical/CHIRP_FEATURE_AUDIT.md",
+    "docs/technical/CHIRP_PATTERNS_LEARNED.md",
+    "docs/technical/MODULARIZATION_ANALYSIS.md",
+    "docs/technical/README.md",
+    "docs/technical/TECHNICAL-VISION.md"
+  ]
+}

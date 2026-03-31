@@ -9,18 +9,12 @@ Uses:
 - Historical calibration when available
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from sunwell.agent.core.task_graph import TaskGraph
+from sunwell.agent.estimation.history import ExecutionHistory
+from sunwell.planning.naaru.planners.metrics import PlanMetrics
 from sunwell.planning.naaru.types import TaskMode
-
-if TYPE_CHECKING:
-    from sunwell.agent.core.task_graph import TaskGraph
-    from sunwell.agent.estimation.history import ExecutionHistory
-    from sunwell.planning.naaru.planners.metrics import PlanMetrics
-
 
 # Base duration per effort level (seconds)
 EFFORT_BASE_SECONDS: dict[str, int] = {
@@ -33,11 +27,11 @@ EFFORT_BASE_SECONDS: dict[str, int] = {
 # Mode multipliers for execution time
 MODE_FACTORS: dict[TaskMode, float] = {
     TaskMode.SELF_IMPROVE: 2.0,  # Most complex - modifying agent itself
-    TaskMode.GENERATE: 1.5,      # Creating new content
-    TaskMode.MODIFY: 1.0,        # Baseline - modifying existing
-    TaskMode.EXECUTE: 0.5,       # Running commands is fast
-    TaskMode.RESEARCH: 2.0,      # Gathering info takes time
-    TaskMode.COMPOSITE: 1.5,     # Multi-step tasks
+    TaskMode.GENERATE: 1.5,  # Creating new content
+    TaskMode.MODIFY: 1.0,  # Baseline - modifying existing
+    TaskMode.EXECUTE: 0.5,  # Running commands is fast
+    TaskMode.RESEARCH: 2.0,  # Gathering info takes time
+    TaskMode.COMPOSITE: 1.5,  # Multi-step tasks
 }
 
 

@@ -162,18 +162,20 @@ def list_references(env: UserEnvironment) -> list[dict]:
 
     for category, path in env.reference_projects.items():
         project = env.get_project(path)
-        refs.append({
-            "category": category,
-            "path": path,
-            "name": project.name if project else path.name,
-            "health_score": project.health_score if project else None,
-            "exists": project is not None,
-            "healthy": (
-                project is not None
-                and project.health_score is not None
-                and project.health_score >= REFERENCE_HEALTH_WARNING
-            ),
-        })
+        refs.append(
+            {
+                "category": category,
+                "path": path,
+                "name": project.name if project else path.name,
+                "health_score": project.health_score if project else None,
+                "exists": project is not None,
+                "healthy": (
+                    project is not None
+                    and project.health_score is not None
+                    and project.health_score >= REFERENCE_HEALTH_WARNING
+                ),
+            }
+        )
 
     return refs
 

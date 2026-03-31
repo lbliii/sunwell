@@ -17,10 +17,11 @@ import logging
 import platform
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sunwell.interface.cli.notifications.store import NotificationStore
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class NotificationType(Enum):
     """Types of notifications."""
-    
+
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"
@@ -40,7 +41,7 @@ class NotificationType(Enum):
 
 class FocusModeBehavior(Enum):
     """Behavior when Focus mode is active (macOS)."""
-    
+
     IGNORE = "ignore"  # Send notifications normally
     SKIP_SOUND = "skip_sound"  # Send notification but skip sound
     QUEUE = "queue"  # Queue notifications for later (recorded but not delivered)
@@ -48,14 +49,14 @@ class FocusModeBehavior(Enum):
 
 def _get_default_icon_path() -> Path | None:
     """Get the default notification icon path.
-    
+
     Returns the bundled icon if it exists, otherwise None.
     """
     # Look for bundled icon in package
     assets_dir = Path(__file__).parent / "assets"
     svg_path = assets_dir / "sunwell-icon.svg"
     png_path = assets_dir / "sunwell-icon.png"
-    
+
     # Prefer PNG for better compatibility (macOS terminal-notifier)
     if png_path.exists():
         return png_path
@@ -67,7 +68,7 @@ def _get_default_icon_path() -> Path | None:
 @dataclass(frozen=True, slots=True)
 class NotificationConfig:
     """Configuration for notifications.
-    
+
     Attributes:
         enabled: Whether notifications are enabled
         desktop: Show desktop notifications
@@ -80,7 +81,7 @@ class NotificationConfig:
         on_error: Custom command for errors
         on_waiting: Custom command for waiting
     """
-    
+
     enabled: bool = True
     desktop: bool = True
     sound: bool = True
@@ -91,14 +92,14 @@ class NotificationConfig:
     on_complete: str | None = None
     on_error: str | None = None
     on_waiting: str | None = None
-    
+
     @classmethod
-    def from_dict(cls, data: dict) -> "NotificationConfig":
+    def from_dict(cls, data: dict) -> NotificationConfig:
         """Create config from dictionary.
-        
+
         Args:
             data: Configuration dictionary
-            
+
         Returns:
             NotificationConfig instance
         """
@@ -109,14 +110,14 @@ class NotificationConfig:
         except ValueError:
             logger.warning(f"Unknown focus_mode_behavior: {focus_behavior_str}, using skip_sound")
             focus_behavior = FocusModeBehavior.SKIP_SOUND
-        
+
         # Parse icon path - use default bundled icon if not specified
         icon_path_str = data.get("icon_path")
         if icon_path_str:
             icon_path = Path(icon_path_str).expanduser()
         else:
             icon_path = _get_default_icon_path()
-        
+
         return cls(
             enabled=data.get("enabled", True),
             desktop=data.get("desktop", True),
@@ -133,7 +134,7 @@ class NotificationConfig:
 
 class Platform(Enum):
     """Supported platforms."""
-    
+
     MACOS = "macos"
     LINUX = "linux"
     WINDOWS = "windows"
@@ -142,7 +143,7 @@ class Platform(Enum):
 
 def detect_platform() -> Platform:
     """Detect the current platform.
-    
+
     Returns:
         Platform enum value
     """
@@ -158,10 +159,10 @@ def detect_platform() -> Platform:
 
 def has_command(cmd: str) -> bool:
     """Check if a command is available.
-    
+
     Args:
         cmd: Command name
-        
+
     Returns:
         True if command exists
     """
@@ -170,14 +171,14 @@ def has_command(cmd: str) -> bool:
 
 def detect_focus_mode() -> bool:
     """Detect if macOS Focus mode (Do Not Disturb) is active.
-    
+
     Returns:
         True if Focus mode is active, False otherwise.
         Always returns False on non-macOS platforms.
     """
     if detect_platform() != Platform.MACOS:
         return False
-    
+
     try:
         result = subprocess.run(
             ["defaults", "read", "com.apple.controlcenter", "NSStatusItem Visible FocusModes"],
@@ -193,59 +194,59 @@ def detect_focus_mode() -> bool:
 @dataclass
 class Notifier:
     """Cross-platform notification dispatcher.
-    
+
     Automatically detects the platform and uses the
     appropriate notification mechanism.
-    
+
     Features:
         - Automatic notification history (if store provided)
         - Focus mode awareness (macOS)
         - Cross-platform support
-    
+
     Example:
         >>> notifier = Notifier()
         >>> await notifier.send("Hello", "World")
         >>> await notifier.send_complete("Build done", duration=12.5)
-        
+
         # With history
         >>> from sunwell.interface.cli.notifications.store import NotificationStore
         >>> store = NotificationStore(workspace)
         >>> notifier = Notifier(store=store)
     """
-    
+
     config: NotificationConfig = field(default_factory=NotificationConfig)
-    store: "NotificationStore | None" = None
+    store: NotificationStore | None = None
     _platform: Platform = field(default=None, init=False)
     _notifier_fn: Callable | None = field(default=None, init=False)
-    
+
     def __post_init__(self) -> None:
         self._platform = detect_platform()
         self._notifier_fn = self._select_notifier()
-    
+
     def _select_notifier(self) -> Callable | None:
         """Select the appropriate notifier for this platform.
-        
+
         Returns:
             Notification function or None if not available
         """
         if not self.config.enabled or not self.config.desktop:
             return None
-        
+
         if self._platform == Platform.MACOS:
             if has_command("terminal-notifier"):
                 return self._notify_terminal_notifier
             return self._notify_osascript
-        
+
         elif self._platform == Platform.LINUX:
             if has_command("notify-send"):
                 return self._notify_linux
             return None
-        
+
         elif self._platform == Platform.WINDOWS:
             return self._notify_windows
-        
+
         return None
-    
+
     async def send(
         self,
         title: str,
@@ -255,24 +256,24 @@ class Notifier:
         context: dict | None = None,
     ) -> bool:
         """Send a notification.
-        
+
         Args:
             title: Notification title
             message: Notification body
             notification_type: Type of notification
             context: Optional context data (file path, session ID, etc.)
-            
+
         Returns:
             True if notification was sent
         """
         if not self.config.enabled:
             return False
-        
+
         # Check Focus mode
         focus_active = detect_focus_mode()
         skip_sound = False
         should_queue = False
-        
+
         if focus_active:
             behavior = self.config.focus_mode_behavior
             if behavior == FocusModeBehavior.QUEUE:
@@ -280,44 +281,52 @@ class Notifier:
             elif behavior == FocusModeBehavior.SKIP_SOUND:
                 skip_sound = True
             # IGNORE: continue normally
-        
+
         # If queuing, record but don't deliver
         if should_queue:
             self._record_notification(
-                notification_type, title, message,
-                delivered=False, context=context,
+                notification_type,
+                title,
+                message,
+                delivered=False,
+                context=context,
             )
             logger.debug(f"Notification queued (Focus mode active): {title}")
             return False
-        
+
         # Check for custom command
         custom_cmd = self._get_custom_command(notification_type)
         delivered = False
-        
+
         if custom_cmd:
             delivered = await self._run_custom(custom_cmd, title, message)
         elif self._notifier_fn:
             try:
                 await self._notifier_fn(
-                    title, message, notification_type,
+                    title,
+                    message,
+                    notification_type,
                     skip_sound=skip_sound,
                 )
                 delivered = True
             except Exception as e:
                 logger.debug(f"Notification failed: {e}")
-        
+
         # Fallback to terminal bell (unless sound skipped)
         if not delivered and self.config.sound and not skip_sound:
             self._bell()
-        
+
         # Record to store
         self._record_notification(
-            notification_type, title, message,
-            delivered=delivered, context=context,
+            notification_type,
+            title,
+            message,
+            delivered=delivered,
+            context=context,
         )
-        
+
         return delivered
-    
+
     def _record_notification(
         self,
         notification_type: NotificationType,
@@ -328,7 +337,7 @@ class Notifier:
         context: dict | None = None,
     ) -> None:
         """Record a notification to the store.
-        
+
         Args:
             notification_type: Type of notification
             title: Notification title
@@ -338,10 +347,10 @@ class Notifier:
         """
         if self.store is None:
             return
-        
+
         try:
             from sunwell.interface.cli.notifications.store import NotificationRecord
-            
+
             record = NotificationRecord.create(
                 notification_type=notification_type,
                 title=title,
@@ -353,7 +362,7 @@ class Notifier:
             self.store.append(record)
         except Exception as e:
             logger.debug(f"Failed to record notification: {e}")
-    
+
     async def send_complete(
         self,
         message: str,
@@ -362,12 +371,12 @@ class Notifier:
         tasks: int | None = None,
     ) -> bool:
         """Send a completion notification.
-        
+
         Args:
             message: Completion message
             duration: Duration in seconds
             tasks: Number of tasks completed
-            
+
         Returns:
             True if sent
         """
@@ -377,16 +386,16 @@ class Notifier:
             body += f" ({duration:.1f}s)"
         if tasks is not None:
             body += f" • {tasks} tasks"
-        
+
         return await self.send(title, body, NotificationType.SUCCESS)
-    
+
     async def send_error(self, message: str, *, details: str = "") -> bool:
         """Send an error notification.
-        
+
         Args:
             message: Error message
             details: Additional details
-            
+
         Returns:
             True if sent
         """
@@ -394,27 +403,27 @@ class Notifier:
         body = message
         if details:
             body += f": {details}"
-        
+
         return await self.send(title, body, NotificationType.ERROR)
-    
+
     async def send_waiting(self, message: str = "Input needed") -> bool:
         """Send a waiting-for-input notification.
-        
+
         Args:
             message: Waiting message
-            
+
         Returns:
             True if sent
         """
         title = "⊗ Sunwell Waiting"
         return await self.send(title, message, NotificationType.WAITING)
-    
+
     def _get_custom_command(self, notification_type: NotificationType) -> str | None:
         """Get custom command for notification type.
-        
+
         Args:
             notification_type: Type of notification
-            
+
         Returns:
             Custom command or None
         """
@@ -425,21 +434,21 @@ class Notifier:
         elif notification_type == NotificationType.WAITING:
             return self.config.on_waiting
         return None
-    
+
     async def _run_custom(self, cmd: str, title: str, message: str) -> bool:
         """Run a custom notification command.
-        
+
         Args:
             cmd: Command template
             title: Notification title
             message: Notification body
-            
+
         Returns:
             True if command succeeded
         """
         # Substitute variables
         expanded = cmd.replace("{title}", title).replace("{message}", message)
-        
+
         try:
             proc = await asyncio.create_subprocess_shell(
                 expanded,
@@ -451,7 +460,7 @@ class Notifier:
         except Exception as e:
             logger.debug(f"Custom notification failed: {e}")
             return False
-    
+
     async def _notify_terminal_notifier(
         self,
         title: str,
@@ -461,7 +470,7 @@ class Notifier:
         skip_sound: bool = False,
     ) -> None:
         """Send notification via terminal-notifier (macOS).
-        
+
         Args:
             title: Notification title
             message: Notification body
@@ -470,16 +479,19 @@ class Notifier:
         """
         args = [
             "terminal-notifier",
-            "-title", title,
-            "-message", message,
-            "-group", "sunwell",
+            "-title",
+            title,
+            "-message",
+            message,
+            "-group",
+            "sunwell",
         ]
-        
+
         # Add custom icon if configured (PNG or ICNS recommended for macOS)
         if self.config.icon_path and self.config.icon_path.exists():
             # terminal-notifier supports -appIcon for the notification icon
             args.extend(["-appIcon", str(self.config.icon_path)])
-        
+
         if self.config.sound and not skip_sound:
             # Use appropriate sound based on type
             sounds = {
@@ -490,13 +502,13 @@ class Notifier:
                 NotificationType.INFO: "Pop",
             }
             args.extend(["-sound", sounds.get(notification_type, "default")])
-        
+
         await asyncio.create_subprocess_exec(
             *args,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-    
+
     async def _notify_osascript(
         self,
         title: str,
@@ -506,7 +518,7 @@ class Notifier:
         skip_sound: bool = False,
     ) -> None:
         """Send notification via osascript (macOS fallback).
-        
+
         Args:
             title: Notification title
             message: Notification body
@@ -516,9 +528,9 @@ class Notifier:
         # Escape quotes for AppleScript
         safe_title = title.replace('"', '\\"')
         safe_message = message.replace('"', '\\"')
-        
+
         script = f'display notification "{safe_message}" with title "{safe_title}"'
-        
+
         if self.config.sound and not skip_sound:
             sound_mapping = {
                 NotificationType.SUCCESS: "Glass",
@@ -528,13 +540,15 @@ class Notifier:
             sound = sound_mapping.get(notification_type)
             if sound:
                 script += f' sound name "{sound}"'
-        
+
         await asyncio.create_subprocess_exec(
-            "osascript", "-e", script,
+            "osascript",
+            "-e",
+            script,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-    
+
     async def _notify_linux(
         self,
         title: str,
@@ -544,7 +558,7 @@ class Notifier:
         skip_sound: bool = False,
     ) -> None:
         """Send notification via notify-send (Linux).
-        
+
         Args:
             title: Notification title
             message: Notification body
@@ -559,25 +573,27 @@ class Notifier:
             NotificationType.INFO: "low",
         }
         urgency = urgency_map.get(notification_type, "normal")
-        
+
         args = [
             "notify-send",
-            "--urgency", urgency,
-            "--app-name", "Sunwell",
+            "--urgency",
+            urgency,
+            "--app-name",
+            "Sunwell",
         ]
-        
+
         # Add custom icon if configured (SVG or PNG supported on Linux)
         if self.config.icon_path and self.config.icon_path.exists():
             args.extend(["--icon", str(self.config.icon_path)])
-        
+
         args.extend([title, message])
-        
+
         await asyncio.create_subprocess_exec(
             *args,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-    
+
     async def _notify_windows(
         self,
         title: str,
@@ -587,7 +603,7 @@ class Notifier:
         skip_sound: bool = False,
     ) -> None:
         """Send notification via PowerShell toast (Windows).
-        
+
         Args:
             title: Notification title
             message: Notification body
@@ -596,14 +612,14 @@ class Notifier:
         """
         # PowerShell toast notification
         audio_xml = '<audio silent="true"/>' if skip_sound else ""
-        
+
         # Add app logo override if icon is configured (PNG recommended)
         logo_xml = ""
         if self.config.icon_path and self.config.icon_path.exists():
             icon_path = str(self.config.icon_path).replace("\\", "/")
             logo_xml = f'<image placement="appLogoOverride" src="file:///{icon_path}"/>'
-        
-        ps_script = f'''
+
+        ps_script = f"""
         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
         $template = @"
@@ -622,14 +638,16 @@ class Notifier:
         $xml.LoadXml($template)
         $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Sunwell").Show($toast)
-        '''
-        
+        """
+
         await asyncio.create_subprocess_exec(
-            "powershell", "-Command", ps_script,
+            "powershell",
+            "-Command",
+            ps_script,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-    
+
     def _bell(self) -> None:
         """Ring terminal bell."""
         print("\a", end="", flush=True)
@@ -644,12 +662,12 @@ async def notify(
     notification_type: NotificationType = NotificationType.INFO,
 ) -> bool:
     """Send a notification with default config.
-    
+
     Args:
         title: Notification title
         message: Notification body
         notification_type: Type of notification
-        
+
     Returns:
         True if sent
     """
@@ -664,12 +682,12 @@ async def notify_complete(
     tasks: int | None = None,
 ) -> bool:
     """Send a completion notification.
-    
+
     Args:
         message: Completion message
         duration: Duration in seconds
         tasks: Number of tasks
-        
+
     Returns:
         True if sent
     """
@@ -679,11 +697,11 @@ async def notify_complete(
 
 async def notify_error(message: str, *, details: str = "") -> bool:
     """Send an error notification.
-    
+
     Args:
         message: Error message
         details: Additional details
-        
+
     Returns:
         True if sent
     """
@@ -693,10 +711,10 @@ async def notify_error(message: str, *, details: str = "") -> bool:
 
 async def notify_waiting(message: str = "Input needed") -> bool:
     """Send a waiting notification.
-    
+
     Args:
         message: Waiting message
-        
+
     Returns:
         True if sent
     """

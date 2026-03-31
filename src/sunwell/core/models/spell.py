@@ -7,10 +7,6 @@ This module also contains spell_to_routing_decision() which bridges
 spells to the planning layer (cannot live in foundation).
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 # Re-export all types from foundation
 from sunwell.foundation.schema.models.spell import (
     Grimoire,
@@ -25,9 +21,7 @@ from sunwell.foundation.schema.models.spell import (
     parse_spell,
     validate_spell_output,
 )
-
-if TYPE_CHECKING:
-    from sunwell.planning.routing.unified import RoutingDecision
+from sunwell.planning.routing.unified import RoutingDecision
 
 
 def spell_to_routing_decision(spell: Spell) -> RoutingDecision:

@@ -1,5 +1,18 @@
+{% from "chirpui/alert.html" import alert %}
+
 {% block action_status %}
-<div class="status-message {% if success %}status-success{% else %}status-error{% end %}">
+{% call alert(variant="success" if success else "error") %}
     {{ message }}
-</div>
+
+    {% if success and session_id %}
+    <div class="chirpui-cluster chirpui-cluster--sm" style="margin-top: var(--chirpui-spacing-md);">
+        <a href="/observatory" class="chirpui-btn chirpui-btn--sm chirpui-btn--ghost">
+            View All Sessions
+        </a>
+        <a href="/observatory/runs/{{ session_id }}" class="chirpui-btn chirpui-btn--sm chirpui-btn--primary">
+            Track This Session
+        </a>
+    </div>
+    {% end %}
+{% end %}
 {% end %}

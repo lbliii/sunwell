@@ -3,8 +3,6 @@
 Thread-safe JSON-based storage with file locking for concurrent access.
 """
 
-from __future__ import annotations
-
 import json
 import threading
 from datetime import UTC, datetime, timedelta

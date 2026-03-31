@@ -144,9 +144,7 @@ class ArtifactLineage:
             imports=tuple(data.get("imports", [])),
             imported_by=tuple(data.get("imported_by", [])),
             deleted_at=(
-                datetime.fromisoformat(data["deleted_at"])
-                if data.get("deleted_at")
-                else None
+                datetime.fromisoformat(data["deleted_at"]) if data.get("deleted_at") else None
             ),
         )
 

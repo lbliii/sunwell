@@ -29,7 +29,7 @@ from sunwell.foundation.utils import safe_json_dump, safe_json_load
 logger = logging.getLogger(__name__)
 
 # RFC-067 types - imported here for Task dataclass fields
-from sunwell.features.external.integration.types import (
+from sunwell.integration.types import (
     IntegrationCheck,
     RequiredIntegration,
     TaskType,
@@ -51,23 +51,23 @@ class TaskMode(Enum):
     """
 
     SELF_IMPROVE = "self_improve"  # Modify Sunwell's own code (RFC-019 behavior)
-    GENERATE = "generate"          # Create new files/content
-    MODIFY = "modify"              # Modify existing files
-    EXECUTE = "execute"            # Run commands
-    RESEARCH = "research"          # Gather information only (no side effects)
-    COMPOSITE = "composite"        # Multi-step with subtasks
+    GENERATE = "generate"  # Create new files/content
+    MODIFY = "modify"  # Modify existing files
+    EXECUTE = "execute"  # Run commands
+    RESEARCH = "research"  # Gather information only (no side effects)
+    COMPOSITE = "composite"  # Multi-step with subtasks
 
 
 class TaskStatus(Enum):
     """Execution status of a task (RFC-032)."""
 
-    PENDING = "pending"        # Not yet started
-    READY = "ready"            # Dependencies satisfied, ready to execute
+    PENDING = "pending"  # Not yet started
+    READY = "ready"  # Dependencies satisfied, ready to execute
     IN_PROGRESS = "in_progress"
-    BLOCKED = "blocked"        # Waiting on dependencies
+    BLOCKED = "blocked"  # Waiting on dependencies
     COMPLETED = "completed"
     FAILED = "failed"
-    SKIPPED = "skipped"        # Skipped due to failed dependency
+    SKIPPED = "skipped"  # Skipped due to failed dependency
 
 
 class SessionStatus(Enum):
@@ -83,10 +83,10 @@ class SessionStatus(Enum):
 class RiskLevel(Enum):
     """Risk level for proposals."""
 
-    TRIVIAL = "trivial"    # Comments, docs, formatting
-    LOW = "low"            # Additive changes, new patterns
-    MEDIUM = "medium"      # Behavioral changes
-    HIGH = "high"          # Structural changes, API changes
+    TRIVIAL = "trivial"  # Comments, docs, formatting
+    LOW = "low"  # Additive changes, new patterns
+    MEDIUM = "medium"  # Behavioral changes
+    HIGH = "high"  # Structural changes, API changes
     CRITICAL = "critical"  # Core module changes
 
     def can_auto_apply(self) -> bool:
@@ -149,6 +149,7 @@ class Opportunity:
             details=data.get("details", {}),
         )
 
+
 # =============================================================================
 # RFC-032: Task (Universal Work Unit)
 # RFC-034: Contract-Aware Parallel Task Planning
@@ -189,12 +190,12 @@ class Task:
 
     # Execution context
     tools: frozenset[str] = field(default_factory=frozenset)  # Tools this task may use
-    target_path: str | None = None       # File/directory to affect
+    target_path: str | None = None  # File/directory to affect
     working_directory: str = "."
 
     # Dependencies
-    depends_on: tuple[str, ...] = ()     # Task IDs that must complete first
-    subtasks: tuple[Task, ...] = ()    # For composite tasks
+    depends_on: tuple[str, ...] = ()  # Task IDs that must complete first
+    subtasks: tuple[Task, ...] = ()  # For composite tasks
 
     # === RFC-034: Contract-Aware Planning ===
 
@@ -268,8 +269,8 @@ class Task:
 
     # Metadata (compatible with Opportunity)
     category: str = "general"
-    priority: float = 0.5                # 0.0 - 1.0, higher is more important
-    estimated_effort: str = "medium"     # trivial, small, medium, large
+    priority: float = 0.5  # 0.0 - 1.0, higher is more important
+    estimated_effort: str = "medium"  # trivial, small, medium, large
     risk_level: RiskLevel = RiskLevel.MEDIUM
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -279,8 +280,8 @@ class Task:
     error: str | None = None
 
     # Verification
-    verification: str | None = None           # How to verify completion
-    verification_command: str | None = None   # Command to run for verification
+    verification: str | None = None  # How to verify completion
+    verification_command: str | None = None  # Command to run for verification
 
     def is_ready(
         self,
@@ -325,7 +326,6 @@ class Task:
     def has_pending_verifications(self) -> bool:
         """Check if this task has verification checks that need to run (RFC-067)."""
         return len(self.verification_checks) > 0
-
 
     def to_opportunity(self) -> Opportunity:
         """Convert Task to Opportunity for backward compatibility.
@@ -413,13 +413,9 @@ class Task:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
         """Create from dict."""
-        subtasks = tuple(
-            cls.from_dict(s) for s in data.get("subtasks", [])
-        )
+        subtasks = tuple(cls.from_dict(s) for s in data.get("subtasks", []))
         # RFC-067: Parse integrations and verification checks
-        integrations = tuple(
-            RequiredIntegration.from_dict(i) for i in data.get("integrations", [])
-        )
+        integrations = tuple(RequiredIntegration.from_dict(i) for i in data.get("integrations", []))
         verification_checks = tuple(
             IntegrationCheck.from_dict(c) for c in data.get("verification_checks", [])
         )
@@ -604,8 +600,7 @@ class SessionState:
         state.opportunities = [Opportunity.from_dict(o) for o in data.get("opportunities", [])]
         state.completed = [CompletedTask.from_dict(c) for c in data.get("completed", [])]
         state.current_task = (
-            Opportunity.from_dict(data["current_task"])
-            if data.get("current_task") else None
+            Opportunity.from_dict(data["current_task"]) if data.get("current_task") else None
         )
 
         state.proposals_created = data.get("proposals_created", 0)
@@ -650,7 +645,6 @@ class SessionState:
             "proposals_queued": self.proposals_queued,
             "proposals_rejected": self.proposals_rejected,
             "success_rate": (
-                completed_count / total_opportunities
-                if total_opportunities > 0 else 0
+                completed_count / total_opportunities if total_opportunities > 0 else 0
             ),
         }

@@ -11,7 +11,7 @@ import logging
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,7 +19,10 @@ from sunwell.agent.background.session import BackgroundSession, SessionStatus
 from sunwell.foundation.utils import safe_json_dump, safe_json_load
 
 if TYPE_CHECKING:
-    from sunwell.interface.cli.notifications import BatchedNotifier, Notifier  # layer-exempt: pre-existing
+    from sunwell.interface.cli.notifications import (  # layer-exempt: pre-existing
+        BatchedNotifier,
+        Notifier,
+    )
     from sunwell.memory import PersistentMemory
     from sunwell.models import ModelProtocol
     from sunwell.tools.execution import ToolExecutor
@@ -45,7 +48,7 @@ class BackgroundManager:
         >>> manager = BackgroundManager(workspace)
         >>> session = await manager.spawn(goal, model, tool_executor)
         >>> print(session.session_id)
-        >>> 
+        >>>
         >>> # Later
         >>> status = manager.get_session(session.session_id)
     """
@@ -53,7 +56,7 @@ class BackgroundManager:
     workspace: Path
     """Workspace root directory."""
 
-    notifier: "Notifier | BatchedNotifier | None" = None
+    notifier: Notifier | BatchedNotifier | None = None
     """Optional notifier for completion notifications."""
 
     _sessions: dict[str, BackgroundSession] = field(default_factory=dict, init=False)
@@ -109,7 +112,7 @@ class BackgroundManager:
 
         data = {
             "version": 1,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "sessions": [s.to_dict() for s in self._sessions.values()],
         }
 
@@ -122,7 +125,7 @@ class BackgroundManager:
 
     def _cleanup_old_sessions(self) -> None:
         """Remove old sessions exceeding retention limits."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Sort by start time (newest first)
         sorted_sessions = sorted(
@@ -260,7 +263,7 @@ class BackgroundManager:
 
         # Sort by start time (newest first)
         sessions.sort(
-            key=lambda s: s.started_at or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda s: s.started_at or datetime.min.replace(tzinfo=UTC),
             reverse=True,
         )
 
@@ -293,10 +296,7 @@ class BackgroundManager:
         self._ensure_loaded()
 
         with self._lock:
-            return sum(
-                1 for s in self._sessions.values()
-                if s.status == SessionStatus.RUNNING
-            )
+            return sum(1 for s in self._sessions.values() if s.status == SessionStatus.RUNNING)
 
     def clear(self) -> None:
         """Clear all sessions (for testing)."""

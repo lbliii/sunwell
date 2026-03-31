@@ -5,7 +5,6 @@ LensReference) moved to sunwell.foundation.schema.models.types;
 re-exported here for backward compatibility.
 """
 
-
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Literal
@@ -55,8 +54,6 @@ class Confidence:
             return "🔴 Uncertain"
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class ValidationExecutionError:
     """Error during validator execution."""
@@ -86,7 +83,9 @@ class LensResolutionError(SunwellError):
     def __init__(
         self,
         lens_name: str,
-        error_type: Literal["not_found", "circular_dependency", "version_conflict", "merge_conflict"],
+        error_type: Literal[
+            "not_found", "circular_dependency", "version_conflict", "merge_conflict"
+        ],
         message: str,
         conflicting_lenses: tuple[str, ...] = (),
     ):
@@ -115,7 +114,9 @@ class LensResolutionError(SunwellError):
     def create(
         cls,
         lens_name: str,
-        error_type: Literal["not_found", "circular_dependency", "version_conflict", "merge_conflict"],
+        error_type: Literal[
+            "not_found", "circular_dependency", "version_conflict", "merge_conflict"
+        ],
         message: str,
         conflicting_lenses: tuple[str, ...] = (),
     ) -> LensResolutionError:

@@ -142,10 +142,7 @@ class ToolCallNormalizer:
 
         # Extract tool name (handle various key names)
         tool_name = (
-            data.get("tool")
-            or data.get("function")
-            or data.get("name")
-            or data.get("tool_name")
+            data.get("tool") or data.get("function") or data.get("name") or data.get("tool_name")
         )
         if not tool_name:
             return None, repairs
@@ -217,9 +214,7 @@ class ToolCallNormalizer:
         repaired = re.sub(r"'([^']*)'", r'"\1"', repaired)
 
         # Unquoted keys
-        repaired = re.sub(
-            r"(\{|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', repaired
-        )
+        repaired = re.sub(r"(\{|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', repaired)
 
         # Trailing commas
         repaired = re.sub(r",\s*}", "}", repaired)

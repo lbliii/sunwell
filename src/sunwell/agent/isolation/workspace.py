@@ -227,12 +227,7 @@ async def ensure_git_repo(
             gitignore = workspace / ".gitignore"
             if not gitignore.exists():
                 gitignore.write_text(
-                    "# Sunwell workspace\n"
-                    ".sunwell/\n"
-                    "__pycache__/\n"
-                    "*.pyc\n"
-                    ".env\n"
-                    "node_modules/\n"
+                    "# Sunwell workspace\n.sunwell/\n__pycache__/\n*.pyc\n.env\nnode_modules/\n"
                 )
 
             # Initial commit
@@ -278,9 +273,7 @@ def get_isolation_recommendation(
         return "Single task - no isolation needed"
 
     if readiness.isolation_mode == WorkspaceIsolationMode.WORKTREE:
-        return (
-            f"✓ Git worktree isolation available for {parallel_tasks} parallel tasks"
-        )
+        return f"✓ Git worktree isolation available for {parallel_tasks} parallel tasks"
 
     if readiness.can_init_git:
         return (
@@ -288,6 +281,4 @@ def get_isolation_recommendation(
             f"  Run 'git init' for full worktree isolation, or continue with staging fallback."
         )
 
-    return (
-        f"ℹ Using in-memory staging for {parallel_tasks} parallel tasks"
-    )
+    return f"ℹ Using in-memory staging for {parallel_tasks} parallel tasks"

@@ -1,0 +1,139 @@
+{#- Fragment blocks for chat message bubbles #}
+{#- Pattern 3 scaffolding: user msg + AI div with sse-connect #}
+{% block chat_start %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="right") %}
+<div><p>{{ user_content }}</p></div>
+{% end %}
+<div id="chat-stream-{{ session_id }}" class="msg msg-ai chirpui-message-thread chat-stream-container" hx-ext="sse" sse-connect="/chat/stream?session_id={{ session_id }}" sse-swap="fragment" hx-swap="beforeend" sse-close="done">
+  <div id="chat-stream-loading-{{ session_id }}" class="chat-loading chirpui-text-muted chirpui-ui-sm" style="padding: var(--chirpui-spacing-sm); display: flex; align-items: center; gap: var(--chirpui-spacing-sm);">
+    <span class="chat-spinner" aria-hidden="true"></span>
+    <span>Thinking...</span>
+    <form hx-post="/chat/cancel" hx-target="#chat-stream-loading-{{ session_id }}" hx-swap="outerHTML" hx-include="[name=session_id]" style="margin-left: auto;">
+      <input type="hidden" name="session_id" value="{{ session_id }}">
+      <button type="submit" class="chirpui-btn chirpui-btn--ghost chirpui-ui-xs">Cancel</button>
+    </form>
+  </div>
+</div>
+{% end %}
+
+{% block chat_cancelled %}
+<div id="chat-stream-loading-{{ session_id }}" class="chat-loading chirpui-text-muted chirpui-ui-sm" style="padding: var(--chirpui-spacing-sm);">
+  Cancelling...
+</div>
+{% end %}
+
+{% block chat_cancel_ignored %}
+<div id="chat-stream-loading-{{ session_id }}" class="chat-loading chirpui-text-muted chirpui-ui-sm" style="padding: var(--chirpui-spacing-sm);">
+  <span class="chat-spinner" aria-hidden="true"></span> Thinking...
+</div>
+{% end %}
+
+{% block user_message %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="right") %}
+<div>
+  <p>{{ content }}</p>
+</div>
+{% end %}
+{% end %}
+
+{% block stream_token %}
+<span class="chat-stream-token">{{ token }}</span>
+{% end %}
+
+{% block chat_stream_done %}
+<div id="{{ target }}" hx-swap-oob="true">
+  <div class="msg msg-ai chirpui-message-thread">
+    <div class="msg-assistant prose">{{ content | default("") | markdown_or_plain }}</div>
+  </div>
+</div>
+{% end %}
+
+{% block assistant_message %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="left") %}
+<div class="msg-assistant prose">
+  {{ content | default("") | markdown_or_plain }}
+</div>
+{% end %}
+{% end %}
+
+{% block tool_event %}
+<div class="chat-tool-event chirpui-surface chirpui-surface--muted" style="border-radius: var(--chirpui-radius); padding: var(--chirpui-spacing-sm); margin: var(--chirpui-spacing-xs) 0; font-size: var(--chirpui-ui-sm);">
+  <strong class="chirpui-font-mono" style="color: var(--chirpui-accent);">{{ tool_name }}</strong>
+  {% if args %}
+  <div class="chirpui-text-muted chirpui-ui-xs">Args: {{ args }}</div>
+  {% end %}
+  {% if error %}
+  <div style="color: var(--chirpui-error);">Error: {{ error }}</div>
+  {% elif result %}
+  <div>Result: {{ result | excerpt(150) }}</div>
+  {% end %}
+</div>
+{% end %}
+
+{% block error_message %}
+<div class="chat-error chirpui-surface" style="border-left: 3px solid var(--chirpui-error); border-radius: var(--chirpui-radius); padding: var(--chirpui-spacing-md); margin: var(--chirpui-spacing-sm) 0;">
+  <strong>Error:</strong> {{ message }}
+  {% if error %}
+  <pre class="chirpui-ui-xs chirpui-text-muted" style="margin-top: var(--chirpui-spacing-xs);">{{ error }}</pre>
+  {% end %}
+  {% if user_message %}
+  <form hx-post="/chat/send" hx-target="#chat-messages" hx-swap="beforeend" hx-include="[name=session_id]" style="margin-top: var(--chirpui-spacing-sm); display: inline;">
+    <input type="hidden" name="message" value="{{ user_message | e }}">
+    <input type="hidden" name="stream" value="1">
+    <button type="submit" class="chirpui-btn chirpui-btn--ghost chirpui-ui-sm">Retry</button>
+  </form>
+  {% end %}
+</div>
+{% end %}
+
+{% block chat_cleared %}
+{% from "chirpui/message_thread.html" import message_thread %}
+{% call message_thread() %}
+<div class="chat-empty chirpui-text-muted" style="text-align: center; padding: var(--chirpui-spacing-xl);">
+  <p class="chirpui-font-lg">Conversation cleared</p>
+  <p>Start a new conversation below.</p>
+</div>
+{% end %}
+{% end %}
+
+{% block chat_session_input %}
+<input type="hidden" name="session_id" value="{{ session_id }}">
+{% end %}
+
+{% block model_selector %}
+<select name="model" id="chat-model-selector" class="chirpui-select chirpui-ui-sm" style="min-width: 140px;"
+        hx-post="/chat/model"
+        hx-target="#chat-model-selector"
+        hx-swap="outerHTML"
+        hx-include="[name=session_id]"
+        hx-trigger="change">
+  {% for m in models %}
+  <option value="{{ m }}" {{ "selected" if m == current else "" }}>{{ m }}</option>
+  {% end %}
+</select>
+{% end %}
+
+{% block chat_response %}
+{% from "chirpui/message_bubble.html" import message_bubble %}
+{% call message_bubble(align="right") %}
+<div><p>{{ user_content }}</p></div>
+{% end %}
+{% call message_bubble(align="left") %}
+<div class="msg-assistant prose">{{ assistant_content | default("") | markdown_or_plain }}</div>
+{% end %}
+{% end %}
+
+{% block chat_activity_feed %}
+<div id="chat-activity-feed" class="chat-activity-feed" style="flex: 1; overflow-y: auto; padding: var(--chirpui-spacing-sm); min-height: 120px;"
+     hx-ext="sse"
+     sse-connect="/chat/stream?session_id={{ session_id }}"
+     sse-swap="chat-activity-feed"
+     hx-swap="beforeend">
+  <div class="chat-activity-empty chirpui-text-muted chirpui-ui-sm" style="text-align: center; padding: var(--chirpui-spacing-md);">
+    No tool activity yet
+  </div>
+</div>
+{% end %}

@@ -41,6 +41,9 @@ htmlcov/
 *.swo
 *~
 
+# Local uv path overrides (copy from .dev-sources.toml.example)
+.dev-sources.toml
+
 # Environment
 .env
 .venv

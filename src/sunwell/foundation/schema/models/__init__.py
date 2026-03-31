@@ -17,6 +17,16 @@ from sunwell.foundation.schema.models.heuristic import (
     Identity,
 )
 from sunwell.foundation.schema.models.persona import Persona, PersonaResult
+from sunwell.foundation.schema.models.skill import (
+    Resource,
+    Script,
+    Skill,
+    SkillRetryPolicy,
+    SkillType,
+    SkillValidation,
+    Template,
+    TrustLevel,
+)
 from sunwell.foundation.schema.models.types import (
     LensReference,
     SemanticVersion,
@@ -30,16 +40,6 @@ from sunwell.foundation.schema.models.validator import (
     SchemaValidationMethod,
     SchemaValidator,
     ValidationResult,
-)
-from sunwell.foundation.schema.models.skill import (
-    Resource,
-    Script,
-    Skill,
-    SkillRetryPolicy,
-    SkillType,
-    SkillValidation,
-    Template,
-    TrustLevel,
 )
 from sunwell.foundation.schema.models.workflow import Refiner, Workflow, WorkflowStep
 

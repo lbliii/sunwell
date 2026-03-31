@@ -72,6 +72,9 @@ sunwell chat
 
 Requires Python 3.14+ and [Ollama](https://ollama.ai).
 
+Install-time dependencies resolve from **PyPI** (no monorepo paths required). Contributors
+working against local `chirp` / `kida` / `chirp-ui` checkouts should see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ---
 
 ## The Five Capabilities
